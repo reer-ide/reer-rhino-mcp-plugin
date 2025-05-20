@@ -150,6 +150,10 @@ We welcome contributions to the REER Rhino MCP Plugin! To contribute:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+## License
+
+This project is licensed under a modified BSD 3-Clause License with additional protections for REER branding - see the [LICENSE](LICENSE) file for details.
+
 ## Acknowledgments
 
 - This plugin is built upon the [Rhino MCP project](https://github.com/reer-ide/rhino_mcp)
