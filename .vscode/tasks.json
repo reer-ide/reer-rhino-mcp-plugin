@@ -1,0 +1,52 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "command": "dotnet",
+      "type": "shell",
+      "args": [
+        "build",
+        "-clp:NoSummary",
+        "${workspaceFolder}/rhino_mcp_plugin.csproj"
+      ],
+      "problemMatcher": "$msCompile",
+      "presentation": {
+        "reveal": "always",
+        "clear": true
+      },
+      "group": "build"
+    },
+    {
+      "label": "build release",
+      "command": "dotnet",
+      "type": "shell",
+      "args": [
+        "build",
+        "-c:Release",
+        "-clp:NoSummary",
+        "${workspaceFolder}/rhino_mcp_plugin.csproj"
+      ],
+      "problemMatcher": "$msCompile",
+      "presentation": {
+        "reveal": "always",
+        "clear": true
+      },
+      "group": "build"
+    },
+    {
+      "label": "launch-rhino",
+      "command": "powershell",
+      "type": "shell",
+      "args": [
+        "-File",
+        "${workspaceFolder}/start-rhino.ps1"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

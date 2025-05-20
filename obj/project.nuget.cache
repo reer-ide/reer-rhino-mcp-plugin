@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "G1jOHC/iiM0=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Zhish\\OneDrive\\GitHub\\reer-rhino-mcp-plugin\\rhino_mcp_plugin.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Zhish\\.nuget\\packages\\rhinocommon\\8.0.23304.9001\\rhinocommon.8.0.23304.9001.nupkg.sha512",
+    "C:\\Users\\Zhish\\.nuget\\packages\\microsoft.netcore.app.ref\\7.0.20\\microsoft.netcore.app.ref.7.0.20.nupkg.sha512",
+    "C:\\Users\\Zhish\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\7.0.20\\microsoft.windowsdesktop.app.ref.7.0.20.nupkg.sha512",
+    "C:\\Users\\Zhish\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\7.0.20\\microsoft.aspnetcore.app.ref.7.0.20.nupkg.sha512"
+  ],
+  "logs": []
+}
