@@ -63,7 +63,7 @@ public class RhinoMCPConnectionManager
     
     public void SetConnectionMode(ConnectionMode mode, ConnectionSettings settings)
     {
-        // Switch between local and remote modes
+        // Manages MCP connections and ensures only one is active at a time
     }
 }
 ```
@@ -185,4 +185,5 @@ Test each component in isolation:
 ## Reference Implementation
 
 Use the reference implementation in @DesignDocs/example/rhino_mcp_plugin a guide for the local server, but adapt it to match the MCP protocol from the original Python implementation and extend it to support remote connections.
+
 

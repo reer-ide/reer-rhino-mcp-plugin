@@ -28,3 +28,5 @@ C:\Users\Zhish\OneDrive\GitHub\reer-rhino-mcp-plugin\obj\Debug\net7.0\refint\rhi
 C:\Users\Zhish\OneDrive\GitHub\reer-rhino-mcp-plugin\obj\Debug\net7.0\rhino_mcp_plugin.pdb
 C:\Users\Zhish\OneDrive\GitHub\reer-rhino-mcp-plugin\obj\Debug\net7.0\rhino_mcp_plugin.genruntimeconfig.cache
 C:\Users\Zhish\OneDrive\GitHub\reer-rhino-mcp-plugin\obj\Debug\net7.0\ref\rhino_mcp_plugin.rhp
+C:\Users\Zhish\OneDrive\GitHub\reer-rhino-mcp-plugin\bin\Debug\net7.0\Newtonsoft.Json.dll
+C:\Users\Zhish\OneDrive\GitHub\reer-rhino-mcp-plugin\obj\Debug\net7.0\rhino_mc.FCC8D200.Up2Date

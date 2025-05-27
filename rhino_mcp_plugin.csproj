@@ -23,6 +23,13 @@
   
   <ItemGroup>
     <PackageReference Include="RhinoCommon" Version="8.0.23304.9001" ExcludeAssets="runtime" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Compile Remove="DesignDocs\**" />
+    <EmbeddedResource Remove="DesignDocs\**" />
+    <None Remove="DesignDocs\**" />
   </ItemGroup>
   
 </Project>
