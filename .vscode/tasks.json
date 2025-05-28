@@ -2,43 +2,61 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "build",
+      "label": "build-debug",
       "command": "dotnet",
-      "type": "shell",
+      "type": "process",
       "args": [
         "build",
-        "-clp:NoSummary",
-        "${workspaceFolder}/rhino_mcp_plugin.csproj"
+        "${workspaceFolder}/rhino_mcp_plugin.csproj",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary",
+        "--configuration",
+        "Debug"
       ],
-      "problemMatcher": "$msCompile",
+      "group": "build",
       "presentation": {
-        "reveal": "always",
-        "clear": true
+        "reveal": "silent"
       },
-      "group": "build"
+      "problemMatcher": "$msCompile"
     },
     {
-      "label": "build release",
+      "label": "build-release",
       "command": "dotnet",
-      "type": "shell",
+      "type": "process",
       "args": [
         "build",
-        "-c:Release",
-        "-clp:NoSummary",
-        "${workspaceFolder}/rhino_mcp_plugin.csproj"
+        "${workspaceFolder}/rhino_mcp_plugin.csproj",
+        "/property:GenerateFullPaths=true",
+        "/consoleloggerparameters:NoSummary",
+        "--configuration",
+        "Release"
       ],
-      "problemMatcher": "$msCompile",
+      "group": "build",
       "presentation": {
-        "reveal": "always",
-        "clear": true
+        "reveal": "silent"
       },
-      "group": "build"
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "install-plugin-debug",
+      "command": "powershell",
+      "type": "process",
+      "args": [
+        "-Command",
+        "Copy-Item '${workspaceFolder}/bin/Debug/net48/rhino_mcp_plugin.rhp' '$env:APPDATA/McNeel/Rhinoceros/8.0/Plug-ins/' -Force"
+      ],
+      "group": "build",
+      "dependsOn": "build-debug",
+      "presentation": {
+        "reveal": "always"
+      }
     },
     {
       "label": "launch-rhino",
       "command": "powershell",
       "type": "shell",
       "args": [
+        "-ExecutionPolicy", "Bypass",
         "-File",
         "${workspaceFolder}/start-rhino.ps1"
       ],
@@ -46,7 +64,20 @@
         "reveal": "always",
         "panel": "new"
       },
-      "problemMatcher": []
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "build-and-launch-rhino",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "build-debug",
+        "launch-rhino"
+      ],
+      "group": "test",
+      "presentation": {
+        "reveal": "always"
+      }
     }
   ]
 }

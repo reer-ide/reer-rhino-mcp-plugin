@@ -75,21 +75,31 @@ namespace ReerRhinoMCPPlugin.Config
         /// <summary>
         /// Loads settings from Rhino's persistent storage
         /// </summary>
+        /// <param name="plugin">The plugin instance to load settings from</param>
         /// <returns>Loaded settings or default settings if none exist</returns>
-        public static RhinoMCPSettings Load()
+        public static RhinoMCPSettings Load(rhino_mcp_plugin.ReerRhinoMCPPlugin plugin = null)
         {
             lock (lockObject)
             {
                 try
                 {
-                    var plugin = rhino_mcp_plugin.ReerRhinoMCPPlugin.Instance;
-                    if (plugin == null)
+                    // Use provided plugin instance or fall back to static instance
+                    var pluginInstance = plugin ?? rhino_mcp_plugin.ReerRhinoMCPPlugin.Instance;
+                    
+                    if (pluginInstance == null)
                     {
                         RhinoApp.WriteLine("Plugin instance not available for loading settings, using defaults.");
                         return new RhinoMCPSettings();
                     }
                     
-                    string json = plugin.Settings.GetString(SETTINGS_KEY, null);
+                    // Check if Settings property is available
+                    if (pluginInstance.Settings == null)
+                    {
+                        RhinoApp.WriteLine("Plugin settings not yet initialized, using defaults.");
+                        return new RhinoMCPSettings();
+                    }
+                    
+                    string json = pluginInstance.Settings.GetString(SETTINGS_KEY, null);
                     
                     if (string.IsNullOrEmpty(json))
                     {

@@ -2,21 +2,20 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach to Rhino",
+      "name": "Attach to Rhino Process",
       "type": "coreclr",
       "request": "attach",
       "processId": "${command:pickProcess}",
       "justMyCode": false,
-      "requireExactSource": false,
-      "suppressJITOptimizations": true,
-      "preLaunchTask": "build"
+      "enableStepFiltering": false,
+      "suppressJITOptimizations": true
     }
   ],
   "compounds": [
     {
       "name": "Launch Rhino and Attach Debugger",
-      "configurations": ["Attach to Rhino"],
-      "preLaunchTask": "launch-rhino",
+      "configurations": ["Attach to Rhino Process"],
+      "preLaunchTask": "build-and-launch-rhino",
       "stopAll": true
     }
   ]

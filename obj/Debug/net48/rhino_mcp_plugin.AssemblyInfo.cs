@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("Description of rhino_mcp_plugin")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0+7607e7610252c9c6c825add0c6ffce356ca4a8f1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0+743dd90214d91226b7c470692ee63efbf499e5a4")]
 [assembly: System.Reflection.AssemblyProductAttribute("rhino_mcp_plugin")]
 [assembly: System.Reflection.AssemblyTitleAttribute("rhino_mcp_plugin")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

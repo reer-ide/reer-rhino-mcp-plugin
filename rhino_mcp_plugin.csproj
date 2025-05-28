@@ -13,6 +13,22 @@
     <NoWarn>NU1701</NoWarn>
   </PropertyGroup>
   
+  <!-- Debug configuration -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  
+  <!-- Release configuration -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>pdbonly</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  
   <PropertyGroup>
     <!-- Specifies information for Assembly and Yak -->
     <Version>1.0</Version>
@@ -27,9 +43,19 @@
   </ItemGroup>
   
   <ItemGroup>
-    <Compile Remove="DesignDocs\**" />
-    <EmbeddedResource Remove="DesignDocs\**" />
-    <None Remove="DesignDocs\**" />
+
+    
+    <!-- Exclude example/reference files -->
+    <Compile Remove="docs\**" />
+    <EmbeddedResource Remove="docs\**" />
+    <None Remove="docs\**" />
+    
+    <Compile Remove="Docs\**" />
+    <EmbeddedResource Remove="Docs\**" />
+    <None Remove="Docs\**" />
+    
+    <!-- Exclude AssemblyInfo.cs to avoid duplicate attributes -->
+    <Compile Remove="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   
 </Project>

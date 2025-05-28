@@ -3,6 +3,7 @@ using Rhino;
 using ReerRhinoMCPPlugin.Core;
 using ReerRhinoMCPPlugin.Core.Common;
 using ReerRhinoMCPPlugin.Config;
+using ReerRhinoMCPPlugin.Functions;
 
 namespace rhino_mcp_plugin
 {
@@ -18,6 +19,7 @@ namespace rhino_mcp_plugin
     {
         private IConnectionManager connectionManager;
         private RhinoMCPSettings settings;
+        private BasicCommandHandler commandHandler;
         
         public ReerRhinoMCPPlugin()
         {
@@ -46,8 +48,11 @@ namespace rhino_mcp_plugin
             {
                 RhinoApp.WriteLine("Loading REER Rhino MCP Plugin...");
                 
-                // Load settings
-                settings = RhinoMCPSettings.Load();
+                // Load settings - pass this instance to avoid null reference
+                settings = RhinoMCPSettings.Load(this);
+                
+                // Initialize command handler
+                commandHandler = new BasicCommandHandler();
                 
                 // Initialize connection manager
                 connectionManager = new RhinoMCPConnectionManager();
@@ -144,17 +149,19 @@ namespace rhino_mcp_plugin
                     RhinoApp.WriteLine($"Received MCP command from {e.ClientId}: {e.Command["type"]}");
                 }
                 
-                // TODO: Implement command processing
-                // This will be implemented in the next phase when we add command handlers
+                // Process command using the command handler
+                string response = commandHandler.ProcessCommand(e.Command, e.ClientId);
                 
-                // For now, just send a basic response using simple JSON string
-                string response = "{\"status\":\"error\",\"message\":\"Command processing not yet implemented\"}";
-                
+                // Send response back to client
                 _ = connectionManager.ActiveConnection?.SendResponseAsync(response, e.ClientId);
             }
             catch (Exception ex)
             {
                 RhinoApp.WriteLine($"Error processing command: {ex.Message}");
+                
+                // Send error response
+                string errorResponse = "{\"status\":\"error\",\"message\":\"Internal server error\"}";
+                _ = connectionManager.ActiveConnection?.SendResponseAsync(errorResponse, e.ClientId);
             }
         }
         
