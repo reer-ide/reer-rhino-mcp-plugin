@@ -5,9 +5,9 @@ using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Commands
 {
-    public class RhinoMCPCommand : Command
+    public class RhinoMCPServerCommand : Command
     {
-        public RhinoMCPCommand()
+        public RhinoMCPServerCommand()
         {
             // Rhino only creates one instance of each command class defined in a
             // plug-in, so it is safe to store a refence in a static property.
@@ -15,10 +15,10 @@ namespace ReerRhinoMCPPlugin.Commands
         }
 
         ///<summary>The only instance of this command.</summary>
-        public static RhinoMCPCommand Instance { get; private set; }
+        public static RhinoMCPServerCommand Instance { get; private set; }
 
         ///<returns>The command name as it appears on the Rhino command line.</returns>
-        public override string EnglishName => "RhinoMCP";
+        public override string EnglishName => "RhinoMCPServer";
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
@@ -110,7 +110,7 @@ namespace ReerRhinoMCPPlugin.Commands
 
         private void ShowStatus(IConnectionManager connectionManager, ReerRhinoMCPPlugin.Config.RhinoMCPSettings settings)
         {
-            RhinoApp.WriteLine("=== RhinoMCP Status ===");
+            RhinoApp.WriteLine("=== RhinoMCP Server Status ===");
             RhinoApp.WriteLine($"Status: {connectionManager.Status}");
             RhinoApp.WriteLine($"Connected: {connectionManager.IsConnected}");
             
@@ -124,7 +124,7 @@ namespace ReerRhinoMCPPlugin.Commands
                 RhinoApp.WriteLine($"Debug logging: {settings.EnableDebugLogging}");
             }
             
-            RhinoApp.WriteLine("======================");
+            RhinoApp.WriteLine("===============================");
         }
     }
 } 

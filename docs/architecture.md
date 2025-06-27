@@ -52,10 +52,10 @@ The plugin supports two distinct connection modes:
 ```
 ┌──────────────┐       ┌─────────────────┐       ┌──────────────┐
 │              │       │                 │       │              │
-│  Rhino MCP   │◄─────►│  Remote MCP     │◄─────►│  Web App     │
-│  Plugin      │   WS  │  Server         │  SSE  │  Backend     │
-│  (WebSocket  │       │  (Connection    │       │  (MCP        │
-│   Client)    │       │   Bridge)       │       │   Client)    │
+│  Rhino MCP   │◄─────►│  Remote MCP     │◄─────►│  Local CAD   │
+│  Plugin      │   WS  │  Server         │  SSE  │              │
+│  (WebSocket  │       │  (Connection    │       │  (MCP Client)│
+│   Client)    │       │   Bridge)       │       │              │
 │              │       │                 │       │              │
 └──────────────┘       └─────────────────┘       └──────────────┘
 ```

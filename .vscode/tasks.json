@@ -2,82 +2,37 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "build-debug",
+      "label": "build",
       "command": "dotnet",
-      "type": "process",
-      "args": [
-        "build",
-        "${workspaceFolder}/rhino_mcp_plugin.csproj",
-        "/property:GenerateFullPaths=true",
-        "/consoleloggerparameters:NoSummary",
-        "--configuration",
-        "Debug"
-      ],
-      "group": "build",
-      "presentation": {
-        "reveal": "silent"
-      },
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "build-release",
-      "command": "dotnet",
-      "type": "process",
-      "args": [
-        "build",
-        "${workspaceFolder}/rhino_mcp_plugin.csproj",
-        "/property:GenerateFullPaths=true",
-        "/consoleloggerparameters:NoSummary",
-        "--configuration",
-        "Release"
-      ],
-      "group": "build",
-      "presentation": {
-        "reveal": "silent"
-      },
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "install-plugin-debug",
-      "command": "powershell",
-      "type": "process",
-      "args": [
-        "-Command",
-        "Copy-Item '${workspaceFolder}/bin/Debug/net48/rhino_mcp_plugin.rhp' '$env:APPDATA/McNeel/Rhinoceros/8.0/Plug-ins/' -Force"
-      ],
-      "group": "build",
-      "dependsOn": "build-debug",
-      "presentation": {
-        "reveal": "always"
-      }
-    },
-    {
-      "label": "launch-rhino",
-      "command": "powershell",
       "type": "shell",
       "args": [
-        "-ExecutionPolicy", "Bypass",
-        "-File",
-        "${workspaceFolder}/start-rhino.ps1"
+        "build",
+        "-clp:NoSummary",
+        "${workspaceFolder}/rhino_mcp_plugin.csproj"
       ],
+      "problemMatcher": "$msCompile",
       "presentation": {
         "reveal": "always",
-        "panel": "new"
+        "clear": true
       },
-      "problemMatcher": [],
-      "group": "test"
+      "group": "build"
     },
     {
-      "label": "build-and-launch-rhino",
-      "dependsOrder": "sequence",
-      "dependsOn": [
-        "build-debug",
-        "launch-rhino"
+      "label": "build release",
+      "command": "dotnet",
+      "type": "shell",
+      "args": [
+        "build",
+        "-c:Release",
+        "-clp:NoSummary",
+        "${workspaceFolder}/rhino_mcp_plugin.csproj"
       ],
-      "group": "test",
+      "problemMatcher": "$msCompile",
       "presentation": {
-        "reveal": "always"
-      }
+        "reveal": "always",
+        "clear": true
+      },
+      "group": "build"
     }
   ]
 }

@@ -11,6 +11,9 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <TargetExt>.rhp</TargetExt>
     <NoWarn>NU1701</NoWarn>
+    
+    <!-- Disable auto-generated assembly attributes to avoid conflicts -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
   
   <!-- Debug configuration -->
@@ -54,8 +57,7 @@
     <EmbeddedResource Remove="Docs\**" />
     <None Remove="Docs\**" />
     
-    <!-- Exclude AssemblyInfo.cs to avoid duplicate attributes -->
-    <Compile Remove="Properties\AssemblyInfo.cs" />
+    <!-- AssemblyInfo.cs is now included since GenerateAssemblyInfo is false -->
   </ItemGroup>
   
 </Project>

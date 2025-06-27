@@ -9,18 +9,20 @@ This project is a Rhino plugin that implements the Model Context Protocol (MCP) 
 
 ## Key Files
 
-- [ReerRhinoMCPPlugin.cs](mdc:ReerRhinoMCPPlugin.cs): The main plugin class that initializes the plugin
-- [rhino_mcp_Command.cs](mdc:rhino_mcp_Command.cs): Initial command template to be expanded for MCP commands
+- `ReerRhinoMCPPlugin.cs`: The main plugin class that initializes and manages the plugin lifecycle.
+- `Commands/RhinoMCPServerCommand.cs`: The Rhino command to start and stop the MCP server.
+- `Core/RhinoMCPConnectionManager.cs`: The central class for managing connection state (local server or remote client).
+- `Core/Server/RhinoMCPServer.cs`: The implementation for the local TCP server.
+- `Core/Client/RhinoMCPClient.cs`: The placeholder for the remote WebSocket client.
+- `Config/RhinoMCPSettings.cs`: Handles persistent plugin settings.
 
 ## Implementation Approach
 
-The plugin implements a TCP socket server that listens for MCP commands from clients like Claude Desktop. It then executes these commands in Rhino and returns the results back to the client.
+The plugin supports two connection modes:
+1.  A local TCP socket server that listens for MCP commands from clients like Claude Desktop.
+2.  A remote WebSocket client that connects to a cloud-based MCP bridge.
 
-The project structure will include:
-- Socket server implementation
-- Command handlers for MCP protocol
-- Serialization utilities for Rhino objects
-- UI for plugin configuration
+It executes these commands in Rhino and returns the results back to the client. The project is built with a modular architecture to separate concerns for connectivity, command handling, and configuration.
 
 ## Development Roadmap
 

@@ -171,6 +171,28 @@ public class RhinoMCPConnectionManager
    }
    ```
 
+## Debugging
+
+This project is configured for debugging with Visual Studio Code.
+
+### VS Code Setup
+
+The `.vscode` directory contains two launch configurations:
+
+1.  **`Rhino 8 - netcore`**: Launches Rhino 8, loads the .NET Core version of the plugin, and attaches the debugger. Use this for modern .NET development.
+2.  **`Rhino 8 Windows - netfx`**: Launches Rhino 8, loads the .NET Framework 4.8 version of the plugin, and attaches the debugger. Use this for maximum compatibility with Rhino 8 on Windows.
+
+### How to Debug
+
+1.  **Select a Launch Configuration**: Open the "Run and Debug" view in VS Code (Ctrl+Shift+D) and select either the `netcore` or `netfx` configuration from the dropdown menu.
+2.  **Set Breakpoints**: Place breakpoints in your C# code where you want the debugger to pause. For example, in `RhinoMCPServer.cs` to debug the server lifecycle.
+3.  **Start Debugging**: Press **F5** or click the "Start Debugging" button.
+4.  **Process**: VS Code will:
+    *   Run the `build` task to compile the plugin.
+    *   Launch Rhino 8.
+    *   Attach the debugger to the `Rhino.exe` process.
+5.  **Verify**: Once Rhino starts, your breakpoints should become active (solid red). You can then use the Rhino commands (e.g., `RhinoMCPServer`) to trigger your code and hit the breakpoints.
+
 ## Testing
 
 Test each component in isolation:
@@ -184,6 +206,6 @@ Test each component in isolation:
 
 ## Reference Implementation
 
-Use the reference implementation in @DesignDocs/example/rhino_mcp_plugin a guide for the local server, but adapt it to match the MCP protocol from the original Python implementation and extend it to support remote connections.
+Use the reference implementation in the `docs/example` directory as a guide for the local server, but adapt it to match the MCP protocol from the original Python implementation and extend it to support remote connections.
 
 
