@@ -32,27 +32,34 @@ The REER Rhino MCP Plugin is an official plugin implementation of the [Rhino MCP
 
 ## Usage
 
+### Quick Start
+
+1. Install the plugin (see Installation section above)
+2. In Rhino, type the command `RhinoReer`
+3. Enter `local_start` to start the local MCP server
+4. The server will start on localhost:1999 and be ready for connections
+
 ### Connecting to Claude AI Desktop
 
 1. Install [Claude AI Desktop](https://claude.ai/desktop)
-2. In Rhino, type the command `RhinoMCP` to open the connection panel
-3. Select "Local Connection" and click "Connect"
+2. Configure Claude Desktop to connect to the local MCP server (localhost:1999)
+3. In Rhino, start the server with `RhinoReer` → `local_start`
 4. In Claude Desktop, you can now interact with Rhino by asking it to create, modify, or analyze 3D models
-
-### Connecting to Remote MCP Server
-
-1. In Rhino, type the command `RhinoMCP` to open the connection panel
-2. Select "Remote Connection"
-3. Enter the server URL/Token provided by your organization or by REER
-4. Click "Connect"
-5. Use your preferred AI interface to interact with Rhino
 
 ### Available Commands
 
-- `RhinoMCP`: Opens the main connection panel
-- `RhinoMCPConnect`: Quickly connects to the default MCP server
-- `RhinoMCPDisconnect`: Disconnects from the current MCP server
-- `RhinoMCPSettings`: Opens the settings panel for configuring connection preferences
+- `RhinoReer`: Main command to start/stop the MCP server
+  - `local_start`: Start the local TCP server
+  - `stop`: Stop the running server
+  - `status`: Show current server status
+
+## Testing
+
+To test the plugin without Claude AI:
+
+1. Start the server: `RhinoReer` → `local_start`
+2. Run the test client: `python test_client.py`
+3. The test client will connect and send sample commands to verify the server is working
 
 ## Example Interactions
 

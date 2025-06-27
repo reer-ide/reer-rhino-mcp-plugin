@@ -36,8 +36,8 @@
     <!-- Specifies information for Assembly and Yak -->
     <Version>1.0</Version>
     <Title>rhino_mcp_plugin</Title>
-    <Company>rhino_mcp_plugin Authors</Company>
-    <Description>Description of rhino_mcp_plugin</Description>
+    <Company>reer, inc.</Company>
+    <Description>reer, inc. MCP Plugin for Rhino</Description>
   </PropertyGroup>
   
   <ItemGroup>

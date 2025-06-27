@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """
-Simple test client for the Rhino MCP Plugin TCP server
+Test client for the RhinoReer MCP Plugin TCP server
+
+Usage:
+1. Start Rhino and load the RhinoReer plugin
+2. In Rhino command line, type: RhinoReer
+3. Enter: local_start
+4. Run this test client: python test_client.py
+
+This client connects to the running RhinoReer server and sends test commands.
 """
 
 import socket
@@ -11,7 +19,9 @@ import sys
 def test_mcp_server(host='127.0.0.1', port=1999):
     """Test the MCP server with various commands"""
     
-    print(f"Connecting to Rhino MCP server at {host}:{port}...")
+    print(f"Connecting to RhinoReer MCP server at {host}:{port}...")
+    print("Make sure you've started the server in Rhino with: RhinoReer → local_start")
+    print()
     
     try:
         # Create socket connection
@@ -19,7 +29,7 @@ def test_mcp_server(host='127.0.0.1', port=1999):
         sock.settimeout(10)  # 10 second timeout
         sock.connect((host, port))
         
-        print("Connected successfully!")
+        print("✓ Connected successfully!")
         
         # Test commands
         test_commands = [
@@ -72,8 +82,10 @@ def test_mcp_server(host='127.0.0.1', port=1999):
         print("\n--- All tests completed ---")
         
     except ConnectionRefusedError:
-        print(f"ERROR: Could not connect to server at {host}:{port}")
-        print("Make sure the Rhino MCP Plugin is loaded and the server is running.")
+        print(f"✗ ERROR: Could not connect to server at {host}:{port}")
+        print("Make sure you have:")
+        print("  1. Rhino running with RhinoReer plugin loaded")
+        print("  2. Started the server with: RhinoReer → local_start")
         return False
     except socket.timeout:
         print("ERROR: Connection timed out")
@@ -94,7 +106,7 @@ if __name__ == "__main__":
     host = sys.argv[1] if len(sys.argv) > 1 else '127.0.0.1'
     port = int(sys.argv[2]) if len(sys.argv) > 2 else 1999
     
-    print("Rhino MCP Plugin Test Client")
+    print("RhinoReer MCP Plugin Test Client")
     print("=" * 40)
     
     success = test_mcp_server(host, port)

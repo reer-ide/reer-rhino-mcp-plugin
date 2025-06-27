@@ -18,7 +18,7 @@ namespace ReerRhinoMCPPlugin.Commands
         public static RhinoMCPServerCommand Instance { get; private set; }
 
         ///<returns>The command name as it appears on the Rhino command line.</returns>
-        public override string EnglishName => "RhinoMCPServer";
+        public override string EnglishName => "RhinoReer";
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
@@ -44,75 +44,88 @@ namespace ReerRhinoMCPPlugin.Commands
 
             RhinoApp.WriteLine($"Current MCP Status: {status}");
 
-            if (isConnected)
-            {
-                // Server is running, ask if user wants to stop it
-                RhinoApp.WriteLine("MCP Server is running. Type 'stop' to stop it, or press Enter to show status.");
+            // Get user input for command
+            string input = "";
+            string prompt = isConnected ? 
+                "Server is running. Commands: 'stop', 'status', or press Enter for status" :
+                "Server stopped. Commands: 'local_start', 'status', or press Enter for status";
                 
-                string input = "";
-                if (Rhino.Input.RhinoGet.GetString("Enter command (stop/status)", true, ref input) == Result.Success)
+            if (Rhino.Input.RhinoGet.GetString(prompt, true, ref input) == Result.Success)
+            {
+                string command = input.ToLowerInvariant().Trim();
+                
+                switch (command)
                 {
-                    if (input.ToLowerInvariant() == "stop")
-                    {
+                    case "local_start":
+                        if (isConnected)
+                        {
+                            RhinoApp.WriteLine("Server is already running. Use 'stop' first if you want to restart.");
+                            break;
+                        }
+                        
+                        RhinoApp.WriteLine("Starting local MCP server...");
+                        var connectionSettings = settings.GetDefaultConnectionSettings();
+                        connectionSettings.Mode = ConnectionMode.Local; // Ensure local mode
+                        
+                        var startTask = connectionManager.StartConnectionAsync(connectionSettings);
+                        startTask.Wait(10000); // 10 second timeout
+                        
+                        if (connectionManager.IsConnected)
+                        {
+                            RhinoApp.WriteLine($"✓ Local MCP server started successfully on {connectionSettings.LocalHost}:{connectionSettings.LocalPort}");
+                            RhinoApp.WriteLine("Ready for connections. You can now test with: python test_client.py");
+                            return Result.Success;
+                        }
+                        else
+                        {
+                            RhinoApp.WriteLine("✗ Failed to start local MCP server");
+                            return Result.Failure;
+                        }
+                        
+                    case "stop":
+                        if (!isConnected)
+                        {
+                            RhinoApp.WriteLine("Server is not running.");
+                            break;
+                        }
+                        
                         RhinoApp.WriteLine("Stopping MCP server...");
                         var stopTask = connectionManager.StopConnectionAsync();
                         stopTask.Wait(5000);
                         
                         if (!connectionManager.IsConnected)
                         {
-                            RhinoApp.WriteLine("MCP server stopped successfully");
+                            RhinoApp.WriteLine("✓ MCP server stopped successfully");
                             return Result.Success;
                         }
                         else
                         {
-                            RhinoApp.WriteLine("Failed to stop MCP server");
+                            RhinoApp.WriteLine("✗ Failed to stop MCP server");
                             return Result.Failure;
                         }
-                    }
-                }
-
-                // Show current status
-                ShowStatus(connectionManager, settings);
-                return Result.Success;
-            }
-            else
-            {
-                // Server is not running, ask if user wants to start it
-                string input = "";
-                if (Rhino.Input.RhinoGet.GetString("MCP Server is not running. Type 'start' to start it", true, ref input) == Result.Success)
-                {
-                    if (input.ToLowerInvariant() == "start")
-                    {
-                        RhinoApp.WriteLine("Starting MCP server...");
                         
-                        var connectionSettings = settings.GetDefaultConnectionSettings();
-                        var startTask = connectionManager.StartConnectionAsync(connectionSettings);
-                        startTask.Wait(10000); // 10 second timeout
+                    case "status":
+                    case "":
+                        // Show status (handled below)
+                        break;
                         
-                        if (connectionManager.IsConnected)
-                        {
-                            RhinoApp.WriteLine($"MCP server started successfully on {connectionSettings.LocalHost}:{connectionSettings.LocalPort}");
-                            RhinoApp.WriteLine("You can now test it with the Python test client: python test_client.py");
-                            return Result.Success;
-                        }
-                        else
-                        {
-                            RhinoApp.WriteLine("Failed to start MCP server");
-                            return Result.Failure;
-                        }
-                    }
+                    default:
+                        RhinoApp.WriteLine($"Unknown command: '{input}'");
+                        RhinoApp.WriteLine("Available commands: local_start, stop, status");
+                        break;
                 }
-
-                ShowStatus(connectionManager, settings);
-                return Result.Success;
             }
+
+            // Show current status
+            ShowStatus(connectionManager, settings);
+            return Result.Success;
         }
 
         private void ShowStatus(IConnectionManager connectionManager, ReerRhinoMCPPlugin.Config.RhinoMCPSettings settings)
         {
-            RhinoApp.WriteLine("=== RhinoMCP Server Status ===");
+            RhinoApp.WriteLine("=== RhinoReer MCP Server Status ===");
             RhinoApp.WriteLine($"Status: {connectionManager.Status}");
-            RhinoApp.WriteLine($"Connected: {connectionManager.IsConnected}");
+            RhinoApp.WriteLine($"Connected: {(connectionManager.IsConnected ? "✓ YES" : "✗ NO")}");
             
             if (settings != null)
             {
@@ -124,7 +137,18 @@ namespace ReerRhinoMCPPlugin.Commands
                 RhinoApp.WriteLine($"Debug logging: {settings.EnableDebugLogging}");
             }
             
-            RhinoApp.WriteLine("===============================");
+            RhinoApp.WriteLine("");
+            if (connectionManager.IsConnected)
+            {
+                RhinoApp.WriteLine("🔗 Server is running and ready for connections");
+                RhinoApp.WriteLine("   Test with: python test_client.py");
+            }
+            else
+            {
+                RhinoApp.WriteLine("💤 Server is stopped");
+                RhinoApp.WriteLine("   Start with: RhinoReer → local_start");
+            }
+            RhinoApp.WriteLine("=====================================");
         }
     }
 } 
