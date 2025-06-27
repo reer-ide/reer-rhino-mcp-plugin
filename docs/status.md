@@ -1,85 +1,48 @@
 # REER Rhino MCP Plugin Development Status
 
-This document tracks development progress for the REER Rhino MCP Plugin.
+This document tracks the development roadmap and progress for the REER Rhino MCP Plugin.
 
-## Current Implementation Status
+## Development Roadmap
 
 ### Phase 1: Core Infrastructure ✅ COMPLETED
+- [x] **Project Setup**: Implemented the core directory structure, namespaces, and project configurations.
+- [x] **Core Interfaces**: Defined `IRhinoMCPConnection`, `IConnectionManager`, and event argument classes.
+- [x] **Configuration System**: Created `RhinoMCPSettings` for persistent settings management.
+- [x] **Connection Manager**: Built the `RhinoMCPConnectionManager` to handle connection state.
+- [x] **Plugin Integration**: Integrated the manager into the main plugin lifecycle.
+- [x] **VS Code Debugging**: Fixed and configured `.vscode/launch.json` and `.vscode/tasks.json` for a smooth debugging experience.
 
-**1. Directory Structure Setup**
-- [x] Create directory structure following the implementation guide
-- [x] Set up basic namespaces and organization
+### Phase 2: Local Server and Command Interface ✅ COMPLETED
+- [x] **TCP Server**: Implemented the `RhinoMCPServer` for handling local connections.
+- [x] **Command Interface**: Created the interactive `RhinoReer` command (`local_start`, `stop`, `status`).
+- [x] **Test Client**: Updated `test_client.py` to align with the new command-driven workflow.
+- [x] **Documentation**: Updated all relevant documents with the new workflow and command structure.
 
-**2. Common Interfaces**
-- [x] `IRhinoMCPConnection`: Common interface for both connection types
-- [x] `IConnectionManager`: Interface for managing connections
-- [x] Event argument classes for command handling
+### Phase 3: Resource Monitoring and MCP Resources 🚧 NEXT
+- [ ] **Resource Monitoring Service**:
+    - [ ] Implement a service to hook into Rhino events (`BeginCommand`, `AddRhinoObject`, etc.).
+    - [ ] Subscribe to events in a thread-safe manner.
+- [ ] **MCP Resource Data**:
+    - [ ] Define the data structures for `command_history` and `document_metadata`.
+    - [ ] Implement logic to populate these structures from Rhino events.
+- [ ] **Expose Resources**:
+    - [ ] Add an endpoint to `RhinoMCPServer` to expose these resources via MCP.
+    - [ ] Implement basic query support for the resources.
 
-**3. Configuration System**
-- [x] `ConnectionMode` enum (Local, Remote)
-- [x] `ConnectionSettings` class for storing connection parameters
-- [x] `RhinoMCPSettings` class for persistent settings storage
-- [x] Settings serialization/deserialization
+### Phase 4: User Interface and First-Time Setup 🗓️ FUTURE
+- [ ] **Settings Dialog**:
+    - [ ] Create an Eto-based UI dialog for connection settings.
+    - [ ] Implement logic to show the dialog on the first run.
+- [ ] **Command Integration**: Add a `configure` option to the `RhinoReer` command to open the dialog manually.
+- [ ] **Refine Settings**: Improve the `RhinoMCPSettings` class to handle both local and remote configurations from the UI.
 
-**4. Connection Manager**
-- [x] `RhinoMCPConnectionManager`: Central coordinator
-- [x] Connection state management
-- [x] Mode switching logic (ensuring only one active connection)
-- [x] Event handling for connection status changes
+### Phase 5: Remote Client and Authentication 🗓️ FUTURE
+- [ ] **WebSocket Client**: Implement the `RhinoMCPClient` for connecting to a remote MCP server.
+- [ ] **Authentication**: Add token-based authentication for the remote connection.
+- [ ] **Remote Mode UI**: Integrate remote settings into the configuration dialog.
 
-**5. Plugin Structure**
-- [x] Main plugin class with connection manager integration
-- [x] Plugin lifecycle management (start/stop/cleanup)
-- [x] Error handling and logging framework
-
-**6. Development Environment**
-- [x] VS Code debugging configuration (fixed JSON syntax errors)
-- [x] Assembly attribute conflicts resolved (CS0579)
-- [x] Build tasks working properly
-
-**7. Command Interface**
-- [x] `RhinoReer` command implemented with interactive prompts
-- [x] Support for `local_start`, `stop`, and `status` commands
-- [x] Clear user feedback and status display
-
-### Phase 2: TCP Server Implementation 🚧 IN PROGRESS
-
-**1. Server Core**
-- [x] `RhinoMCPServer` class with full TCP server implementation
-- [x] Client connection management
-- [x] Thread-safe operations
-- [x] Proper cleanup and disposal
-
-**2. Testing Infrastructure**
-- [x] Python test client updated for new workflow
-- [x] Clear instructions for server startup and testing
-- [ ] Command handler implementation (next step)
-
-### Current Workflow
-
-**To start the server:**
-1. Load plugin in Rhino
-2. Run command: `RhinoReer`
-3. Enter: `local_start`
-4. Server starts on localhost:1999
-
-**To test:**
-1. Run: `python test_client.py`
-2. Client connects and sends test commands
-
-### Build Status:
+## Build Status
 - ✅ Compiles successfully for .NET 4.8 and .NET 7.0
 - ✅ VS Code debugging working (both netcore and netfx configurations)
-- ⚠️ Expected warnings for placeholder WebSocket client implementation
-
-### Next Steps:
-1. Implement actual MCP command handlers in the server
-2. Add proper JSON command parsing and routing
-3. Implement basic MCP protocol commands (ping, get_rhino_info, etc.)
-4. Test end-to-end functionality
-
-### Documentation:
-- [x] Updated project overview and technical documentation
-- [x] Streamlined debugging guide in technical.md
-- [x] Removed redundant documentation files
+- ⚠️ Expected warnings for placeholder WebSocket client implementation.
 

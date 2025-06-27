@@ -53,10 +53,6 @@
     <EmbeddedResource Remove="docs\**" />
     <None Remove="docs\**" />
     
-    <Compile Remove="Docs\**" />
-    <EmbeddedResource Remove="Docs\**" />
-    <None Remove="Docs\**" />
-    
     <!-- AssemblyInfo.cs is now included since GenerateAssemblyInfo is false -->
   </ItemGroup>
   

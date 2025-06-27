@@ -1,8 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: false
----
 # Implementation Guide
 
 This guide outlines the implementation approach and best practices for developing the REER Rhino MCP Plugin.
@@ -207,5 +202,81 @@ Test each component in isolation:
 ## Reference Implementation
 
 Use the reference implementation in the `docs/example` directory as a guide for the local server, but adapt it to match the MCP protocol from the original Python implementation and extend it to support remote connections.
+
+## UI and Configuration Flow
+
+For a seamless user experience, the plugin will manage configuration as follows:
+
+1.  **First Run Detection**: On `Plugin.OnLoad`, the plugin will check if a configuration file or essential settings exist.
+2.  **Configuration Dialog**: If it's the first run (or settings are invalid), an Eto-based dialog will be displayed, prompting the user to configure:
+    *   **Connection Mode**: Local or Remote.
+    *   **Local Settings**: Port number (e.g., 1999).
+    *   **Remote Settings**: Server URL and an authentication token.
+3.  **Settings Persistence**: The `RhinoMCPSettings` class will save these settings to Rhino's persistent settings storage. This avoids loose config files and integrates well with Rhino's infrastructure.
+4.  **Manual Configuration**: The `RhinoReer` command will be extended with a `configure` option (e.g., `RhinoReer configure`) to allow users to open the settings dialog manually at any time.
+
+## Resource Monitoring
+
+To provide the AI with real-time context about the user's session, a monitoring service will be implemented.
+
+### Event Handling
+
+The service will subscribe to the following Rhino events:
+
+-   `Rhino.Commands.Command.BeginCommand`: Log when a command starts.
+-   `Rhino.Commands.Command.EndCommand`: Log the command's completion status and runtime.
+-   `RhinoDoc.AddRhinoObject`: Triggered when a new object is created.
+-   `RhinoDoc.DeleteRhinoObject`: Triggered when an object is deleted.
+-   `RhinoDoc.ReplaceRhinoObject`: Triggered for modifications.
+-   `RhinoDoc.ModifiedChanged`: A general event to catch other document changes.
+
+### MCP Resource Structures
+
+The monitoring service will populate data structures that are then exposed as MCP Resources.
+
+**1. `command_history` (Temporary Resource)**
+
+A capped-size, in-memory list of the most recent commands.
+
+```json
+{
+  "resource_name": "command_history",
+  "data": [
+    {
+      "command_name": "Box",
+      "timestamp_start": "2023-10-27T10:00:05Z",
+      "timestamp_end": "2023-10-27T10:00:10Z",
+      "status": "success",
+      "result_summary": "Created 1 box object."
+    },
+    {
+      "command_name": "Move",
+      "timestamp_start": "2023-10-27T10:00:15Z",
+      "timestamp_end": "2023-10-27T10:00:18Z",
+      "status": "success",
+      "result_summary": "Moved 1 object."
+    }
+  ]
+}
+```
+
+**2. `document_metadata` (Persistent Resource)**
+
+Metadata about the current Rhino document.
+
+```json
+{
+  "resource_name": "document_metadata",
+  "data": {
+    "file_name": "project_x.3dm",
+    "file_path": "C:\\Users\\User\\Documents\\project_x.3dm",
+    "object_count": 152,
+    "layer_count": 12,
+    "units": "millimeters"
+  }
+}
+```
+
+This service will run on a background thread to avoid blocking the Rhino UI thread.
 
 
