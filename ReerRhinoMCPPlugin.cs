@@ -46,26 +46,35 @@ namespace rhino_mcp_plugin
         {
             try
             {
-                RhinoApp.WriteLine("Loading REER Rhino MCP Plugin...");
+                RhinoApp.WriteLine("=== REER Rhino MCP Plugin Loading Started ===");
                 
                 // Load settings - pass this instance to avoid null reference
+                RhinoApp.WriteLine("Loading plugin settings...");
                 settings = RhinoMCPSettings.Load(this);
+                RhinoApp.WriteLine($"Settings loaded: AutoStart={settings.AutoStart}, EnableDebugLogging={settings.EnableDebugLogging}");
                 
                 // Initialize command handler
+                RhinoApp.WriteLine("Initializing command handler...");
                 commandHandler = new BasicCommandHandler();
+                RhinoApp.WriteLine("Command handler initialized successfully");
                 
                 // Initialize connection manager
+                RhinoApp.WriteLine("Initializing connection manager...");
                 connectionManager = new RhinoMCPConnectionManager();
+                RhinoApp.WriteLine("Connection manager initialized successfully");
                 
                 // Subscribe to connection events
+                RhinoApp.WriteLine("Subscribing to connection events...");
                 connectionManager.CommandReceived += OnCommandReceived;
                 connectionManager.StatusChanged += OnConnectionStatusChanged;
+                RhinoApp.WriteLine("Event subscriptions completed");
                 
-                RhinoApp.WriteLine("REER Rhino MCP Plugin loaded successfully");
+                RhinoApp.WriteLine("=== REER Rhino MCP Plugin loaded successfully ===");
                 
                 // Auto-start connection if enabled
                 if (settings.AutoStart && settings.IsValid())
                 {
+                    RhinoApp.WriteLine("Auto-start is enabled and settings are valid. Starting connection...");
                     _ = System.Threading.Tasks.Task.Run(async () =>
                     {
                         try
@@ -75,7 +84,7 @@ namespace rhino_mcp_plugin
                             
                             if (success)
                             {
-                                RhinoApp.WriteLine("Auto-started MCP connection");
+                                RhinoApp.WriteLine("Auto-started MCP connection successfully");
                             }
                             else
                             {
@@ -85,16 +94,36 @@ namespace rhino_mcp_plugin
                         catch (Exception ex)
                         {
                             RhinoApp.WriteLine($"Error during auto-start: {ex.Message}");
+                            RhinoApp.WriteLine($"Stack trace: {ex.StackTrace}");
                         }
                     });
+                }
+                else
+                {
+                    RhinoApp.WriteLine($"Auto-start disabled or invalid settings. AutoStart={settings.AutoStart}, IsValid={settings.IsValid()}");
                 }
                 
                 return Rhino.PlugIns.LoadReturnCode.Success;
             }
+            catch (System.IO.FileNotFoundException fileEx)
+            {
+                errorMessage = $"Assembly loading error in REER Rhino MCP Plugin: {fileEx.Message}";
+                RhinoApp.WriteLine($"File not found: {fileEx.FileName}");
+                RhinoApp.WriteLine($"Full error: {errorMessage}");
+                return Rhino.PlugIns.LoadReturnCode.ErrorShowDialog;
+            }
+            catch (System.BadImageFormatException imageEx)
+            {
+                errorMessage = $"Assembly format error in REER Rhino MCP Plugin: {imageEx.Message}";
+                RhinoApp.WriteLine($"Bad image format: {errorMessage}");
+                return Rhino.PlugIns.LoadReturnCode.ErrorShowDialog;
+            }
             catch (Exception ex)
             {
                 errorMessage = $"Error loading REER Rhino MCP Plugin: {ex.Message}";
-                RhinoApp.WriteLine(errorMessage);
+                RhinoApp.WriteLine($"General error: {errorMessage}");
+                RhinoApp.WriteLine($"Exception type: {ex.GetType().Name}");
+                RhinoApp.WriteLine($"Stack trace: {ex.StackTrace}");
                 return Rhino.PlugIns.LoadReturnCode.ErrorShowDialog;
             }
         }

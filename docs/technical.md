@@ -11,7 +11,15 @@ The project follows this directory structure:
   - `Server/`: Local TCP server implementation
   - `Client/`: WebSocket client for remote connections
   - `Common/`: Shared utilities and interfaces
+  - `ComponentLibrary/`: Grasshopper component library management
+    - `ComponentLibraryService.cs`: Main service for scanning and managing components
+    - `Models/`: Data models for component information
+    - `Storage/`: JSON serialization and file management
+    - `Search/`: Component search and lookup functionality
 - `Functions/`: MCP command handlers
+  - `GrasshopperTools/`: Grasshopper-specific MCP tools
+    - `LookupGHComponentsTool.cs`: Component search tool
+    - `CreateGHComponentTool.cs`: Component creation tool
 - `Serializers/`: JSON serialization utilities
 - `UI/`: User interface components
 - `Config/`: Configuration and settings management
@@ -81,7 +89,86 @@ public class RhinoMCPConnectionManager
    }
    ```
 
-2. **Partial Classes**
+2. **Component Library Service**
+
+   Manage Grasshopper component library information:
+
+   ```csharp
+   // Core/ComponentLibraryService.cs
+   public class ComponentLibraryService
+   {
+       private ComponentLibraryData _libraryData;
+       private readonly string _cacheFilePath;
+       
+       public void Initialize()
+       {
+           // Check if library cache needs updating
+           // Load existing cache or perform initial scan
+       }
+       
+       public bool ShouldUpdateLibrary()
+       {
+           // Compare current library signature with cached version
+           // Return true if libraries have changed
+       }
+       
+       public void ScanAndStoreLibraries()
+       {
+           // Scan all loaded Grasshopper libraries
+           // Extract component metadata
+           // Store in local JSON cache
+       }
+       
+       public ComponentSearchResult SearchComponents(string[] keywords, string category = null)
+       {
+           // Search cached components by keywords and category
+           // Return ranked results with relevance scores
+       }
+       
+       private string GenerateLibrarySignature()
+       {
+           // Create hash-based fingerprint of loaded libraries
+           // Used for change detection
+       }
+   }
+   ```
+
+3. **Component Data Models**
+
+   Define data structures for component information:
+
+   ```csharp
+   // Core/Models/ComponentLibraryData.cs
+   public class ComponentLibraryData
+   {
+       public string Version { get; set; }
+       public DateTime ScanDate { get; set; }
+       public string RhinoVersion { get; set; }
+       public string GrasshopperVersion { get; set; }
+       public List<LibraryInfo> Libraries { get; set; }
+   }
+   
+   public class LibraryInfo
+   {
+       public string Name { get; set; }
+       public string Author { get; set; }
+       public bool IsCoreLibrary { get; set; }
+       public List<ComponentInfo> Components { get; set; }
+   }
+   
+   public class ComponentInfo
+   {
+       public string Name { get; set; }
+       public string ComponentGuid { get; set; }
+       public string Category { get; set; }
+       public string SubCategory { get; set; }
+       public string Description { get; set; }
+       public List<ParameterInfo> Inputs { get; set; }
+       public List<ParameterInfo> Outputs { get; set; }
+   }
+   ```
+
+4. **Partial Classes**
    
    Use partial classes to organize related functionality:
 
@@ -96,7 +183,7 @@ public class RhinoMCPConnectionManager
    }
    ```
 
-3. **Thread Safety**
+5. **Thread Safety**
 
    Always use thread synchronization when accessing shared resources:
 
@@ -112,7 +199,7 @@ public class RhinoMCPConnectionManager
    }
    ```
 
-4. **Rhino UI Thread**
+6. **Rhino UI Thread**
 
    Execute Rhino operations on the UI thread:
 
@@ -123,7 +210,7 @@ public class RhinoMCPConnectionManager
    }));
    ```
 
-5. **Error Handling**
+7. **Error Handling**
 
    Use consistent error handling pattern:
 
@@ -142,7 +229,7 @@ public class RhinoMCPConnectionManager
    }
    ```
 
-6. **Configuration Management**
+8. **Configuration Management**
 
    Store and retrieve user settings:
 

@@ -104,49 +104,6 @@ This plugin is built using RhinoCommon and targets both Rhino 7 and Rhino 8.
 2. In project properties, set the debug executable to Rhino.exe
 3. Press F5 to launch Rhino with the debugger attached
 
-#### In Cursor or Other Editors
-
-See the "Debugging in Cursor" section below for alternative debugging approaches.
-
-## Debugging in Cursor
-
-Since direct debugging launch doesn't work properly in Cursor, use the following steps to debug your plugin:
-
-### Method 1: Build, Launch Rhino, Then Attach Debugger
-
-1. Build the plugin:
-   ```
-   dotnet build
-   ```
-
-2. Launch Rhino using the PowerShell script:
-   ```
-   .\start-rhino.ps1
-   ```
-
-3. In Rhino, install the plugin:
-   - Go to Tools > Options > Plugins
-   - Click "Install..."
-   - Navigate to the `bin\Debug` folder
-   - Select the `.rhp` file and install it
-
-4. In Cursor's Debug panel:
-   - Select "Attach to Rhino"
-   - Click the green start button
-   - When prompted, select the Rhino process from the list
-
-5. Set breakpoints in your code and use your plugin in Rhino to trigger them
-
-### Method 2: Using the Compound Debug Configuration
-
-1. In Cursor's Debug panel:
-   - Select "Launch Rhino and Attach Debugger"
-   - Click the green start button
-   - This will build the project, launch Rhino, and prepare to attach the debugger
-   - When prompted, select the Rhino process
-
-2. Install the plugin in Rhino as described in Method 1, step 3
-
 ## Contributing
 
 We welcome contributions to the REER Rhino MCP Plugin! To contribute:
