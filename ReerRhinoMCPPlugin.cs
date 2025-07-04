@@ -11,7 +11,6 @@ using ReerRhinoMCPPlugin.Commands;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
-using Material.Avalonia;
 using ReerRhinoMCPPlugin.UI;
 
 namespace rhino_mcp_plugin

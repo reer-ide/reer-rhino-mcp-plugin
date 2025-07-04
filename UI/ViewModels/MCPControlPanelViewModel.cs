@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia.Controls;
 using Avalonia.Media;
 using Rhino;
 using ReerRhinoMCPPlugin.Core.Common;
@@ -220,7 +221,7 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
             }
         }
 
-        private void SaveSettings()
+        public void SaveSettings()
         {
             try
             {
@@ -246,8 +247,18 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
 
         private void OpenSettings()
         {
-            // TODO: Open advanced settings dialog
-            AddLogEntry("INFO", "Advanced settings dialog - Coming soon!");
+            try
+            {
+                // TODO: Uncomment after successful build
+                // var settingsDialog = new ReerRhinoMCPPlugin.UI.SettingsDialog(this);
+                // settingsDialog.ShowDialog(...);
+                
+                AddLogEntry("INFO", "Settings dialog - Build project first to enable");
+            }
+            catch (Exception ex)
+            {
+                AddLogEntry("ERROR", $"Failed to open settings dialog: {ex.Message}");
+            }
         }
 
         private void OpenDocumentation()
