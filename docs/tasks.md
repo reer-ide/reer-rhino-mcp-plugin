@@ -11,10 +11,10 @@
 
 - [ ] **MCP Protocol Implementation**
   - [x] Define command/response format
-  - [ ] Implement command routing system
+  - [x] Implement command routing system
   - [x] Create serializer for Rhino objects
-  - [ ] Create deserializer for client commands
-  - [ ] Test protocol with sample commands
+  - [x] Create deserializer for client commands
+  - [x] Test protocol with sample commands
 
 - [ ] **Plugin Commands**
   - [ ] Implement `RhinoMCP` command with UI

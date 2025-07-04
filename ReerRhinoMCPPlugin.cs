@@ -19,7 +19,7 @@ namespace rhino_mcp_plugin
     {
         private IConnectionManager connectionManager;
         private RhinoMCPSettings settings;
-        private BasicCommandHandler commandHandler;
+        private MCPCommandRouter mcpCommandRouter;
         
         public ReerRhinoMCPPlugin()
         {
@@ -50,9 +50,9 @@ namespace rhino_mcp_plugin
                 
                 // Load settings - pass this instance to avoid null reference
                 settings = RhinoMCPSettings.Load(this);
-                
+
                 // Initialize command handler
-                commandHandler = new BasicCommandHandler();
+                mcpCommandRouter = new MCPCommandRouter();
                 
                 // Initialize connection manager
                 connectionManager = new RhinoMCPConnectionManager();
@@ -150,7 +150,7 @@ namespace rhino_mcp_plugin
                 }
                 
                 // Process command using the command handler
-                string response = commandHandler.ProcessCommand(e.Command, e.ClientId);
+                string response = mcpCommandRouter.ProcessCommand(e.Command, e.ClientId);
                 
                 // Send response back to client
                 _ = connectionManager.ActiveConnection?.SendResponseAsync(response, e.ClientId);
