@@ -1,0 +1,8 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ReerRhinoMCPPlugin.UI.MCPControlPanel"
+        Title="MCP Control Panel"
+        Width="500"
+        Height="700">
+  <TextBlock Text="Hello, Avalonia!" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+</Window>

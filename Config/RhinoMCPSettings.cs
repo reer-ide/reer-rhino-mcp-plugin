@@ -73,6 +73,21 @@ namespace ReerRhinoMCPPlugin.Config
         }
         
         /// <summary>
+        /// Loads settings from Rhino's persistent storage into this instance
+        /// </summary>
+        public void Load()
+        {
+            var loadedSettings = Load(rhino_mcp_plugin.ReerRhinoMCPPlugin.Instance);
+            
+            // Copy loaded settings to this instance
+            this.DefaultConnection = loadedSettings.DefaultConnection;
+            this.AutoStart = loadedSettings.AutoStart;
+            this.ShowStatusBar = loadedSettings.ShowStatusBar;
+            this.EnableDebugLogging = loadedSettings.EnableDebugLogging;
+            this.LastUsedMode = loadedSettings.LastUsedMode;
+        }
+        
+        /// <summary>
         /// Loads settings from Rhino's persistent storage
         /// </summary>
         /// <param name="plugin">The plugin instance to load settings from</param>

@@ -11,6 +11,7 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <TargetExt>.rhp</TargetExt>
     <NoWarn>NU1701</NoWarn>
+    <LangVersion>8.0</LangVersion>
     
     <!-- Disable auto-generated assembly attributes to avoid conflicts -->
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -41,8 +42,19 @@
   </PropertyGroup>
   
   <ItemGroup>
+    <PackageReference Include="Material.Icons.Avalonia" Version="2.1.0" />
     <PackageReference Include="RhinoCommon" Version="8.0.23304.9001" ExcludeAssets="runtime" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    
+    <!-- Avalonia UI for modern cross-platform UI -->
+    <PackageReference Include="Avalonia" Version="11.0.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.0.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.0" />
+    
+    <!-- Material.Avalonia for Material Design components -->
+    <PackageReference Include="Material.Avalonia" Version="3.3.0" />
+    <PackageReference Include="SkiaSharp" Version="3.119.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.119.0" />
   </ItemGroup>
   
   <ItemGroup>
@@ -59,5 +71,13 @@
     
     <!-- AssemblyInfo.cs is now included since GenerateAssemblyInfo is false -->
   </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\plugin-utility.ico" />
+  </ItemGroup>
+
+  <Target Name="CopyNativeDeps" AfterTargets="Build">
+    <Copy SourceFiles="$(OutDir)runtimes\\win-x64\\native\\libSkiaSharp.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutDir)runtimes\\win-x64\\native\\libSkiaSharp.dll')" />
+    <Copy SourceFiles="$(OutDir)runtimes\\win-x64\\native\\libHarfBuzzSharp.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutDir)runtimes\\win-x64\\native\\libHarfBuzzSharp.dll')" />
+  </Target>
   
 </Project>

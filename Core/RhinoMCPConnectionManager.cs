@@ -59,6 +59,24 @@ namespace ReerRhinoMCPPlugin.Core
         }
         
         /// <summary>
+        /// Number of connected clients (only applicable for server mode)
+        /// </summary>
+        public int ClientCount
+        {
+            get
+            {
+                lock (lockObject)
+                {
+                    if (activeConnection is RhinoMCPServer server)
+                    {
+                        return server.ClientCount;
+                    }
+                    return 0;
+                }
+            }
+        }
+        
+        /// <summary>
         /// Event fired when a command is received from any active connection
         /// </summary>
         public event EventHandler<CommandReceivedEventArgs> CommandReceived;
@@ -138,10 +156,9 @@ namespace ReerRhinoMCPPlugin.Core
         /// Stops the current connection if one is active
         /// </summary>
         /// <returns>Task representing the async operation</returns>
-        public async Task StopConnectionAsync()
+        public Task StopConnectionAsync()
         {
             IRhinoMCPConnection connectionToStop = null;
-            
             lock (lockObject)
             {
                 if (activeConnection != null)
@@ -150,7 +167,6 @@ namespace ReerRhinoMCPPlugin.Core
                     activeConnection = null;
                 }
             }
-            
             if (connectionToStop != null)
             {
                 try
@@ -158,13 +174,10 @@ namespace ReerRhinoMCPPlugin.Core
                     // Unsubscribe from events
                     connectionToStop.CommandReceived -= OnConnectionCommandReceived;
                     connectionToStop.StatusChanged -= OnConnectionStatusChanged;
-                    
                     // Stop the connection
-                    await connectionToStop.StopAsync();
-                    
+                    connectionToStop.StopAsync().Wait();
                     // Dispose resources
                     connectionToStop.Dispose();
-                    
                     RhinoApp.WriteLine("RhinoMCP connection stopped");
                 }
                 catch (Exception ex)
@@ -172,6 +185,7 @@ namespace ReerRhinoMCPPlugin.Core
                     RhinoApp.WriteLine($"Error stopping connection: {ex.Message}");
                 }
             }
+            return Task.CompletedTask;
         }
         
         /// <summary>
