@@ -18,12 +18,12 @@
   - [x] Create deserializer for client commands
   - [x] Test protocol with sample commands
 
-- [ ] **Plugin Commands**
-  - [ ] Implement `RhinoMCP` command with UI
-  - [ ] Implement `RhinoMCPConnect` command
-  - [ ] Implement `RhinoMCPDisconnect` command
-  - [ ] Create settings UI for configuration
-  - [ ] Test commands in Rhino
+- [X] **Plugin Commands**
+  - [X] Implement `RhinoMCP` command with UI
+  - [X] Implement `RhinoMCPConnect` command
+  - [X] Implement `RhinoMCPDisconnect` command
+  - [X] Create settings UI for configuration
+  - [X] Test commands in Rhino
 
 ### 2. Tool Implementation (Main Phase)
 

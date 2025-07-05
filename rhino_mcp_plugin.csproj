@@ -71,6 +71,11 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\plugin-utility.ico" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Update="UI\Windows\MCPControlPanel.axaml.cs">
+      <DependentUpon>MCPControlPanel.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
 
   <Target Name="CopyNativeDeps" AfterTargets="Build">
     <Copy SourceFiles="$(OutDir)runtimes\\win-x64\\native\\libSkiaSharp.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutDir)runtimes\\win-x64\\native\\libSkiaSharp.dll')" />

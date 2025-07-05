@@ -1,0 +1,73 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  
+  <!-- Card Styles -->
+  <Style Selector="Border.Card">
+    <Setter Property="Background" Value="{DynamicResource SystemRegionBrush}" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Margin" Value="8,4" />
+    <Setter Property="Padding" Value="16" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SystemBaseMediumLowColorBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  
+  <Style Selector="Border.StatusCard">
+    <Setter Property="Background" Value="{DynamicResource SystemRegionBrush}" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Margin" Value="0,0,0,12" />
+    <Setter Property="Padding" Value="20" />
+    <Setter Property="BorderBrush" Value="{DynamicResource SystemBaseMediumLowColorBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  
+  <!-- Text Styles -->
+  <Style Selector="TextBlock.Title">
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Margin" Value="0,0,0,8" />
+  </Style>
+  
+  <Style Selector="TextBlock.SectionTitle">
+    <Setter Property="FontSize" Value="18" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Margin" Value="0,0,0,12" />
+  </Style>
+  
+  <Style Selector="TextBlock.Label">
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Margin" Value="0,0,8,0" />
+    <Setter Property="Foreground" Value="{DynamicResource SystemBaseMediumColorBrush}" />
+  </Style>
+  
+  <Style Selector="TextBlock.Value">
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="FontSize" Value="14" />
+  </Style>
+  
+  <Style Selector="TextBlock.StatusValue">
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="FontSize" Value="16" />
+  </Style>
+  
+  <!-- Button Styles -->
+  <Style Selector="Button.Primary">
+    <Setter Property="MinWidth" Value="100" />
+    <Setter Property="Margin" Value="4" />
+    <Setter Property="Padding" Value="12,8" />
+  </Style>
+  
+  <Style Selector="Button.Secondary">
+    <Setter Property="MinWidth" Value="80" />
+    <Setter Property="Margin" Value="4" />
+    <Setter Property="Padding" Value="8,6" />
+  </Style>
+  
+  <Style Selector="Button.Action">
+    <Setter Property="MinWidth" Value="120" />
+    <Setter Property="Margin" Value="8,4" />
+    <Setter Property="Padding" Value="16,10" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  
+</Styles>

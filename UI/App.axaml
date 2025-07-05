@@ -5,6 +5,8 @@
   <Application.Styles>
     <!-- Base Fluent theme -->
     <FluentTheme DensityStyle="Normal" />
+    <!-- Custom styles -->
+    <StyleInclude Source="/UI/Styles/CommonStyles.axaml" />
   </Application.Styles>
   
 </Application> 

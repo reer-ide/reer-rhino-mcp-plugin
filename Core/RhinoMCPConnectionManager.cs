@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Rhino;
 using ReerRhinoMCPPlugin.Core.Common;
@@ -156,7 +157,7 @@ namespace ReerRhinoMCPPlugin.Core
         /// Stops the current connection if one is active
         /// </summary>
         /// <returns>Task representing the async operation</returns>
-        public Task StopConnectionAsync()
+        public async Task StopConnectionAsync()
         {
             IRhinoMCPConnection connectionToStop = null;
             lock (lockObject)
@@ -167,25 +168,55 @@ namespace ReerRhinoMCPPlugin.Core
                     activeConnection = null;
                 }
             }
+            
             if (connectionToStop != null)
             {
                 try
                 {
-                    // Unsubscribe from events
+                    RhinoApp.WriteLine("Stopping RhinoMCP connection...");
+                    
+                    // Unsubscribe from events first
                     connectionToStop.CommandReceived -= OnConnectionCommandReceived;
                     connectionToStop.StatusChanged -= OnConnectionStatusChanged;
-                    // Stop the connection
-                    connectionToStop.StopAsync().Wait();
-                    // Dispose resources
-                    connectionToStop.Dispose();
-                    RhinoApp.WriteLine("RhinoMCP connection stopped");
+                    
+                    // Stop the connection with timeout
+                    using (var timeoutCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5)))
+                    {
+                        try
+                        {
+                            await connectionToStop.StopAsync();
+                            RhinoApp.WriteLine("Connection stopped successfully");
+                        }
+                        catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested)
+                        {
+                            RhinoApp.WriteLine("Stop operation timed out, forcing disposal");
+                        }
+                        catch (Exception ex)
+                        {
+                            RhinoApp.WriteLine($"Error during graceful stop: {ex.Message}");
+                        }
+                    }
+                    
+                    // Always dispose resources
+                    try
+                    {
+                        connectionToStop.Dispose();
+                        RhinoApp.WriteLine("Connection resources disposed");
+                    }
+                    catch (Exception ex)
+                    {
+                        RhinoApp.WriteLine($"Error disposing connection: {ex.Message}");
+                    }
                 }
                 catch (Exception ex)
                 {
                     RhinoApp.WriteLine($"Error stopping connection: {ex.Message}");
                 }
             }
-            return Task.CompletedTask;
+            else
+            {
+                RhinoApp.WriteLine("No active connection to stop");
+            }
         }
         
         /// <summary>

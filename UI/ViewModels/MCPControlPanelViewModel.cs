@@ -1,264 +1,187 @@
 using System;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Avalonia.Controls;
-using Avalonia.Media;
-using Rhino;
+using ReerRhinoMCPPlugin.UI.ViewModels.Base;
+using ReerRhinoMCPPlugin.UI.ViewModels.Commands;
 using ReerRhinoMCPPlugin.Core.Common;
+using ReerRhinoMCPPlugin.Core;
 using ReerRhinoMCPPlugin.Config;
+using Rhino;
 
 namespace ReerRhinoMCPPlugin.UI.ViewModels
 {
-    public class MCPControlPanelViewModel : INotifyPropertyChanged
+    /// <summary>
+    /// Simplified main ViewModel that coordinates child ViewModels
+    /// </summary>
+    public class MCPControlPanelViewModel : ViewModelBase, IDisposable
     {
-        private readonly rhino_mcp_plugin.ReerRhinoMCPPlugin _plugin;
+        private readonly ReerRhinoMCPPlugin _plugin;
         private readonly RhinoMCPSettings _settings;
-        private bool _isConnected;
-        private bool _isLoading;
-        private string _connectionStatusText = "Disconnected";
-        private IBrush _statusColor = Brushes.Red;
-        private int _clientCount;
-        private string _uptime = "00:00:00";
+        private bool _keepOnTop = true;
         private DateTime _startTime;
-        private string _serverPort = "1999";
-        private bool _autoStart;
-        private bool _enableDebugLogging;
-        private bool _showStatusBar;
+        private CancellationTokenSource _uptimeCancellationTokenSource;
 
-        public MCPControlPanelViewModel(rhino_mcp_plugin.ReerRhinoMCPPlugin plugin)
+        public MCPControlPanelViewModel(ReerRhinoMCPPlugin plugin)
         {
             _plugin = plugin ?? throw new ArgumentNullException(nameof(plugin));
             _settings = plugin.MCPSettings;
-            
+
+            // Initialize child ViewModels
+            ConnectionStatus = new ConnectionStatusViewModel();
+            ServerControl = new ServerControlViewModel(plugin.ConnectionManager);
+
             // Initialize commands
-            StartServerCommand = new AsyncRelayCommand(StartServerAsync, () => !IsConnected && !IsLoading);
-            StopServerCommand = new AsyncRelayCommand(StopServerAsync, () => IsConnected && !IsLoading);
-            SaveSettingsCommand = new RelayCommand(SaveSettings);
-            ClearLogCommand = new RelayCommand(ClearLog);
             OpenSettingsCommand = new RelayCommand(OpenSettings);
             OpenDocumentationCommand = new RelayCommand(OpenDocumentation);
             OpenGitHubCommand = new RelayCommand(OpenGitHub);
-            
-            // Initialize log entries
-            LogEntries = new ObservableCollection<LogEntry>();
-            
-            // Load current settings
+
+            // Subscribe to events
+            SubscribeToEvents();
+
+            // Load settings
             LoadSettings();
-            
-            // Subscribe to connection events
-            if (_plugin.ConnectionManager != null)
-            {
-                _plugin.ConnectionManager.StatusChanged += OnConnectionStatusChanged;
-                _plugin.ConnectionManager.CommandReceived += OnCommandReceived;
-                
-                // Update initial status
-                UpdateConnectionStatus();
-            }
-            
-            // Add welcome message
-            AddLogEntry("INFO", "MCP Control Panel initialized");
         }
 
         #region Properties
 
-        public bool IsConnected
+        public ConnectionStatusViewModel ConnectionStatus { get; }
+        public ServerControlViewModel ServerControl { get; }
+
+        public bool KeepOnTop
         {
-            get => _isConnected;
+            get => _keepOnTop;
             set
             {
-                if (SetProperty(ref _isConnected, value))
+                if (SetProperty(ref _keepOnTop, value))
                 {
-                    OnPropertyChanged(nameof(IsDisconnected));
-                    ((AsyncRelayCommand)StartServerCommand).RaiseCanExecuteChanged();
-                    ((AsyncRelayCommand)StopServerCommand).RaiseCanExecuteChanged();
+                    KeepOnTopChanged?.Invoke(this, value);
                 }
             }
         }
-
-        public bool IsDisconnected => !IsConnected;
-
-        public bool IsLoading
-        {
-            get => _isLoading;
-            set
-            {
-                if (SetProperty(ref _isLoading, value))
-                {
-                    ((AsyncRelayCommand)StartServerCommand).RaiseCanExecuteChanged();
-                    ((AsyncRelayCommand)StopServerCommand).RaiseCanExecuteChanged();
-                }
-            }
-        }
-
-        public string ConnectionStatusText
-        {
-            get => _connectionStatusText;
-            set => SetProperty(ref _connectionStatusText, value);
-        }
-
-        public IBrush StatusColor
-        {
-            get => _statusColor;
-            set => SetProperty(ref _statusColor, value);
-        }
-
-        public int ClientCount
-        {
-            get => _clientCount;
-            set => SetProperty(ref _clientCount, value);
-        }
-
-        public string CurrentPort
-        {
-            get => _serverPort;
-            set => SetProperty(ref _serverPort, value);
-        }
-
-        public string Uptime
-        {
-            get => _uptime;
-            set => SetProperty(ref _uptime, value);
-        }
-
-        public string ServerPort
-        {
-            get => _serverPort;
-            set => SetProperty(ref _serverPort, value);
-        }
-
-        public bool AutoStart
-        {
-            get => _autoStart;
-            set => SetProperty(ref _autoStart, value);
-        }
-
-        public bool EnableDebugLogging
-        {
-            get => _enableDebugLogging;
-            set => SetProperty(ref _enableDebugLogging, value);
-        }
-
-        public bool ShowStatusBar
-        {
-            get => _showStatusBar;
-            set => SetProperty(ref _showStatusBar, value);
-        }
-
-        public ObservableCollection<LogEntry> LogEntries { get; }
 
         #endregion
 
         #region Commands
 
-        public ICommand StartServerCommand { get; }
-        public ICommand StopServerCommand { get; }
-        public ICommand SaveSettingsCommand { get; }
-        public ICommand ClearLogCommand { get; }
         public ICommand OpenSettingsCommand { get; }
         public ICommand OpenDocumentationCommand { get; }
         public ICommand OpenGitHubCommand { get; }
 
         #endregion
 
+        #region Events
+
+        public event EventHandler<bool> KeepOnTopChanged;
+
+        #endregion
+
+        #region Private Methods
+
+        private void SubscribeToEvents()
+        {
+            // Subscribe to connection manager events
+            if (_plugin.ConnectionManager != null)
+            {
+                _plugin.ConnectionManager.StatusChanged += OnConnectionStatusChanged;
+                _plugin.ConnectionManager.CommandReceived += OnCommandReceived;
+            }
+
+            // Subscribe to server control events
+            ServerControl.OnServerStarted += OnServerStarted;
+            ServerControl.OnServerStartFailed += OnServerStartFailed;
+            ServerControl.OnServerStopped += OnServerStopped;
+            ServerControl.OnServerStopFailed += OnServerStopFailed;
+        }
+
+        private void LoadSettings()
+        {
+            ServerControl.ServerPort = _settings.DefaultConnection.LocalPort.ToString();
+        }
+
+        private void OnConnectionStatusChanged(object sender, ConnectionStatusChangedEventArgs e)
+        {
+            // Update connection status
+            ConnectionStatus.UpdateStatus(e.Status, e.Message);
+            ServerControl.IsConnected = e.Status == Core.Common.ConnectionStatus.Connected;
+
+            // Update client count if available
+            if (e.Status == Core.Common.ConnectionStatus.Connected && _plugin.ConnectionManager is RhinoMCPConnectionManager manager)
+            {
+                // Get client count from server if it's a local connection
+                // This would need to be implemented in the connection manager
+            }
+        }
+
+        private void OnCommandReceived(object sender, CommandReceivedEventArgs e)
+        {
+            // Handle command received events if needed
+            RhinoApp.WriteLine($"[UI] Command received: {e.Command["type"]} from {e.ClientId}");
+        }
+
+        private void OnServerStarted(int port)
+        {
+            _startTime = DateTime.Now;
+            ConnectionStatus.CurrentPort = port.ToString();
+            StartUptimeTimer();
+            RhinoApp.WriteLine($"[UI] Server started on port {port}");
+        }
+
+        private void OnServerStartFailed(string error)
+        {
+            RhinoApp.WriteLine($"[UI] Server start failed: {error}");
+        }
+
+        private void OnServerStopped()
+        {
+            StopUptimeTimer();
+            RhinoApp.WriteLine("[UI] Server stopped");
+        }
+
+        private void OnServerStopFailed(string error)
+        {
+            RhinoApp.WriteLine($"[UI] Server stop failed: {error}");
+        }
+
+        private void StartUptimeTimer()
+        {
+            StopUptimeTimer();
+            _uptimeCancellationTokenSource = new CancellationTokenSource();
+            
+            Task.Run(async () =>
+            {
+                while (!_uptimeCancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    var uptime = DateTime.Now - _startTime;
+                    ConnectionStatus.Uptime = $"{uptime.Hours:D2}:{uptime.Minutes:D2}:{uptime.Seconds:D2}";
+                    
+                    try
+                    {
+                        await Task.Delay(1000, _uptimeCancellationTokenSource.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                }
+            }, _uptimeCancellationTokenSource.Token);
+        }
+
+        private void StopUptimeTimer()
+        {
+            _uptimeCancellationTokenSource?.Cancel();
+            _uptimeCancellationTokenSource?.Dispose();
+            _uptimeCancellationTokenSource = null;
+        }
+
+        #endregion
+
         #region Command Implementations
-
-        private async Task StartServerAsync()
-        {
-            try
-            {
-                IsLoading = true;
-                AddLogEntry("INFO", "Starting MCP server...");
-
-                var connectionSettings = new ConnectionSettings
-                {
-                    Mode = ConnectionMode.Local,
-                    LocalPort = int.TryParse(ServerPort, out int port) ? port : 1999
-                };
-
-                bool success = await _plugin.ConnectionManager.StartConnectionAsync(connectionSettings);
-                
-                if (success)
-                {
-                    _startTime = DateTime.Now;
-                    AddLogEntry("SUCCESS", $"MCP server started on port {connectionSettings.LocalPort}");
-                    StartUptimeTimer();
-                }
-                else
-                {
-                    AddLogEntry("ERROR", "Failed to start MCP server");
-                }
-            }
-            catch (Exception ex)
-            {
-                AddLogEntry("ERROR", $"Error starting server: {ex.Message}");
-            }
-            finally
-            {
-                IsLoading = false;
-            }
-        }
-
-        private async Task StopServerAsync()
-        {
-            try
-            {
-                IsLoading = true;
-                AddLogEntry("INFO", "Stopping MCP server...");
-
-                await _plugin.ConnectionManager.StopConnectionAsync();
-                AddLogEntry("SUCCESS", "MCP server stopped");
-            }
-            catch (Exception ex)
-            {
-                AddLogEntry("ERROR", $"Error stopping server: {ex.Message}");
-            }
-            finally
-            {
-                IsLoading = false;
-            }
-        }
-
-        public void SaveSettings()
-        {
-            try
-            {
-                _settings.DefaultConnection.LocalPort = int.TryParse(ServerPort, out int port) ? port : 1999;
-                _settings.AutoStart = AutoStart;
-                _settings.EnableDebugLogging = EnableDebugLogging;
-                _settings.ShowStatusBar = ShowStatusBar;
-                
-                _settings.Save();
-                AddLogEntry("SUCCESS", "Settings saved successfully");
-            }
-            catch (Exception ex)
-            {
-                AddLogEntry("ERROR", $"Error saving settings: {ex.Message}");
-            }
-        }
-
-        private void ClearLog()
-        {
-            LogEntries.Clear();
-            AddLogEntry("INFO", "Log cleared");
-        }
 
         private void OpenSettings()
         {
-            try
-            {
-                // TODO: Uncomment after successful build
-                // var settingsDialog = new ReerRhinoMCPPlugin.UI.SettingsDialog(this);
-                // settingsDialog.ShowDialog(...);
-                
-                AddLogEntry("INFO", "Settings dialog - Build project first to enable");
-            }
-            catch (Exception ex)
-            {
-                AddLogEntry("ERROR", $"Failed to open settings dialog: {ex.Message}");
-            }
+            // TODO: Implement settings dialog
+            RhinoApp.WriteLine("[UI] Settings dialog not implemented yet");
         }
 
         private void OpenDocumentation()
@@ -267,13 +190,13 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
             {
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = "https://github.com/reer/rhino-mcp-plugin/docs",
+                    FileName = "https://github.com/reer/rhino-mcp-plugin/wiki",
                     UseShellExecute = true
                 });
             }
             catch (Exception ex)
             {
-                AddLogEntry("ERROR", $"Error opening documentation: {ex.Message}");
+                RhinoApp.WriteLine($"[UI] Failed to open documentation: {ex.Message}");
             }
         }
 
@@ -289,228 +212,26 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
             }
             catch (Exception ex)
             {
-                AddLogEntry("ERROR", $"Error opening GitHub: {ex.Message}");
+                RhinoApp.WriteLine($"[UI] Failed to open GitHub: {ex.Message}");
             }
         }
 
         #endregion
 
-        #region Event Handlers
+        #region IDisposable
 
-        private void OnConnectionStatusChanged(object sender, ConnectionStatusChangedEventArgs e)
+        public void Dispose()
         {
-            // Update UI on main thread
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            StopUptimeTimer();
+
+            // Unsubscribe from events
+            if (_plugin.ConnectionManager != null)
             {
-                UpdateConnectionStatus();
-                AddLogEntry("INFO", $"Connection status: {e.Status} - {e.Message}");
-            });
-        }
-
-        private void OnCommandReceived(object sender, CommandReceivedEventArgs e)
-        {
-            // Update UI on main thread
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                string commandType = e.Command["type"]?.ToString() ?? "unknown";
-                AddLogEntry("COMMAND", $"Received command: {commandType} from {e.ClientId}");
-            });
-        }
-
-        #endregion
-
-        #region Helper Methods
-
-        private void LoadSettings()
-        {
-            ServerPort = _settings.DefaultConnection.LocalPort.ToString();
-            AutoStart = _settings.AutoStart;
-            EnableDebugLogging = _settings.EnableDebugLogging;
-            ShowStatusBar = _settings.ShowStatusBar;
-        }
-
-        private void UpdateConnectionStatus()
-        {
-            if (_plugin.ConnectionManager == null)
-            {
-                IsConnected = false;
-                ConnectionStatusText = "Not Available";
-                StatusColor = Brushes.Gray;
-                return;
+                _plugin.ConnectionManager.StatusChanged -= OnConnectionStatusChanged;
+                _plugin.ConnectionManager.CommandReceived -= OnCommandReceived;
             }
-
-            IsConnected = _plugin.ConnectionManager.IsConnected;
-            
-            switch (_plugin.ConnectionManager.Status)
-            {
-                case ConnectionStatus.Connected:
-                    ConnectionStatusText = "Connected";
-                    StatusColor = Brushes.Green;
-                    break;
-                case ConnectionStatus.Connecting:
-                    ConnectionStatusText = "Connecting...";
-                    StatusColor = Brushes.Orange;
-                    break;
-                case ConnectionStatus.Disconnected:
-                    ConnectionStatusText = "Disconnected";
-                    StatusColor = Brushes.Red;
-                    break;
-                case ConnectionStatus.Failed:
-                    ConnectionStatusText = "Failed";
-                    StatusColor = Brushes.Red;
-                    break;
-                case ConnectionStatus.Error:
-                    ConnectionStatusText = "Error";
-                    StatusColor = Brushes.Red;
-                    break;
-                case ConnectionStatus.Reconnecting:
-                    ConnectionStatusText = "Reconnecting...";
-                    StatusColor = Brushes.Orange;
-                    break;
-                default:
-                    ConnectionStatusText = "Unknown";
-                    StatusColor = Brushes.Gray;
-                    break;
-            }
-        }
-
-        private void StartUptimeTimer()
-        {
-            // Simple uptime calculation - in a real app, you'd use a proper timer
-            Task.Run(async () =>
-            {
-                while (IsConnected)
-                {
-                    await Task.Delay(1000);
-                    var elapsed = DateTime.Now - _startTime;
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                    {
-                        Uptime = $"{elapsed.Hours:D2}:{elapsed.Minutes:D2}:{elapsed.Seconds:D2}";
-                    });
-                }
-            });
-        }
-
-        public void AddLogEntry(string level, string message)
-        {
-            var entry = new LogEntry
-            {
-                Timestamp = DateTime.Now.ToString("HH:mm:ss"),
-                Level = level,
-                Message = message,
-                LevelColor = GetLevelColor(level)
-            };
-
-            LogEntries.Insert(0, entry);
-            
-            // Keep only last 100 entries
-            while (LogEntries.Count > 100)
-            {
-                LogEntries.RemoveAt(LogEntries.Count - 1);
-            }
-        }
-
-        private IBrush GetLevelColor(string level)
-        {
-            return level switch
-            {
-                "ERROR" => Brushes.Red,
-                "SUCCESS" => Brushes.Green,
-                "COMMAND" => Brushes.Blue,
-                "INFO" => Brushes.Gray,
-                _ => Brushes.Black
-            };
-        }
-
-        #endregion
-
-        #region INotifyPropertyChanged
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
-        {
-            if (Equals(field, value)) return false;
-            field = value;
-            OnPropertyChanged(propertyName);
-            return true;
         }
 
         #endregion
     }
-
-    #region Helper Classes
-
-    public class LogEntry
-    {
-        public string Timestamp { get; set; }
-        public string Level { get; set; }
-        public string Message { get; set; }
-        public IBrush LevelColor { get; set; }
-        public IBrush Background { get; set; } = Brushes.Transparent;
-    }
-
-    public class RelayCommand : ICommand
-    {
-        private readonly Action _execute;
-        private readonly Func<bool> _canExecute;
-
-        public RelayCommand(Action execute, Func<bool> canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
-
-        public event EventHandler CanExecuteChanged;
-
-        public bool CanExecute(object parameter) => _canExecute?.Invoke() ?? true;
-
-        public void Execute(object parameter) => _execute();
-
-        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    public class AsyncRelayCommand : ICommand
-    {
-        private readonly Func<Task> _execute;
-        private readonly Func<bool> _canExecute;
-        private bool _isExecuting;
-
-        public AsyncRelayCommand(Func<Task> execute, Func<bool> canExecute = null)
-        {
-            _execute = execute ?? throw new ArgumentNullException(nameof(execute));
-            _canExecute = canExecute;
-        }
-
-        public event EventHandler CanExecuteChanged;
-
-        public bool CanExecute(object parameter) => !_isExecuting && (_canExecute?.Invoke() ?? true);
-
-        public async void Execute(object parameter)
-        {
-            if (!CanExecute(parameter)) return;
-
-            _isExecuting = true;
-            RaiseCanExecuteChanged();
-
-            try
-            {
-                await _execute();
-            }
-            finally
-            {
-                _isExecuting = false;
-                RaiseCanExecuteChanged();
-            }
-        }
-
-        public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    #endregion
-} 
+}

@@ -11,9 +11,11 @@ using ReerRhinoMCPPlugin.Commands;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
-using ReerRhinoMCPPlugin.UI;
 
-namespace rhino_mcp_plugin
+using ReerRhinoMCPPlugin.UI;
+using ReerRhinoMCPPlugin.UI.Windows;
+
+namespace ReerRhinoMCPPlugin
 {
     ///<summary>
     /// <para>Every RhinoCommon .rhp assembly must have one and only one PlugIn-derived
@@ -29,6 +31,7 @@ namespace rhino_mcp_plugin
         private static RhinoMCPSettings settings;
         private static MCPCommandRouter mcpCommandRouter;
         private static bool _avaloniaInitialized = false;
+
         
         public ReerRhinoMCPPlugin()
         {
@@ -112,7 +115,7 @@ namespace rhino_mcp_plugin
             try
             {
                 RhinoApp.WriteLine("[DEBUG] Calling AppBuilder.Configure...");
-                AppBuilder.Configure<App>()
+                AppBuilder.Configure<UI.App>()
                     .UsePlatformDetect()
                     .SetupWithoutStarting();
                 _avaloniaInitialized = true;
@@ -146,6 +149,8 @@ namespace rhino_mcp_plugin
             try
             {
                 RhinoApp.WriteLine("Shutting down REER Rhino MCP Plugin...");
+                
+                // Control panel cleanup is handled by the new UI system
                 
                 // Stop any active connections
                 if (connectionManager != null)
@@ -225,11 +230,14 @@ namespace rhino_mcp_plugin
             }
         }
 
-        public void ShowControlPanel()
+        /// <summary>
+        /// Shows the new refactored control panel (for testing)
+        /// </summary>
+        public void ShowNewControlPanel()
         {
             try
             {
-                RhinoApp.WriteLine("[DEBUG] ShowControlPanel called");
+                RhinoApp.WriteLine("[DEBUG] ShowNewControlPanel called");
                 if (!_avaloniaInitialized)
                 {
                     RhinoApp.WriteLine("[DEBUG] Avalonia not initialized, initializing now...");
@@ -240,17 +248,31 @@ namespace rhino_mcp_plugin
                 {
                     try
                     {
-                        RhinoApp.WriteLine("[DEBUG] Creating MCPControlPanel window...");
-                        var controlPanel = new MCPControlPanel(this);
-                        RhinoApp.WriteLine("[DEBUG] MCPControlPanel instance created");
-                        controlPanel.Show();
-                        RhinoApp.WriteLine("[DEBUG] MCPControlPanel.Show() called");
+                        var newPanel = new UI.Windows.MCPControlPanelNew(this);
+                        newPanel.Show();
+                        RhinoApp.WriteLine("[DEBUG] New control panel shown successfully");
                     }
                     catch (Exception ex)
                     {
-                        RhinoApp.WriteLine($"[ERROR] Exception in Dispatcher.UIThread.Post: {ex}");
+                        RhinoApp.WriteLine($"[ERROR] Failed to show new control panel: {ex.Message}");
+                        RhinoApp.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
                     }
                 });
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"[ERROR] Error in ShowNewControlPanel: {ex.Message}");
+            }
+        }
+
+        public void ShowControlPanel()
+        {
+            try
+            {
+                RhinoApp.WriteLine("[DEBUG] ShowControlPanel called - using new UI");
+                // Redirect to new UI implementation
+                ShowNewControlPanel();
+
             }
             catch (Exception ex)
             {

@@ -27,7 +27,7 @@ namespace ReerRhinoMCPPlugin.Commands
         {
             try
             {
-                var plugin = rhino_mcp_plugin.ReerRhinoMCPPlugin.Instance;
+                var plugin = ReerRhinoMCPPlugin.Instance;
                 if (plugin == null)
                 {
                     RhinoApp.WriteLine("ERROR: ReerRhinoMCPPlugin not loaded");
@@ -76,7 +76,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
         }
 
-        private Result HandleLocalStart(rhino_mcp_plugin.ReerRhinoMCPPlugin plugin)
+        private Result HandleLocalStart(ReerRhinoMCPPlugin plugin)
         {
             try
             {
@@ -124,7 +124,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
         }
 
-        private Result HandleLocalStop(rhino_mcp_plugin.ReerRhinoMCPPlugin plugin)
+        private Result HandleLocalStop(ReerRhinoMCPPlugin plugin)
         {
             try
             {
@@ -157,7 +157,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
         }
 
-        private Result HandleStatus(rhino_mcp_plugin.ReerRhinoMCPPlugin plugin)
+        private Result HandleStatus(ReerRhinoMCPPlugin plugin)
         {
             try
             {
@@ -185,7 +185,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
         }
 
-        private Result HandleUI(rhino_mcp_plugin.ReerRhinoMCPPlugin plugin)
+        private Result HandleUI(ReerRhinoMCPPlugin plugin)
         {
             try
             {
@@ -200,7 +200,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
         }
 
-        private Result HandleSettings(rhino_mcp_plugin.ReerRhinoMCPPlugin plugin)
+        private Result HandleSettings(ReerRhinoMCPPlugin plugin)
         {
             try
             {
