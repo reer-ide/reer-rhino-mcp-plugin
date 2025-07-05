@@ -68,6 +68,7 @@ namespace ReerRhinoMCPPlugin
         {
             try
             {
+
                 // Initialize Avalonia if not already done
                 InitializeAvalonia();
                 
@@ -83,12 +84,17 @@ namespace ReerRhinoMCPPlugin
                 connectionManager.CommandReceived += OnCommandReceived;
                 connectionManager.StatusChanged += OnConnectionStatusChanged;
                 
+
                 // Auto-start if enabled
                 if (settings.AutoStart)
                 {
                     RhinoApp.WriteLine("ReerRhinoMCPPlugin: Auto-starting server...");
                     // Note: In a real implementation, you might want to delay this
                     // until Rhino is fully loaded
+                }
+                else
+                {
+                    RhinoApp.WriteLine($"Auto-start disabled or invalid settings. AutoStart={settings.AutoStart}, IsValid={settings.IsValid()}");
                 }
                 
                 return LoadReturnCode.Success;
@@ -133,6 +139,19 @@ namespace ReerRhinoMCPPlugin
                     RhinoApp.WriteLine($"[ERROR] Exception in InitializeAvalonia: {ex}");
                     throw;
                 }
+            }
+            catch (System.IO.FileNotFoundException fileEx)
+            {
+                errorMessage = $"Assembly loading error in REER Rhino MCP Plugin: {fileEx.Message}";
+                RhinoApp.WriteLine($"File not found: {fileEx.FileName}");
+                RhinoApp.WriteLine($"Full error: {errorMessage}");
+                return Rhino.PlugIns.LoadReturnCode.ErrorShowDialog;
+            }
+            catch (System.BadImageFormatException imageEx)
+            {
+                errorMessage = $"Assembly format error in REER Rhino MCP Plugin: {imageEx.Message}";
+                RhinoApp.WriteLine($"Bad image format: {errorMessage}");
+                return Rhino.PlugIns.LoadReturnCode.ErrorShowDialog;
             }
             catch (Exception ex)
             {

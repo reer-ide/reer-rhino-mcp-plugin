@@ -1,8 +1,3 @@
----
-description:
-globs:
-alwaysApply: false
----
 # Rhino Integration Guide
 
 This guide explains how to properly integrate with Rhino's API for the REER Rhino MCP Plugin.

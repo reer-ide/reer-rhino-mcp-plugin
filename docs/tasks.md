@@ -27,6 +27,18 @@
 
 ### 2. Tool Implementation (Main Phase)
 
+- [ ] **Component Library Service (Beta Priority)**
+  - [ ] Implement `ComponentLibraryService` class for managing Grasshopper component data
+  - [ ] Create component scanning functionality using `Grasshopper.Instances.ComponentServer.Libraries`
+  - [ ] Design and implement local JSON storage format for component metadata
+  - [ ] Implement library signature generation for change detection
+  - [ ] Create component search and lookup functionality with keyword matching
+  - [ ] Implement `look_up_gh_components` MCP tool for AI component discovery
+  - [ ] Implement `create_gh_component` MCP tool for AI-driven component creation
+  - [ ] Add initialization logic to scan libraries on first launch and startup
+  - [ ] Test component library scanning with various Grasshopper plugin configurations
+  - [ ] Optimize performance for large component libraries (500+ components)
+
 - [ ] **Scene Information Tools**
 
   - [ ] Implement `get_rhino_scene_info()`
