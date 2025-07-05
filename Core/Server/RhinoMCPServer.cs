@@ -48,6 +48,11 @@ namespace ReerRhinoMCPPlugin.Core.Server
         /// Event fired when the connection status changes
         /// </summary>
         public event EventHandler<ConnectionStatusChangedEventArgs> StatusChanged;
+
+        /// <summary>
+        /// Current client count
+        /// </summary>
+        public int ClientCount => clients.Count;
         
         /// <summary>
         /// Starts the connection with the specified settings

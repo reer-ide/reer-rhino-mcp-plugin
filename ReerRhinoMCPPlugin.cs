@@ -1,11 +1,21 @@
 ﻿using System;
+using System.IO;
+using System.Reflection;
 using Rhino;
+using Rhino.PlugIns;
 using ReerRhinoMCPPlugin.Core;
 using ReerRhinoMCPPlugin.Core.Common;
 using ReerRhinoMCPPlugin.Config;
 using ReerRhinoMCPPlugin.Functions;
+using ReerRhinoMCPPlugin.Commands;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
 
-namespace rhino_mcp_plugin
+using ReerRhinoMCPPlugin.UI;
+using ReerRhinoMCPPlugin.UI.Windows;
+
+namespace ReerRhinoMCPPlugin
 {
     ///<summary>
     /// <para>Every RhinoCommon .rhp assembly must have one and only one PlugIn-derived
@@ -15,15 +25,27 @@ namespace rhino_mcp_plugin
     /// attributes in AssemblyInfo.cs (you might need to click "Project" ->
     /// "Show All Files" to see it in the "Solution Explorer" window).</para>
     ///</summary>
-    public class ReerRhinoMCPPlugin : Rhino.PlugIns.PlugIn
+    public class ReerRhinoMCPPlugin : PlugIn
     {
-        private IConnectionManager connectionManager;
-        private RhinoMCPSettings settings;
-        private BasicCommandHandler commandHandler;
+        private static IConnectionManager connectionManager;
+        private static RhinoMCPSettings settings;
+        private static MCPCommandRouter mcpCommandRouter;
+        private static bool _avaloniaInitialized = false;
+
         
         public ReerRhinoMCPPlugin()
         {
             Instance = this;
+            
+            // Initialize settings
+            if (settings == null)
+                settings = new RhinoMCPSettings();
+            
+            // Initialize connection manager
+            if (connectionManager == null)
+                connectionManager = new RhinoMCPConnectionManager();
+            
+            RhinoApp.WriteLine("ReerRhinoMCPPlugin loaded successfully");
         }
 
         ///<summary>Gets the only instance of the ReerRhinoMCPPlugin plug-in.</summary>
@@ -32,7 +54,7 @@ namespace rhino_mcp_plugin
         /// <summary>
         /// Gets the connection manager for this plugin instance
         /// </summary>
-        public IConnectionManager ConnectionManager => connectionManager;
+        public RhinoMCPConnectionManager ConnectionManager => connectionManager as RhinoMCPConnectionManager;
         
         /// <summary>
         /// Gets the current plugin settings
@@ -42,68 +64,81 @@ namespace rhino_mcp_plugin
         /// <summary>
         /// Called when the plugin is loaded
         /// </summary>
-        protected override Rhino.PlugIns.LoadReturnCode OnLoad(ref string errorMessage)
+        protected override LoadReturnCode OnLoad(ref string errorMessage)
         {
             try
             {
-                RhinoApp.WriteLine("=== REER Rhino MCP Plugin Loading Started ===");
+
+                // Initialize Avalonia if not already done
+                InitializeAvalonia();
                 
-                // Load settings - pass this instance to avoid null reference
-                RhinoApp.WriteLine("Loading plugin settings...");
-                settings = RhinoMCPSettings.Load(this);
-                RhinoApp.WriteLine($"Settings loaded: AutoStart={settings.AutoStart}, EnableDebugLogging={settings.EnableDebugLogging}");
+                RhinoApp.WriteLine("ReerRhinoMCPPlugin: Avalonia UI initialized");
                 
-                // Initialize command handler
-                RhinoApp.WriteLine("Initializing command handler...");
-                commandHandler = new BasicCommandHandler();
-                RhinoApp.WriteLine("Command handler initialized successfully");
+                // Load settings
+                settings.Load();
                 
-                // Initialize connection manager
-                RhinoApp.WriteLine("Initializing connection manager...");
-                connectionManager = new RhinoMCPConnectionManager();
-                RhinoApp.WriteLine("Connection manager initialized successfully");
+                // Initialize command router
+                mcpCommandRouter = new MCPCommandRouter();
                 
                 // Subscribe to connection events
-                RhinoApp.WriteLine("Subscribing to connection events...");
                 connectionManager.CommandReceived += OnCommandReceived;
                 connectionManager.StatusChanged += OnConnectionStatusChanged;
-                RhinoApp.WriteLine("Event subscriptions completed");
                 
-                RhinoApp.WriteLine("=== REER Rhino MCP Plugin loaded successfully ===");
-                
-                // Auto-start connection if enabled
-                if (settings.AutoStart && settings.IsValid())
+
+                // Auto-start if enabled
+                if (settings.AutoStart)
                 {
-                    RhinoApp.WriteLine("Auto-start is enabled and settings are valid. Starting connection...");
-                    _ = System.Threading.Tasks.Task.Run(async () =>
-                    {
-                        try
-                        {
-                            var connectionSettings = settings.GetDefaultConnectionSettings();
-                            bool success = await connectionManager.StartConnectionAsync(connectionSettings);
-                            
-                            if (success)
-                            {
-                                RhinoApp.WriteLine("Auto-started MCP connection successfully");
-                            }
-                            else
-                            {
-                                RhinoApp.WriteLine("Failed to auto-start MCP connection");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            RhinoApp.WriteLine($"Error during auto-start: {ex.Message}");
-                            RhinoApp.WriteLine($"Stack trace: {ex.StackTrace}");
-                        }
-                    });
+                    RhinoApp.WriteLine("ReerRhinoMCPPlugin: Auto-starting server...");
+                    // Note: In a real implementation, you might want to delay this
+                    // until Rhino is fully loaded
                 }
                 else
                 {
                     RhinoApp.WriteLine($"Auto-start disabled or invalid settings. AutoStart={settings.AutoStart}, IsValid={settings.IsValid()}");
                 }
                 
-                return Rhino.PlugIns.LoadReturnCode.Success;
+                return LoadReturnCode.Success;
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Failed to load ReerRhinoMCPPlugin: {ex.Message}";
+                RhinoApp.WriteLine($"ERROR: {errorMessage}");
+                return LoadReturnCode.ErrorShowDialog;
+            }
+        }
+        
+        /// <summary>
+        /// Initializes Avalonia UI framework for the plugin
+        /// </summary>
+        private void InitializeAvalonia()
+        {
+            RhinoApp.WriteLine("[DEBUG] Enter InitializeAvalonia()");
+            if (_avaloniaInitialized)
+            {
+                RhinoApp.WriteLine("[DEBUG] Avalonia already initialized, skipping.");
+                return;
+            }
+            try
+            {
+                RhinoApp.WriteLine("[DEBUG] Calling AppBuilder.Configure...");
+                AppBuilder.Configure<UI.App>()
+                    .UsePlatformDetect()
+                    .SetupWithoutStarting();
+                _avaloniaInitialized = true;
+                RhinoApp.WriteLine("[DEBUG] Avalonia initialized successfully");
+            }
+            catch (InvalidOperationException ex)
+            {
+                if (ex.Message.Contains("Setup was already called"))
+                {
+                    RhinoApp.WriteLine("[DEBUG] Avalonia already initialized, skipping Setup.");
+                    _avaloniaInitialized = true;
+                }
+                else
+                {
+                    RhinoApp.WriteLine($"[ERROR] Exception in InitializeAvalonia: {ex}");
+                    throw;
+                }
             }
             catch (System.IO.FileNotFoundException fileEx)
             {
@@ -120,11 +155,8 @@ namespace rhino_mcp_plugin
             }
             catch (Exception ex)
             {
-                errorMessage = $"Error loading REER Rhino MCP Plugin: {ex.Message}";
-                RhinoApp.WriteLine($"General error: {errorMessage}");
-                RhinoApp.WriteLine($"Exception type: {ex.GetType().Name}");
-                RhinoApp.WriteLine($"Stack trace: {ex.StackTrace}");
-                return Rhino.PlugIns.LoadReturnCode.ErrorShowDialog;
+                RhinoApp.WriteLine($"[ERROR] Exception in InitializeAvalonia: {ex}");
+                throw;
             }
         }
         
@@ -136,6 +168,8 @@ namespace rhino_mcp_plugin
             try
             {
                 RhinoApp.WriteLine("Shutting down REER Rhino MCP Plugin...");
+                
+                // Control panel cleanup is handled by the new UI system
                 
                 // Stop any active connections
                 if (connectionManager != null)
@@ -179,7 +213,7 @@ namespace rhino_mcp_plugin
                 }
                 
                 // Process command using the command handler
-                string response = commandHandler.ProcessCommand(e.Command, e.ClientId);
+                string response = mcpCommandRouter.ProcessCommand(e.Command, e.ClientId);
                 
                 // Send response back to client
                 _ = connectionManager.ActiveConnection?.SendResponseAsync(response, e.ClientId);
@@ -212,6 +246,56 @@ namespace rhino_mcp_plugin
             if (settings.ShowStatusBar)
             {
                 // This will be implemented when we add UI components
+            }
+        }
+
+        /// <summary>
+        /// Shows the new refactored control panel (for testing)
+        /// </summary>
+        public void ShowNewControlPanel()
+        {
+            try
+            {
+                RhinoApp.WriteLine("[DEBUG] ShowNewControlPanel called");
+                if (!_avaloniaInitialized)
+                {
+                    RhinoApp.WriteLine("[DEBUG] Avalonia not initialized, initializing now...");
+                    InitializeAvalonia();
+                }
+
+                Dispatcher.UIThread.Post(() =>
+                {
+                    try
+                    {
+                        var newPanel = new UI.Windows.MCPControlPanelNew(this);
+                        newPanel.Show();
+                        RhinoApp.WriteLine("[DEBUG] New control panel shown successfully");
+                    }
+                    catch (Exception ex)
+                    {
+                        RhinoApp.WriteLine($"[ERROR] Failed to show new control panel: {ex.Message}");
+                        RhinoApp.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"[ERROR] Error in ShowNewControlPanel: {ex.Message}");
+            }
+        }
+
+        public void ShowControlPanel()
+        {
+            try
+            {
+                RhinoApp.WriteLine("[DEBUG] ShowControlPanel called - using new UI");
+                // Redirect to new UI implementation
+                ShowNewControlPanel();
+
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"[ERROR] Error showing control panel: {ex}");
             }
         }
 
