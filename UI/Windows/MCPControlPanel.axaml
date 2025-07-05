@@ -56,6 +56,9 @@
       <!-- Server Control Card -->
       <controls:ServerControlCard DataContext="{Binding ServerControl}" />
 
+      <!-- Log Viewer Card -->
+      <controls:LogViewerCard DataContext="{Binding LogViewer}" />
+
       <!-- Quick Actions -->
       <Border Classes="Card">
         <StackPanel>

@@ -30,6 +30,7 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
             // Initialize child ViewModels
             ConnectionStatus = new ConnectionStatusViewModel();
             ServerControl = new ServerControlViewModel(plugin.ConnectionManager);
+            LogViewer = new LogViewModel();
 
             // Initialize commands
             OpenSettingsCommand = new RelayCommand(OpenSettings);
@@ -47,6 +48,7 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
 
         public ConnectionStatusViewModel ConnectionStatus { get; }
         public ServerControlViewModel ServerControl { get; }
+        public LogViewModel LogViewer { get; }
 
         public bool KeepOnTop
         {
@@ -105,6 +107,10 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
             ConnectionStatus.UpdateStatus(e.Status, e.Message);
             ServerControl.IsConnected = e.Status == Core.Common.ConnectionStatus.Connected;
 
+            // Add log entry
+            string logLevel = e.Status == Core.Common.ConnectionStatus.Connected ? "SUCCESS" : "INFO";
+            LogViewer.AddLogEntry(logLevel, $"Connection status: {e.Status} - {e.Message}");
+
             // Update client count if available
             if (e.Status == Core.Common.ConnectionStatus.Connected && _plugin.ConnectionManager is RhinoMCPConnectionManager manager)
             {
@@ -116,7 +122,9 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
         private void OnCommandReceived(object sender, CommandReceivedEventArgs e)
         {
             // Handle command received events if needed
-            RhinoApp.WriteLine($"[UI] Command received: {e.Command["type"]} from {e.ClientId}");
+            string commandType = e.Command["type"]?.ToString() ?? "unknown";
+            LogViewer.AddLogEntry("COMMAND", $"Received command: {commandType} from {e.ClientId}");
+            RhinoApp.WriteLine($"[UI] Command received: {commandType} from {e.ClientId}");
         }
 
         private void OnServerStarted(int port)
@@ -124,22 +132,30 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
             _startTime = DateTime.Now;
             ConnectionStatus.CurrentPort = port.ToString();
             StartUptimeTimer();
+            LogViewer.AddLogEntry("SUCCESS", $"MCP server started on port {port}");
             RhinoApp.WriteLine($"[UI] Server started on port {port}");
         }
 
         private void OnServerStartFailed(string error)
         {
+            LogViewer.AddLogEntry("ERROR", $"Failed to start MCP server: {error}");
             RhinoApp.WriteLine($"[UI] Server start failed: {error}");
         }
 
         private void OnServerStopped()
         {
             StopUptimeTimer();
+            // Reset connection status when server stops
+            ConnectionStatus.UpdateStatus(Core.Common.ConnectionStatus.Disconnected, "Server stopped");
+            ConnectionStatus.CurrentPort = "";
+            ConnectionStatus.ClientCount = 0;
+            LogViewer.AddLogEntry("SUCCESS", "MCP server stopped successfully");
             RhinoApp.WriteLine("[UI] Server stopped");
         }
 
         private void OnServerStopFailed(string error)
         {
+            LogViewer.AddLogEntry("ERROR", $"Error stopping server: {error}");
             RhinoApp.WriteLine($"[UI] Server stop failed: {error}");
         }
 
