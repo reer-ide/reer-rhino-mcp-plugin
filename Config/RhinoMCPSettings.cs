@@ -54,7 +54,7 @@ namespace ReerRhinoMCPPlugin.Config
                     string json = JsonConvert.SerializeObject(this, Formatting.Indented);
                     
                     // Use Rhino's plugin settings system
-                    var plugin = rhino_mcp_plugin.ReerRhinoMCPPlugin.Instance;
+                    var plugin = ReerRhinoMCPPlugin.Instance;
                     if (plugin != null)
                     {
                         plugin.Settings.SetString(SETTINGS_KEY, json);
@@ -73,18 +73,33 @@ namespace ReerRhinoMCPPlugin.Config
         }
         
         /// <summary>
+        /// Loads settings from Rhino's persistent storage into this instance
+        /// </summary>
+        public void Load()
+        {
+            var loadedSettings = Load(ReerRhinoMCPPlugin.Instance);
+            
+            // Copy loaded settings to this instance
+            this.DefaultConnection = loadedSettings.DefaultConnection;
+            this.AutoStart = loadedSettings.AutoStart;
+            this.ShowStatusBar = loadedSettings.ShowStatusBar;
+            this.EnableDebugLogging = loadedSettings.EnableDebugLogging;
+            this.LastUsedMode = loadedSettings.LastUsedMode;
+        }
+        
+        /// <summary>
         /// Loads settings from Rhino's persistent storage
         /// </summary>
         /// <param name="plugin">The plugin instance to load settings from</param>
         /// <returns>Loaded settings or default settings if none exist</returns>
-        public static RhinoMCPSettings Load(rhino_mcp_plugin.ReerRhinoMCPPlugin plugin = null)
+        public static RhinoMCPSettings Load(ReerRhinoMCPPlugin plugin = null)
         {
             lock (lockObject)
             {
                 try
                 {
                     // Use provided plugin instance or fall back to static instance
-                    var pluginInstance = plugin ?? rhino_mcp_plugin.ReerRhinoMCPPlugin.Instance;
+                    var pluginInstance = plugin ?? ReerRhinoMCPPlugin.Instance;
                     
                     if (pluginInstance == null)
                     {

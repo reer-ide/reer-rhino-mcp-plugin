@@ -30,7 +30,9 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// <summary>
         /// Event fired when a command is received from a client
         /// </summary>
+#pragma warning disable CS0067 // Event is never used - will be implemented when WebSocket client is added
         public event EventHandler<CommandReceivedEventArgs> CommandReceived;
+#pragma warning restore CS0067
         
         /// <summary>
         /// Event fired when the connection status changes
@@ -42,32 +44,33 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// </summary>
         /// <param name="settings">Connection settings to use</param>
         /// <returns>True if connection started successfully, false otherwise</returns>
-        public async Task<bool> StartAsync(ConnectionSettings settings)
+        public Task<bool> StartAsync(ConnectionSettings settings)
         {
             if (settings == null || settings.Mode != ConnectionMode.Remote)
-                return false;
-                
+                return Task.FromResult(false);
+
             Settings = settings;
-            
+
             // TODO: Implement actual WebSocket client logic
             // For now, just simulate successful connection
             status = ConnectionStatus.Connected;
             StatusChanged?.Invoke(this, new ConnectionStatusChangedEventArgs(status, "WebSocket client connected"));
-            
-            return true;
+
+            return Task.FromResult(true);
         }
         
         /// <summary>
         /// Stops the connection and cleans up resources
         /// </summary>
         /// <returns>Task representing the async operation</returns>
-        public async Task StopAsync()
+        public Task StopAsync()
         {
             if (status != ConnectionStatus.Disconnected)
             {
                 status = ConnectionStatus.Disconnected;
                 StatusChanged?.Invoke(this, new ConnectionStatusChangedEventArgs(status, "WebSocket client disconnected"));
             }
+            return Task.CompletedTask;
         }
         
         /// <summary>
