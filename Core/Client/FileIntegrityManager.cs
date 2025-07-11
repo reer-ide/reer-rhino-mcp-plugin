@@ -1,0 +1,467 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Security.Cryptography;
+using System.Threading.Tasks;
+using System.Linq;
+using Newtonsoft.Json;
+using Rhino;
+using Microsoft.Win32;
+
+namespace ReerRhinoMCPPlugin.Core.Client
+{
+    /// <summary>
+    /// Manages file integrity checking and monitoring for linked Rhino files
+    /// </summary>
+    public class FileIntegrityManager
+    {
+        private const string REGISTRY_KEY = @"SOFTWARE\ReerRhinoMCPPlugin";
+        private const string LINKED_FILES_VALUE = "LinkedFiles";
+        
+        private readonly Dictionary<string, LinkedFileInfo> linkedFiles;
+        private readonly object lockObject = new object();
+
+        public FileIntegrityManager()
+        {
+            linkedFiles = new Dictionary<string, LinkedFileInfo>();
+            LoadLinkedFiles();
+        }
+
+        /// <summary>
+        /// Calculate SHA-256 hash of a file
+        /// </summary>
+        /// <param name="filePath">Path to the file</param>
+        /// <returns>SHA-256 hash or null if file doesn't exist</returns>
+        public async Task<string> CalculateFileHashAsync(string filePath)
+        {
+            try
+            {
+                if (!File.Exists(filePath))
+                {
+                    RhinoApp.WriteLine($"File not found for hash calculation: {filePath}");
+                    return null;
+                }
+
+                using (var sha256 = SHA256.Create())
+                using (var stream = File.OpenRead(filePath))
+                {
+                    var hashBytes = await Task.Run(() => sha256.ComputeHash(stream));
+                    return BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+                }
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error calculating file hash for {filePath}: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Get file size in bytes
+        /// </summary>
+        /// <param name="filePath">Path to the file</param>
+        /// <returns>File size in bytes or 0 if file doesn't exist</returns>
+        public long GetFileSize(string filePath)
+        {
+            try
+            {
+                if (File.Exists(filePath))
+                {
+                    var fileInfo = new FileInfo(filePath);
+                    return fileInfo.Length;
+                }
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error getting file size for {filePath}: {ex.Message}");
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Register a file as linked to a session
+        /// </summary>
+        /// <param name="sessionId">Session ID</param>
+        /// <param name="filePath">Path to the file</param>
+        /// <param name="fileHash">Current file hash</param>
+        public async Task RegisterLinkedFileAsync(string sessionId, string filePath, string fileHash = null)
+        {
+            try
+            {
+                // Calculate hash if not provided
+                if (string.IsNullOrEmpty(fileHash))
+                {
+                    fileHash = await CalculateFileHashAsync(filePath);
+                }
+
+                var linkedFile = new LinkedFileInfo
+                {
+                    SessionId = sessionId,
+                    FilePath = filePath,
+                    FileHash = fileHash,
+                    FileSize = GetFileSize(filePath),
+                    LastModified = File.Exists(filePath) ? File.GetLastWriteTime(filePath) : DateTime.MinValue,
+                    RegisteredAt = DateTime.Now,
+                    Status = File.Exists(filePath) ? FileStatus.Available : FileStatus.Missing
+                };
+
+                lock (lockObject)
+                {
+                    linkedFiles[sessionId] = linkedFile;
+                }
+
+                await SaveLinkedFiles();
+
+                RhinoApp.WriteLine($"File registered for session {sessionId}: {Path.GetFileName(filePath)}");
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error registering linked file: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Validate all linked files and return status changes
+        /// </summary>
+        /// <returns>List of file status changes</returns>
+        public async Task<List<FileStatusChange>> ValidateLinkedFilesAsync()
+        {
+            var statusChanges = new List<FileStatusChange>();
+
+            lock (lockObject)
+            {
+                foreach (var kvp in linkedFiles.ToList())
+                {
+                    var sessionId = kvp.Key;
+                    var linkedFile = kvp.Value;
+                    var currentStatus = linkedFile.Status;
+                    var newStatus = GetCurrentFileStatus(linkedFile.FilePath);
+
+                    // Check if file exists and hasn't been moved
+                    if (newStatus == FileStatus.Available)
+                    {
+                        // Check if file has been modified
+                        var lastModified = File.GetLastWriteTime(linkedFile.FilePath);
+                        var currentSize = GetFileSize(linkedFile.FilePath);
+
+                        if (lastModified != linkedFile.LastModified || currentSize != linkedFile.FileSize)
+                        {
+                            newStatus = FileStatus.Modified;
+                        }
+                    }
+
+                    // Update status if changed
+                    if (newStatus != currentStatus)
+                    {
+                        linkedFile.Status = newStatus;
+                        linkedFile.LastChecked = DateTime.Now;
+
+                        statusChanges.Add(new FileStatusChange
+                        {
+                            SessionId = sessionId,
+                            FilePath = linkedFile.FilePath,
+                            OldStatus = currentStatus,
+                            NewStatus = newStatus,
+                            Message = GetStatusChangeMessage(currentStatus, newStatus, linkedFile.FilePath)
+                        });
+
+                        RhinoApp.WriteLine($"File status changed for session {sessionId}: {currentStatus} -> {newStatus}");
+                    }
+                }
+            }
+
+            if (statusChanges.Any())
+            {
+                await SaveLinkedFiles();
+            }
+
+            return statusChanges;
+        }
+
+        /// <summary>
+        /// Check if a specific file is still valid for reconnection
+        /// </summary>
+        /// <param name="sessionId">Session ID</param>
+        /// <param name="expectedFilePath">Expected file path</param>
+        /// <param name="expectedHash">Expected file hash</param>
+        /// <returns>File validation result</returns>
+        public async Task<FileValidationResult> ValidateFileForReconnectionAsync(string sessionId, string expectedFilePath, string expectedHash)
+        {
+            try
+            {
+                var result = new FileValidationResult
+                {
+                    SessionId = sessionId,
+                    ExpectedPath = expectedFilePath,
+                    ExpectedHash = expectedHash
+                };
+
+                // Check if file exists at expected location
+                if (!File.Exists(expectedFilePath))
+                {
+                    result.IsValid = false;
+                    result.Issue = FileValidationIssue.FileNotFound;
+                    result.Message = $"File not found at expected location: {expectedFilePath}";
+                    return result;
+                }
+
+                // Calculate current hash
+                var currentHash = await CalculateFileHashAsync(expectedFilePath);
+                if (string.IsNullOrEmpty(currentHash))
+                {
+                    result.IsValid = false;
+                    result.Issue = FileValidationIssue.HashCalculationFailed;
+                    result.Message = "Failed to calculate file hash";
+                    return result;
+                }
+
+                result.CurrentHash = currentHash;
+                result.CurrentPath = expectedFilePath;
+
+                // Compare hashes
+                if (!string.Equals(expectedHash, currentHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    result.IsValid = false;
+                    result.Issue = FileValidationIssue.FileModified;
+                    result.Message = "File has been modified since last session";
+                    return result;
+                }
+
+                // File is valid
+                result.IsValid = true;
+                result.Message = "File validation successful";
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return new FileValidationResult
+                {
+                    SessionId = sessionId,
+                    ExpectedPath = expectedFilePath,
+                    IsValid = false,
+                    Issue = FileValidationIssue.ValidationError,
+                    Message = $"Error during file validation: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
+        /// Remove a linked file from tracking
+        /// </summary>
+        /// <param name="sessionId">Session ID</param>
+        public async Task UnregisterLinkedFileAsync(string sessionId)
+        {
+            lock (lockObject)
+            {
+                if (linkedFiles.ContainsKey(sessionId))
+                {
+                    var filePath = linkedFiles[sessionId].FilePath;
+                    linkedFiles.Remove(sessionId);
+                    RhinoApp.WriteLine($"File unregistered for session {sessionId}: {Path.GetFileName(filePath)}");
+                }
+            }
+
+            await SaveLinkedFiles();
+        }
+
+        /// <summary>
+        /// Get all linked files for status reporting
+        /// </summary>
+        /// <returns>List of linked file information</returns>
+        public List<LinkedFileInfo> GetAllLinkedFiles()
+        {
+            lock (lockObject)
+            {
+                return linkedFiles.Values.ToList();
+            }
+        }
+
+        /// <summary>
+        /// Clear all linked files (for troubleshooting)
+        /// </summary>
+        public async Task ClearAllLinkedFilesAsync()
+        {
+            lock (lockObject)
+            {
+                linkedFiles.Clear();
+            }
+
+            await SaveLinkedFiles();
+            RhinoApp.WriteLine("All linked files cleared");
+        }
+
+        private FileStatus GetCurrentFileStatus(string filePath)
+        {
+            return File.Exists(filePath) ? FileStatus.Available : FileStatus.Missing;
+        }
+
+        private string GetStatusChangeMessage(FileStatus oldStatus, FileStatus newStatus, string filePath)
+        {
+            var fileName = Path.GetFileName(filePath);
+            switch (newStatus)
+            {
+                case FileStatus.Missing:
+                    return $"File {fileName} is no longer available";
+                case FileStatus.Modified:
+                    return $"File {fileName} has been modified";
+                case FileStatus.Available:
+                    return $"File {fileName} is now available";
+                default:
+                    return $"File {fileName} status changed from {oldStatus} to {newStatus}";
+            }
+        }
+
+        private async Task SaveLinkedFiles()
+        {
+            try
+            {
+                if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+                {
+                    RhinoApp.WriteLine("File tracking storage is only supported on Windows");
+                    return;
+                }
+
+                var json = JsonConvert.SerializeObject(linkedFiles.Values.ToList(), Formatting.Indented);
+                var encryptedData = EncryptString(json);
+
+                using (var key = Registry.CurrentUser.CreateSubKey(REGISTRY_KEY))
+                {
+                    key.SetValue(LINKED_FILES_VALUE, encryptedData);
+                }
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error saving linked files: {ex.Message}");
+            }
+        }
+
+        private void LoadLinkedFiles()
+        {
+            try
+            {
+                if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+                {
+                    RhinoApp.WriteLine("File tracking storage is only supported on Windows");
+                    return;
+                }
+
+                using (var key = Registry.CurrentUser.OpenSubKey(REGISTRY_KEY))
+                {
+                    if (key == null) return;
+
+                    var encryptedData = key.GetValue(LINKED_FILES_VALUE) as string;
+                    if (string.IsNullOrEmpty(encryptedData)) return;
+
+                    var decryptedJson = DecryptString(encryptedData);
+                    var fileList = JsonConvert.DeserializeObject<List<LinkedFileInfo>>(decryptedJson);
+
+                    lock (lockObject)
+                    {
+                        linkedFiles.Clear();
+                        foreach (var file in fileList)
+                        {
+                            linkedFiles[file.SessionId] = file;
+                        }
+                    }
+
+                    RhinoApp.WriteLine($"Loaded {fileList.Count} linked files from storage");
+                }
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error loading linked files: {ex.Message}");
+            }
+        }
+
+        private string EncryptString(string plainText)
+        {
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+            {
+                throw new PlatformNotSupportedException("Encryption is only supported on Windows");
+            }
+
+            var data = System.Text.Encoding.UTF8.GetBytes(plainText);
+            var encryptedData = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
+            return Convert.ToBase64String(encryptedData);
+        }
+
+        private string DecryptString(string encryptedText)
+        {
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+            {
+                throw new PlatformNotSupportedException("Decryption is only supported on Windows");
+            }
+
+            var encryptedData = Convert.FromBase64String(encryptedText);
+            var decryptedData = ProtectedData.Unprotect(encryptedData, null, DataProtectionScope.CurrentUser);
+            return System.Text.Encoding.UTF8.GetString(decryptedData);
+        }
+    }
+
+    /// <summary>
+    /// Information about a linked file
+    /// </summary>
+    public class LinkedFileInfo
+    {
+        public string SessionId { get; set; }
+        public string FilePath { get; set; }
+        public string FileHash { get; set; }
+        public long FileSize { get; set; }
+        public DateTime LastModified { get; set; }
+        public DateTime RegisteredAt { get; set; }
+        public DateTime LastChecked { get; set; }
+        public FileStatus Status { get; set; }
+    }
+
+    /// <summary>
+    /// File status enumeration
+    /// </summary>
+    public enum FileStatus
+    {
+        Available,
+        Missing,
+        Modified,
+        Moved
+    }
+
+    /// <summary>
+    /// File status change notification
+    /// </summary>
+    public class FileStatusChange
+    {
+        public string SessionId { get; set; }
+        public string FilePath { get; set; }
+        public FileStatus OldStatus { get; set; }
+        public FileStatus NewStatus { get; set; }
+        public string Message { get; set; }
+    }
+
+    /// <summary>
+    /// File validation result
+    /// </summary>
+    public class FileValidationResult
+    {
+        public string SessionId { get; set; }
+        public string ExpectedPath { get; set; }
+        public string CurrentPath { get; set; }
+        public string ExpectedHash { get; set; }
+        public string CurrentHash { get; set; }
+        public bool IsValid { get; set; }
+        public FileValidationIssue Issue { get; set; }
+        public string Message { get; set; }
+    }
+
+    /// <summary>
+    /// File validation issues
+    /// </summary>
+    public enum FileValidationIssue
+    {
+        None,
+        FileNotFound,
+        FileModified,
+        HashCalculationFailed,
+        ValidationError
+    }
+} 

@@ -58,7 +58,8 @@ namespace ReerRhinoMCPPlugin.Core.Common
                     return LocalPort > 0 && LocalPort <= 65535 && !string.IsNullOrEmpty(LocalHost);
                     
                 case ConnectionMode.Remote:
-                    return !string.IsNullOrEmpty(RemoteUrl) && !string.IsNullOrEmpty(AuthToken);
+                    // For remote mode, we only need the URL - authentication is handled via license system
+                    return !string.IsNullOrEmpty(RemoteUrl);
                     
                 default:
                     return false;

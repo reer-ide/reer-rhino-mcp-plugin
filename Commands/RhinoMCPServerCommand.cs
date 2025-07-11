@@ -1,7 +1,13 @@
 using System;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using Rhino;
 using Rhino.Commands;
+using Rhino.Input;
+using Rhino.Input.Custom;
 using ReerRhinoMCPPlugin.Core.Common;
+using rhino_mcp_plugin;
 
 namespace ReerRhinoMCPPlugin.Commands
 {
@@ -9,146 +15,664 @@ namespace ReerRhinoMCPPlugin.Commands
     {
         public RhinoMCPServerCommand()
         {
-            // Rhino only creates one instance of each command class defined in a
-            // plug-in, so it is safe to store a refence in a static property.
             Instance = this;
         }
 
-        ///<summary>The only instance of this command.</summary>
         public static RhinoMCPServerCommand Instance { get; private set; }
 
-        ///<returns>The command name as it appears on the Rhino command line.</returns>
-        public override string EnglishName => "RhinoReer";
+        public override string EnglishName => "RhinoMCP";
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
             var plugin = rhino_mcp_plugin.ReerRhinoMCPPlugin.Instance;
-            if (plugin == null)
-            {
-                RhinoApp.WriteLine("RhinoMCP plugin not loaded");
-                return Result.Failure;
-            }
-
             var connectionManager = plugin.ConnectionManager;
-            var settings = plugin.MCPSettings;
 
-            if (connectionManager == null)
+            try
             {
-                RhinoApp.WriteLine("Connection manager not available");
-                return Result.Failure;
-            }
-
-            // Check current status
-            bool isConnected = connectionManager.IsConnected;
-            var status = connectionManager.Status;
-
-            RhinoApp.WriteLine($"Current MCP Status: {status}");
-
-            // Get user input for command
-            string input = "";
-            string prompt = isConnected ? 
-                "Server is running. Commands: 'stop', 'status', or press Enter for status" :
-                "Server stopped. Commands: 'local_start', 'status', or press Enter for status";
+                // Show main menu
+                var option = ShowMainMenu(connectionManager);
                 
-            if (Rhino.Input.RhinoGet.GetString(prompt, true, ref input) == Result.Success)
-            {
-                string command = input.ToLowerInvariant().Trim();
-                
-                switch (command)
+                switch (option)
                 {
-                    case "local_start":
-                        if (isConnected)
-                        {
-                            RhinoApp.WriteLine("Server is already running. Use 'stop' first if you want to restart.");
-                            break;
-                        }
+                    case MainMenuOption.RegisterLicense:
+                        return RunRegisterLicense(connectionManager);
                         
-                        RhinoApp.WriteLine("Starting local MCP server...");
-                        var connectionSettings = settings.GetDefaultConnectionSettings();
-                        connectionSettings.Mode = ConnectionMode.Local; // Ensure local mode
+                    case MainMenuOption.CheckLicense:
+                        return RunCheckLicense(connectionManager);
                         
-                        var startTask = connectionManager.StartConnectionAsync(connectionSettings);
-                        startTask.Wait(10000); // 10 second timeout
+                    case MainMenuOption.StartLocal:
+                        return RunStartLocal(connectionManager);
                         
-                        if (connectionManager.IsConnected)
-                        {
-                            RhinoApp.WriteLine($"✓ Local MCP server started successfully on {connectionSettings.LocalHost}:{connectionSettings.LocalPort}");
-                            RhinoApp.WriteLine("Ready for connections. You can now test with: python test_client.py");
-                            return Result.Success;
-                        }
-                        else
-                        {
-                            RhinoApp.WriteLine("✗ Failed to start local MCP server");
-                            return Result.Failure;
-                        }
+                    case MainMenuOption.StartRemote:
+                        return RunStartRemote(connectionManager);
                         
-                    case "stop":
-                        if (!isConnected)
-                        {
-                            RhinoApp.WriteLine("Server is not running.");
-                            break;
-                        }
+                    case MainMenuOption.Stop:
+                        return RunStop(connectionManager);
                         
-                        RhinoApp.WriteLine("Stopping MCP server...");
-                        var stopTask = connectionManager.StopConnectionAsync();
-                        stopTask.Wait(5000);
+                    case MainMenuOption.Status:
+                        return RunStatus(connectionManager);
                         
-                        if (!connectionManager.IsConnected)
-                        {
-                            RhinoApp.WriteLine("✓ MCP server stopped successfully");
-                            return Result.Success;
-                        }
-                        else
-                        {
-                            RhinoApp.WriteLine("✗ Failed to stop MCP server");
-                            return Result.Failure;
-                        }
+                    case MainMenuOption.CheckFiles:
+                        return RunCheckFiles(connectionManager);
                         
-                    case "status":
-                    case "":
-                        // Show status (handled below)
-                        break;
+                    case MainMenuOption.ClearFiles:
+                        return RunClearFiles(connectionManager);
+                        
+                    case MainMenuOption.ClearLicense:
+                        return RunClearLicense(connectionManager);
+                        
+                    case MainMenuOption.Cancel:
+                        return Result.Cancel;
                         
                     default:
-                        RhinoApp.WriteLine($"Unknown command: '{input}'");
-                        RhinoApp.WriteLine("Available commands: local_start, stop, status");
-                        break;
+                        return Result.Nothing;
                 }
             }
-
-            // Show current status
-            ShowStatus(connectionManager, settings);
-            return Result.Success;
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error in RhinoMCP command: {ex.Message}");
+                return Result.Failure;
+            }
         }
 
-        private void ShowStatus(IConnectionManager connectionManager, ReerRhinoMCPPlugin.Config.RhinoMCPSettings settings)
+        private MainMenuOption ShowMainMenu(IConnectionManager connectionManager)
         {
-            RhinoApp.WriteLine("=== RhinoReer MCP Server Status ===");
-            RhinoApp.WriteLine($"Status: {connectionManager.Status}");
-            RhinoApp.WriteLine($"Connected: {(connectionManager.IsConnected ? "✓ YES" : "✗ NO")}");
+            var getter = new GetOption();
+            getter.SetCommandPrompt("RhinoMCP: Select an option");
             
-            if (settings != null)
+            // Add options based on current state
+            getter.AddOption("RegisterLicense", "Register a new license with remote server");
+            getter.AddOption("CheckLicense", "Check current license status");
+            getter.AddOption("StartLocal", "Start local TCP server (for Claude Desktop)");
+            getter.AddOption("StartRemote", "Connect to remote MCP server");
+            getter.AddOption("Stop", "Stop current connection");
+            getter.AddOption("Status", "Show connection status");
+            getter.AddOption("CheckFiles", "Check status of linked files");
+            getter.AddOption("ClearFiles", "Clear all linked files (troubleshooting)");
+            getter.AddOption("ClearLicense", "Clear stored license (troubleshooting)");
+            
+            var result = getter.Get();
+            
+            if (result != GetResult.Option)
+                return MainMenuOption.Cancel;
+                
+            var selectedOption = getter.Option().EnglishName;
+            
+            switch (selectedOption)
             {
-                var defaultSettings = settings.GetDefaultConnectionSettings();
-                RhinoApp.WriteLine($"Mode: {defaultSettings.Mode}");
-                RhinoApp.WriteLine($"Host: {defaultSettings.LocalHost}");
-                RhinoApp.WriteLine($"Port: {defaultSettings.LocalPort}");
-                RhinoApp.WriteLine($"Auto-start: {settings.AutoStart}");
-                RhinoApp.WriteLine($"Debug logging: {settings.EnableDebugLogging}");
+                case "RegisterLicense": return MainMenuOption.RegisterLicense;
+                case "CheckLicense": return MainMenuOption.CheckLicense;
+                case "StartLocal": return MainMenuOption.StartLocal;
+                case "StartRemote": return MainMenuOption.StartRemote;
+                case "Stop": return MainMenuOption.Stop;
+                case "Status": return MainMenuOption.Status;
+                case "CheckFiles": return MainMenuOption.CheckFiles;
+                case "ClearFiles": return MainMenuOption.ClearFiles;
+                case "ClearLicense": return MainMenuOption.ClearLicense;
+                default: return MainMenuOption.Cancel;
+            }
+        }
+
+        private Result RunRegisterLicense(IConnectionManager connectionManager)
+        {
+            try
+            {
+                RhinoApp.WriteLine("=== RhinoMCP License Registration ===");
+                RhinoApp.WriteLine("This is a one-time setup to register your license with the remote MCP server.");
+                RhinoApp.WriteLine("");
+                
+                // Get license key from user
+                var licenseKey = GetUserInput("Enter your license key:");
+                if (string.IsNullOrEmpty(licenseKey))
+                {
+                    RhinoApp.WriteLine("License registration cancelled.");
+                    return Result.Cancel;
+                }
+                
+                // Get user ID from user
+                var userId = GetUserInput("Enter your user ID:");
+                if (string.IsNullOrEmpty(userId))
+                {
+                    RhinoApp.WriteLine("License registration cancelled.");
+                    return Result.Cancel;
+                }
+                
+                // Get server URL from user
+                var serverUrl = GetUserInput("Enter remote MCP server URL:", "https://rhinomcp.your-server.com");
+                if (string.IsNullOrEmpty(serverUrl))
+                {
+                    RhinoApp.WriteLine("License registration cancelled.");
+                    return Result.Cancel;
+                }
+                
+                // Show machine fingerprint for user awareness
+                var displayFingerprint = Core.Client.MachineFingerprinting.GetDisplayFingerprint();
+                RhinoApp.WriteLine($"Machine fingerprint: {displayFingerprint}");
+                RhinoApp.WriteLine("This will be used to bind the license to this machine.");
+                RhinoApp.WriteLine("");
+                RhinoApp.WriteLine("Registering license... (this may take a few seconds)");
+                
+                // Perform registration on background thread to avoid blocking UI
+                var success = Task.Run(async () => await RegisterLicenseAsync(licenseKey, userId, serverUrl)).GetAwaiter().GetResult();
+                
+                if (success)
+                {
+                    RhinoApp.WriteLine("");
+                    RhinoApp.WriteLine("✓ License registration completed successfully!");
+                    RhinoApp.WriteLine("You can now use 'StartRemote' to connect to the remote MCP server.");
+                    return Result.Success;
+                }
+                else
+                {
+                    RhinoApp.WriteLine("");
+                    RhinoApp.WriteLine("✗ License registration failed. Please check your license key and try again.");
+                    return Result.Failure;
+                }
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error during license registration: {ex.Message}");
+                return Result.Failure;
+            }
+        }
+
+        private Result RunCheckLicense(IConnectionManager connectionManager)
+        {
+            try
+            {
+                RhinoApp.WriteLine("=== RhinoMCP License Status ===");
+                
+                // Run on background thread to avoid blocking UI
+                var licenseResult = Task.Run(async () => await CheckLicenseAsync()).GetAwaiter().GetResult();
+                
+                if (licenseResult.IsValid)
+                {
+                    RhinoApp.WriteLine("✓ License is valid and active");
+                    RhinoApp.WriteLine($"  License ID: {licenseResult.LicenseId}");
+                    RhinoApp.WriteLine($"  User ID: {licenseResult.UserId}");
+                    RhinoApp.WriteLine($"  Tier: {licenseResult.Tier}");
+                    RhinoApp.WriteLine($"  Max concurrent files: {licenseResult.MaxConcurrentFiles}");
+                    
+                    var displayFingerprint = Core.Client.MachineFingerprinting.GetDisplayFingerprint();
+                    RhinoApp.WriteLine($"  Machine fingerprint: {displayFingerprint}");
+                }
+                else
+                {
+                    RhinoApp.WriteLine("✗ License validation failed");
+                    RhinoApp.WriteLine($"  Reason: {licenseResult.Message}");
+                    RhinoApp.WriteLine("  Use 'RegisterLicense' to register a new license.");
+                }
+                
+                return Result.Success;
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error checking license: {ex.Message}");
+                return Result.Failure;
+            }
+        }
+
+        private Result RunStartLocal(IConnectionManager connectionManager)
+        {
+            try
+            {
+                RhinoApp.WriteLine("=== Starting Local TCP Server ===");
+                
+                var host = GetUserInput("Enter host (default: 127.0.0.1):", "127.0.0.1");
+                if (string.IsNullOrEmpty(host)) host = "127.0.0.1";
+                
+                var portStr = GetUserInput("Enter port (default: 1999):", "1999");
+                if (string.IsNullOrEmpty(portStr)) portStr = "1999";
+                
+                if (!int.TryParse(portStr, out int port))
+                {
+                    RhinoApp.WriteLine("Invalid port number. Using default: 1999");
+                    port = 1999;
+                }
+                
+                var settings = new ConnectionSettings
+                {
+                    Mode = ConnectionMode.Local,
+                    LocalHost = host,
+                    LocalPort = port
+                };
+                
+                // Run on background thread to avoid blocking UI
+                var success = Task.Run(async () => await connectionManager.StartConnectionAsync(settings)).GetAwaiter().GetResult();
+                
+                if (success)
+                {
+                    RhinoApp.WriteLine($"✓ Local TCP server started successfully on {host}:{port}");
+                    RhinoApp.WriteLine("Ready to accept connections from Claude Desktop or other MCP clients.");
+                    return Result.Success;
+                }
+                else
+                {
+                    RhinoApp.WriteLine("✗ Failed to start local TCP server");
+                    return Result.Failure;
+                }
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error starting local server: {ex.Message}");
+                return Result.Failure;
+            }
+        }
+
+        private Result RunStartRemote(IConnectionManager connectionManager)
+        {
+            try
+            {
+                RhinoApp.WriteLine("=== Connecting to Remote MCP Server ===");
+                
+                // First check if license is valid - run on background thread
+                var licenseResult = Task.Run(async () => await CheckLicenseAsync()).GetAwaiter().GetResult();
+                
+                if (!licenseResult.IsValid)
+                {
+                    RhinoApp.WriteLine("✗ No valid license found. Please register a license first.");
+                    RhinoApp.WriteLine("  Use 'RegisterLicense' to register your license.");
+                    return Result.Failure;
+                }
+                
+                // Get server URL from stored license or prompt user
+                var serverUrl = GetServerUrlFromLicense();
+                if (string.IsNullOrEmpty(serverUrl))
+                {
+                    serverUrl = GetUserInput("Enter remote MCP server URL:", "https://rhinomcp.your-server.com");
+                    if (string.IsNullOrEmpty(serverUrl))
+                    {
+                        RhinoApp.WriteLine("Remote connection cancelled.");
+                        return Result.Cancel;
+                    }
+                }
+                
+                var settings = new ConnectionSettings
+                {
+                    Mode = ConnectionMode.Remote,
+                    RemoteUrl = serverUrl
+                };
+                
+                RhinoApp.WriteLine($"Connecting to: {serverUrl}");
+                RhinoApp.WriteLine($"License: {licenseResult.LicenseId} (Tier: {licenseResult.Tier})");
+                RhinoApp.WriteLine("Establishing connection... (this may take a few seconds)");
+                
+                // Run on background thread to avoid blocking UI
+                var success = Task.Run(async () => await connectionManager.StartConnectionAsync(settings)).GetAwaiter().GetResult();
+                
+                if (success)
+                {
+                    RhinoApp.WriteLine($"✓ Remote connection established successfully!");
+                    RhinoApp.WriteLine("Ready to receive CAD commands from host applications.");
+                    return Result.Success;
+                }
+                else
+                {
+                    RhinoApp.WriteLine("✗ Failed to establish remote connection");
+                    return Result.Failure;
+                }
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error starting remote connection: {ex.Message}");
+                return Result.Failure;
+            }
+        }
+
+        private Result RunStop(IConnectionManager connectionManager)
+        {
+            try
+            {
+                RhinoApp.WriteLine("=== Stopping Connection ===");
+                
+                if (!connectionManager.IsConnected)
+                {
+                    RhinoApp.WriteLine("No active connection to stop.");
+                    return Result.Nothing;
+                }
+                
+                // Run on background thread to avoid blocking UI
+                Task.Run(async () => await connectionManager.StopConnectionAsync()).GetAwaiter().GetResult();
+                
+                RhinoApp.WriteLine("✓ Connection stopped successfully");
+                return Result.Success;
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error stopping connection: {ex.Message}");
+                return Result.Failure;
+            }
+        }
+
+        private Result RunStatus(IConnectionManager connectionManager)
+        {
+            try
+            {
+                RhinoApp.WriteLine("=== RhinoMCP Status ===");
+                
+                // Connection status
+                RhinoApp.WriteLine($"Connection Status: {connectionManager.Status}");
+                RhinoApp.WriteLine($"Is Connected: {connectionManager.IsConnected}");
+                
+                if (connectionManager.ActiveConnection != null)
+                {
+                    var settings = connectionManager.ActiveConnection.Settings;
+                    RhinoApp.WriteLine($"Connection Mode: {settings.Mode}");
+                    
+                    if (settings.Mode == ConnectionMode.Local)
+                    {
+                        RhinoApp.WriteLine($"Local Server: {settings.LocalHost}:{settings.LocalPort}");
+                    }
+                    else
+                    {
+                        RhinoApp.WriteLine($"Remote Server: {settings.RemoteUrl}");
+                    }
+                }
+                
+                // License status
+                var licenseTask = CheckLicenseAsync();
+                var licenseResult = licenseTask.GetAwaiter().GetResult();
+                
+                RhinoApp.WriteLine($"License Status: {(licenseResult.IsValid ? "Valid" : "Invalid")}");
+                if (licenseResult.IsValid)
+                {
+                    RhinoApp.WriteLine($"License ID: {licenseResult.LicenseId}");
+                    RhinoApp.WriteLine($"Tier: {licenseResult.Tier}");
+                }
+                
+                return Result.Success;
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error getting status: {ex.Message}");
+                return Result.Failure;
+            }
+        }
+
+        private Result RunCheckFiles(IConnectionManager connectionManager)
+        {
+            try
+            {
+                RhinoApp.WriteLine("=== Checking Linked Files ===");
+                
+                var remoteClient = GetRemoteClient(connectionManager);
+                if (remoteClient != null)
+                {
+                    // Get all linked files
+                    var linkedFiles = remoteClient.GetLinkedFiles();
+                    
+                    if (!linkedFiles.Any())
+                    {
+                        RhinoApp.WriteLine("No linked files found.");
+                        return Result.Success;
+                    }
+                    
+                    RhinoApp.WriteLine($"Found {linkedFiles.Count} linked file(s):");
+                    RhinoApp.WriteLine("");
+                    
+                    foreach (var file in linkedFiles)
+                    {
+                        RhinoApp.WriteLine($"Session: {file.SessionId}");
+                        RhinoApp.WriteLine($"  File: {Path.GetFileName(file.FilePath)}");
+                        RhinoApp.WriteLine($"  Full Path: {file.FilePath}");
+                        RhinoApp.WriteLine($"  Status: {file.Status}");
+                        RhinoApp.WriteLine($"  Size: {file.FileSize:N0} bytes");
+                        RhinoApp.WriteLine($"  Registered: {file.RegisteredAt:yyyy-MM-dd HH:mm:ss}");
+                        RhinoApp.WriteLine($"  Last Modified: {file.LastModified:yyyy-MM-dd HH:mm:ss}");
+                        RhinoApp.WriteLine("");
+                    }
+                    
+                    // Check for file status changes
+                    var validateTask = remoteClient.ValidateLinkedFilesAsync();
+                    var statusChanges = validateTask.GetAwaiter().GetResult();
+                    
+                    if (statusChanges.Any())
+                    {
+                        RhinoApp.WriteLine("File status changes detected:");
+                        foreach (var change in statusChanges)
+                        {
+                            RhinoApp.WriteLine($"  • {change.Message}");
+                        }
+                        
+                        // Report changes to server if connected
+                        if (connectionManager.IsConnected)
+                        {
+                            var reportTask = remoteClient.ReportFileStatusChangesAsync(statusChanges);
+                            reportTask.GetAwaiter().GetResult();
+                            RhinoApp.WriteLine("Status changes reported to server.");
+                        }
+                    }
+                    else
+                    {
+                        RhinoApp.WriteLine("✓ All files are up to date.");
+                    }
+                    
+                            return Result.Success;
+                        }
+                        else
+                {
+                    // Create temporary client to check files
+                    var tempClient = new Core.Client.RhinoMCPClient();
+                    try
+                    {
+                        var linkedFiles = tempClient.GetLinkedFiles();
+                        
+                        if (!linkedFiles.Any())
+                        {
+                            RhinoApp.WriteLine("No linked files found.");
+                            return Result.Success;
+                        }
+                        
+                        RhinoApp.WriteLine($"Found {linkedFiles.Count} linked file(s):");
+                        foreach (var file in linkedFiles)
+                        {
+                            RhinoApp.WriteLine($"  • {Path.GetFileName(file.FilePath)} ({file.Status})");
+                        }
+                        
+                        return Result.Success;
+                    }
+                    finally
+                    {
+                        tempClient.Dispose();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error checking files: {ex.Message}");
+                return Result.Failure;
+            }
+        }
+
+        private Result RunClearFiles(IConnectionManager connectionManager)
+        {
+            try
+            {
+                RhinoApp.WriteLine("=== Clear Linked Files ===");
+                RhinoApp.WriteLine("This will clear all linked file records. Active sessions may be affected.");
+                
+                var confirm = GetUserInput("Are you sure? (yes/no):", "no");
+                if (confirm?.ToLower() != "yes")
+                {
+                    RhinoApp.WriteLine("File clear cancelled.");
+                    return Result.Cancel;
+                }
+                
+                var remoteClient = GetRemoteClient(connectionManager);
+                if (remoteClient != null)
+                {
+                    var clearTask = remoteClient.ClearLinkedFilesAsync();
+                    clearTask.GetAwaiter().GetResult();
+                    RhinoApp.WriteLine("✓ All linked files cleared successfully");
+                            return Result.Success;
+                        }
+                        else
+                        {
+                    // Create temporary client to clear files
+                    var tempClient = new Core.Client.RhinoMCPClient();
+                    try
+                    {
+                        var clearTask = tempClient.ClearLinkedFilesAsync();
+                        clearTask.GetAwaiter().GetResult();
+                        RhinoApp.WriteLine("✓ All linked files cleared successfully");
+                        return Result.Success;
+                    }
+                    finally
+                    {
+                        tempClient.Dispose();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error clearing files: {ex.Message}");
+                            return Result.Failure;
+                        }
+        }
+
+        private Result RunClearLicense(IConnectionManager connectionManager)
+        {
+            try
+            {
+                RhinoApp.WriteLine("=== Clear Stored License ===");
+                RhinoApp.WriteLine("This will remove your stored license and you will need to register again.");
+                
+                var confirm = GetUserInput("Are you sure? (yes/no):", "no");
+                if (confirm?.ToLower() != "yes")
+                {
+                    RhinoApp.WriteLine("License clear cancelled.");
+                    return Result.Cancel;
+                }
+                
+                // Clear license using the client
+                var remoteClient = GetRemoteClient(connectionManager);
+                if (remoteClient != null)
+                {
+                    remoteClient.ClearStoredLicense();
+                    RhinoApp.WriteLine("✓ Stored license cleared successfully");
+                    return Result.Success;
+                }
+                else
+                {
+                    RhinoApp.WriteLine("✗ Could not access license manager");
+                    return Result.Failure;
+                }
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error clearing license: {ex.Message}");
+                return Result.Failure;
+            }
+        }
+
+        private string GetUserInput(string prompt, string defaultValue = null)
+        {
+            var getter = new GetString();
+            getter.SetCommandPrompt(prompt);
+            
+            if (!string.IsNullOrEmpty(defaultValue))
+            {
+                getter.SetDefaultString(defaultValue);
             }
             
-            RhinoApp.WriteLine("");
-            if (connectionManager.IsConnected)
+            var result = getter.Get();
+            
+            if (result == GetResult.String)
             {
-                RhinoApp.WriteLine("🔗 Server is running and ready for connections");
-                RhinoApp.WriteLine("   Test with: python test_client.py");
+                return getter.StringResult();
+            }
+            
+            return null;
+        }
+
+        private async Task<bool> RegisterLicenseAsync(string licenseKey, string userId, string serverUrl)
+        {
+            var plugin = rhino_mcp_plugin.ReerRhinoMCPPlugin.Instance;
+            var connectionManager = plugin.ConnectionManager;
+            
+            // Create a temporary remote client to perform registration
+            var remoteClient = new Core.Client.RhinoMCPClient();
+            try
+            {
+                return await remoteClient.RegisterLicenseAsync(licenseKey, userId, serverUrl);
+            }
+            finally
+            {
+                remoteClient.Dispose();
+            }
+        }
+
+        private async Task<Core.Client.LicenseValidationResult> CheckLicenseAsync()
+        {
+            var plugin = rhino_mcp_plugin.ReerRhinoMCPPlugin.Instance;
+            var connectionManager = plugin.ConnectionManager;
+            
+            var remoteClient = GetRemoteClient(connectionManager);
+            if (remoteClient != null)
+            {
+                return await remoteClient.GetLicenseStatusAsync();
             }
             else
             {
-                RhinoApp.WriteLine("💤 Server is stopped");
-                RhinoApp.WriteLine("   Start with: RhinoReer → local_start");
+                // Create temporary client to check license
+                var tempClient = new Core.Client.RhinoMCPClient();
+                try
+                {
+                    return await tempClient.GetLicenseStatusAsync();
+                }
+                finally
+                {
+                    tempClient.Dispose();
+                }
             }
-            RhinoApp.WriteLine("=====================================");
+        }
+
+        private string GetServerUrlFromLicense()
+        {
+            try
+            {
+                var plugin = rhino_mcp_plugin.ReerRhinoMCPPlugin.Instance;
+                var connectionManager = plugin.ConnectionManager;
+                
+                var remoteClient = GetRemoteClient(connectionManager);
+                if (remoteClient != null)
+                {
+                    var licenseTask = remoteClient.GetLicenseStatusAsync();
+                    var licenseResult = licenseTask.GetAwaiter().GetResult();
+                    
+                    if (licenseResult.IsValid)
+                    {
+                        // Note: We need to add ServerUrl to LicenseValidationResult
+                        // For now, return null and let user enter it
+                        return null;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Warning: Could not get server URL from license: {ex.Message}");
+            }
+            
+            return null;
+        }
+
+        private Core.Client.RhinoMCPClient GetRemoteClient(IConnectionManager connectionManager)
+        {
+            return connectionManager.ActiveConnection as Core.Client.RhinoMCPClient;
+        }
+
+        private enum MainMenuOption
+        {
+            RegisterLicense,
+            CheckLicense,
+            StartLocal,
+            StartRemote,
+            Stop,
+            Status,
+            CheckFiles,
+            ClearFiles,
+            ClearLicense,
+            Cancel
         }
     }
 } 

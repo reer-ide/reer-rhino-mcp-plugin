@@ -33,6 +33,20 @@
         "clear": true
       },
       "group": "build"
+    },
+    {
+      "label": "run test client",
+      "command": "python",
+      "type": "shell",
+      "args": [
+        "${workspaceFolder}/tests/test_client.py"
+      ],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "clear": true
+      },
+      "group": "test"
     }
   ]
 }

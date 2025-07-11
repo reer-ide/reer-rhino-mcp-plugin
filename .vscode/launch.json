@@ -9,13 +9,16 @@
       "program": "",
       "osx": {
         "program": "/Applications/Rhino 8.app/Contents/MacOS/Rhinoceros",
-        "args": []
+        "args": [
+          "${workspaceFolder}/tests/test_multi_storey.3dm"
+        ]
       },
       "windows": {
         "program": "C:\\Program Files\\Rhino 8\\System\\Rhino.exe",
         "targetArchitecture": "x86_64",
         "args": [
-          "/netcore"
+          "/netcore",
+          "${workspaceFolder}/tests/test_multi_storey.3dm"
         ]
       },
       "env": {
@@ -34,7 +37,8 @@
         "program": "C:\\Program Files\\Rhino 8\\System\\Rhino.exe",
         "targetArchitecture": "x86_64",
         "args": [
-          "/netfx"
+          "/netfx",
+          "${workspaceFolder}/tests/test_multi_storey.3dm"
         ]
       },
       "env": {
