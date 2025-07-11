@@ -119,3 +119,6 @@ Thumbs.db
 *.msi
 *.msix
 *.msm 
+
+# augment
+*.augment

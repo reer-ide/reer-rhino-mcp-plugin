@@ -99,6 +99,11 @@ namespace ReerRhinoMCPPlugin.Core.Common
         /// <summary>
         /// Connection failed
         /// </summary>
-        Failed
+        Failed,
+        
+        /// <summary>
+        /// Connection error
+        /// </summary>
+        Error
     }
 } 

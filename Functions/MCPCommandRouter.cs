@@ -12,11 +12,11 @@ namespace ReerRhinoMCPPlugin.Functions
     /// <summary>
     /// Advanced command handler with reflection-based routing for MCP protocol commands
     /// </summary>
-    public class BasicCommandHandler
+    public class MCPCommandRouter
     {
         private readonly Dictionary<string, (ICommand commandInstance, MCPCommandAttribute attr)> _commands;
 
-        public BasicCommandHandler()
+        public MCPCommandRouter()
         {
             _commands = DiscoverCommands();
             

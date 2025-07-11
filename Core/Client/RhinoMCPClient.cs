@@ -64,7 +64,9 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// <summary>
         /// Event fired when a command is received from a client
         /// </summary>
+#pragma warning disable CS0067 // Event is never used - will be implemented when WebSocket client is added
         public event EventHandler<CommandReceivedEventArgs> CommandReceived;
+#pragma warning restore CS0067
         
         /// <summary>
         /// Event fired when the connection status changes
@@ -206,7 +208,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// </summary>
         /// <param name="settings">Connection settings to use</param>
         /// <returns>True if connection started successfully, false otherwise</returns>
-        public async Task<bool> StartAsync(ConnectionSettings settings)
+        public Task<bool> StartAsync(ConnectionSettings settings)
         {
             if (settings == null || settings.Mode != ConnectionMode.Remote)
                 return false;
@@ -285,7 +287,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// Stops the connection and cleans up resources
         /// </summary>
         /// <returns>Task representing the async operation</returns>
-        public async Task StopAsync()
+        public Task StopAsync()
         {
             ConnectionStatus currentStatus;
             lock (lockObject)
@@ -310,6 +312,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
 
             OnStatusChanged(ConnectionStatus.Disconnected, "WebSocket client stopped");
             RhinoApp.WriteLine("RhinoMCP WebSocket client stopped");
+            return Task.CompletedTask;
         }
         
         /// <summary>
@@ -644,14 +647,13 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// <summary>
         /// Disposes the client and cleans up resources
         /// </summary>
-        public void Dispose()
+        public async Task Dispose()
         {
             if (!disposed)
             {
                 try
                 {
-                    var stopTask = StopAsync();
-                    stopTask.Wait(5000);
+                    await StopAsync();
                 }
                 catch (Exception ex)
                 {

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Rhino;
 using ReerRhinoMCPPlugin.Core.Common;
@@ -54,6 +55,24 @@ namespace ReerRhinoMCPPlugin.Core
                 lock (lockObject)
                 {
                     return activeConnection?.Status ?? ConnectionStatus.Disconnected;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Number of connected clients (only applicable for server mode)
+        /// </summary>
+        public int ClientCount
+        {
+            get
+            {
+                lock (lockObject)
+                {
+                    if (activeConnection is RhinoMCPServer server)
+                    {
+                        return server.ClientCount;
+                    }
+                    return 0;
                 }
             }
         }
@@ -141,7 +160,6 @@ namespace ReerRhinoMCPPlugin.Core
         public async Task StopConnectionAsync()
         {
             IRhinoMCPConnection connectionToStop = null;
-            
             lock (lockObject)
             {
                 if (activeConnection != null)
@@ -155,22 +173,49 @@ namespace ReerRhinoMCPPlugin.Core
             {
                 try
                 {
-                    // Unsubscribe from events
+                    RhinoApp.WriteLine("Stopping RhinoMCP connection...");
+                    
+                    // Unsubscribe from events first
                     connectionToStop.CommandReceived -= OnConnectionCommandReceived;
                     connectionToStop.StatusChanged -= OnConnectionStatusChanged;
                     
-                    // Stop the connection
-                    await connectionToStop.StopAsync();
+                    // Stop the connection with timeout
+                    using (var timeoutCts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5)))
+                    {
+                        try
+                        {
+                            await connectionToStop.StopAsync();
+                            RhinoApp.WriteLine("Connection stopped successfully");
+                        }
+                        catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested)
+                        {
+                            RhinoApp.WriteLine("Stop operation timed out, forcing disposal");
+                        }
+                        catch (Exception ex)
+                        {
+                            RhinoApp.WriteLine($"Error during graceful stop: {ex.Message}");
+                        }
+                    }
                     
-                    // Dispose resources
-                    connectionToStop.Dispose();
-                    
-                    RhinoApp.WriteLine("RhinoMCP connection stopped");
+                    // Always dispose resources
+                    try
+                    {
+                        connectionToStop.Dispose();
+                        RhinoApp.WriteLine("Connection resources disposed");
+                    }
+                    catch (Exception ex)
+                    {
+                        RhinoApp.WriteLine($"Error disposing connection: {ex.Message}");
+                    }
                 }
                 catch (Exception ex)
                 {
                     RhinoApp.WriteLine($"Error stopping connection: {ex.Message}");
                 }
+            }
+            else
+            {
+                RhinoApp.WriteLine("No active connection to stop");
             }
         }
         

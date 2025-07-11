@@ -2,11 +2,14 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading.Tasks;
 using Rhino;
 using Rhino.Commands;
 using Rhino.Input;
 using Rhino.Input.Custom;
 using ReerRhinoMCPPlugin.Core.Common;
+using ReerRhinoMCPPlugin.Config;
+using ReerRhinoMCPPlugin.UI;
 using rhino_mcp_plugin;
 
 namespace ReerRhinoMCPPlugin.Commands
@@ -15,6 +18,8 @@ namespace ReerRhinoMCPPlugin.Commands
     {
         public RhinoMCPServerCommand()
         {
+            // Rhino only creates one instance of each command class defined in a
+            // plug-in, so it is safe to store a reference in a static property.
             Instance = this;
         }
 
@@ -612,7 +617,7 @@ namespace ReerRhinoMCPPlugin.Commands
             {
                 return await remoteClient.GetLicenseStatusAsync();
             }
-            else
+            catch (Exception ex)
             {
                 // Create temporary client to check license
                 var tempClient = new Core.Client.RhinoMCPClient();
