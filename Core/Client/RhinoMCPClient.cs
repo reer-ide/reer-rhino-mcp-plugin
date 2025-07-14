@@ -21,7 +21,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
     public class RhinoMCPClient : IRhinoMCPConnection
     {
         private readonly object lockObject = new object();
-        private readonly BasicCommandHandler commandHandler;
+        private readonly CommandExecutor commandHandler;
         private readonly CancellationTokenSource cancellationTokenSource;
         private readonly HttpClient httpClient;
         private readonly LicenseManager licenseManager;
@@ -39,7 +39,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
 
         public RhinoMCPClient()
         {
-            commandHandler = new BasicCommandHandler();
+            commandHandler = new CommandExecutor();
             cancellationTokenSource = new CancellationTokenSource();
             httpClient = new HttpClient();
             licenseManager = new LicenseManager();
@@ -647,24 +647,11 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// <summary>
         /// Disposes the client and cleans up resources
         /// </summary>
-        public async Task Dispose()
+        public void Dispose()
         {
-            if (!disposed)
-            {
-                try
-                {
-                    await StopAsync();
-                }
-                catch (Exception ex)
-                {
-                    RhinoApp.WriteLine($"Error disposing RhinoMCPClient: {ex.Message}");
-                }
-                
-                httpClient?.Dispose();
-                licenseManager?.Dispose();
-                cancellationTokenSource?.Dispose();
-                disposed = true;
-            }
+            if (disposed) return;
+            disposed = true;
+            Task.Run(StopAsync).Wait();
         }
     }
 } 

@@ -31,12 +31,6 @@ namespace ReerRhinoMCPPlugin.Core.Common
         public string RemoteUrl { get; set; }
         
         /// <summary>
-        /// For Remote mode: Authentication token for the remote server
-        /// For Local mode: Not used
-        /// </summary>
-        public string AuthToken { get; set; }
-        
-        /// <summary>
         /// Connection timeout in milliseconds (default: 30 seconds)
         /// </summary>
         public int TimeoutMs { get; set; } = 30000;

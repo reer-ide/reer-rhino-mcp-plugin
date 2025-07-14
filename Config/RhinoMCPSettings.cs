@@ -25,7 +25,7 @@ namespace ReerRhinoMCPPlugin.Config
         /// <summary>
         /// Whether to auto-start connection when plugin loads
         /// </summary>
-        public bool AutoStart { get; set; } = false;
+        public bool AutoStart { get; set; } = true;
         
         /// <summary>
         /// Whether to show connection status in Rhino's status bar
@@ -169,7 +169,6 @@ namespace ReerRhinoMCPPlugin.Config
                 LocalHost = DefaultConnection.LocalHost,
                 LocalPort = DefaultConnection.LocalPort,
                 RemoteUrl = DefaultConnection.RemoteUrl,
-                AuthToken = DefaultConnection.AuthToken,
                 TimeoutMs = DefaultConnection.TimeoutMs,
                 AutoReconnect = DefaultConnection.AutoReconnect
             };

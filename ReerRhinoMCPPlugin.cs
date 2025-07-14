@@ -29,8 +29,8 @@ namespace ReerRhinoMCPPlugin
     {
         private static IConnectionManager connectionManager;
         private static RhinoMCPSettings settings;
-        private static MCPCommandRouter mcpCommandRouter;
         private static bool _avaloniaInitialized = false;
+        private CommandExecutor commandExecutor;
 
         
         public ReerRhinoMCPPlugin()
@@ -78,7 +78,8 @@ namespace ReerRhinoMCPPlugin
                 settings.Load();
                 
                 // Initialize command router
-                mcpCommandRouter = new MCPCommandRouter();
+                commandExecutor = new CommandExecutor();
+                ConnectionManager.CommandReceived += OnCommandReceived;
                 
                 // Subscribe to connection events
                 connectionManager.CommandReceived += OnCommandReceived;
@@ -207,24 +208,16 @@ namespace ReerRhinoMCPPlugin
         {
             try
             {
-                if (settings.EnableDebugLogging)
+                var responseJson = commandExecutor.ProcessCommand(e.Command, e.ClientId);
+                
+                if (ConnectionManager.ActiveConnection != null)
                 {
-                    RhinoApp.WriteLine($"Received MCP command from {e.ClientId}: {e.Command["type"]}");
+                    ConnectionManager.ActiveConnection.SendResponseAsync(responseJson, e.ClientId);
                 }
-                
-                // Process command using the command handler
-                string response = mcpCommandRouter.ProcessCommand(e.Command, e.ClientId);
-                
-                // Send response back to client
-                _ = connectionManager.ActiveConnection?.SendResponseAsync(response, e.ClientId);
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error processing command: {ex.Message}");
-                
-                // Send error response
-                string errorResponse = "{\"status\":\"error\",\"message\":\"Internal server error\"}";
-                _ = connectionManager.ActiveConnection?.SendResponseAsync(errorResponse, e.ClientId);
+                RhinoApp.WriteLine($"Error processing command in plugin: {ex.Message}");
             }
         }
         

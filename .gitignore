@@ -1,6 +1,10 @@
 # Local development folders
 docs/example/
 
+#Claude
+.claude/
+CLAUDE.md
+
 # Visual Studio
 .vs/
 *.user

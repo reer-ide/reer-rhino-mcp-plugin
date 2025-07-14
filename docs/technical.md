@@ -45,7 +45,6 @@ public class RhinoMCPClient : IRhinoMCPConnection
 {
     private WebSocket webSocket;
     private string serverUrl;
-    private string authToken;
     
     public async Task ConnectAsync(string url, string token)
     {
@@ -239,7 +238,6 @@ public class RhinoMCPConnectionManager
    {
        public ConnectionMode Mode { get; set; }
        public string RemoteUrl { get; set; }
-       public string AuthToken { get; set; }
        
        public void Save()
        {
