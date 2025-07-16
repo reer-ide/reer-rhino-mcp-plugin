@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Drawing;
 using Newtonsoft.Json.Linq;
 using Rhino;
 using Rhino.DocObjects;
@@ -8,8 +9,8 @@ using ReerRhinoMCPPlugin.Core.Functions;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
-    [MCPTool("select_rhino_objects", "Select Rhino objects based on various criteria")]
-    public class SelectRhinoObjects
+    [MCPTool("select_rhino_objects", "Select Rhino objects based on filters")]
+    public class SelectRhinoObjects : ITool
     {
         public JObject Execute(JObject parameters)
         {
@@ -24,51 +25,97 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     };
                 }
 
-                var selectionCriteria = parameters["selection_criteria"] as JObject;
-                if (selectionCriteria == null)
-                {
-                    return new JObject
-                    {
-                        ["error"] = "No selection criteria provided"
-                    };
-                }
+                var filters = parameters["filters"] as JObject ?? new JObject();
+                var filtersType = parameters["filters_type"]?.ToString() ?? "and";
 
+                var allObjects = doc.Objects.ToList();
                 var selectedObjects = new List<RhinoObject>();
                 var selectedIds = new JArray();
-                var selectedMetadata = new JArray();
+                var unselectableObjects = new JArray();
+                var filteredObjects = new List<RhinoObject>();
 
                 // Clear current selection
                 doc.Objects.UnselectAll();
 
-                foreach (var rhinoObject in doc.Objects)
+                // First, find objects that match the filters
+                if (filters.Count == 0)
                 {
-                    if (rhinoObject == null || !rhinoObject.IsValid) continue;
-
-                    if (MatchesSelectionCriteria(rhinoObject, selectionCriteria, doc))
+                    // No filters means all valid objects
+                    filteredObjects.AddRange(allObjects.Where(obj => obj != null && obj.IsValid));
+                }
+                else
+                {
+                    // Apply filters based on filters_type
+                    foreach (var obj in allObjects)
                     {
-                        selectedObjects.Add(rhinoObject);
-                        selectedIds.Add(rhinoObject.Id.ToString());
+                        if (obj == null || !obj.IsValid) continue;
 
-                        // Get object metadata
-                        var objectData = BuildSelectedObjectData(rhinoObject, doc);
-                        selectedMetadata.Add(objectData);
+                        bool matches = (filtersType.ToLower() == "and") 
+                            ? MatchesAllFilters(obj, filters, doc)
+                            : MatchesAnyFilter(obj, filters, doc);
 
-                        // Select the object in Rhino
-                        rhinoObject.Select(true);
+                        if (matches)
+                        {
+                            filteredObjects.Add(obj);
+                        }
+                    }
+                }
+
+                // Now attempt to select the filtered objects, checking selectability
+                foreach (var obj in filteredObjects)
+                {
+                    if (IsObjectSelectable(obj, doc))
+                    {
+                        if (doc.Objects.Select(obj.Id))
+                        {
+                            selectedObjects.Add(obj);
+                            selectedIds.Add(obj.Id.ToString());
+                        }
+                        else
+                        {
+                            // Selection failed for some other reason
+                            unselectableObjects.Add(new JObject
+                            {
+                                ["object_id"] = obj.Id.ToString(),
+                                ["name"] = obj.Attributes.Name ?? "",
+                                ["reason"] = "Selection failed (unknown reason)"
+                            });
+                        }
+                    }
+                    else
+                    {
+                        // Object matches filter but isn't selectable
+                        var reason = GetUnselectableReason(obj, doc);
+                        unselectableObjects.Add(new JObject
+                        {
+                            ["object_id"] = obj.Id.ToString(),
+                            ["name"] = obj.Attributes.Name ?? "",
+                            ["reason"] = reason
+                        });
                     }
                 }
 
                 // Update views to show selection
                 doc.Views.Redraw();
 
-                return new JObject
+                var result = new JObject
                 {
                     ["status"] = "success",
-                    ["selected_count"] = selectedObjects.Count,
+                    ["count"] = selectedObjects.Count,
                     ["selected_ids"] = selectedIds,
-                    ["selected_objects"] = selectedMetadata,
-                    ["criteria"] = selectionCriteria
+                    ["filters"] = filters,
+                    ["filters_type"] = filtersType,
+                    ["total_filtered"] = filteredObjects.Count
                 };
+
+                // Include information about unselectable objects if any
+                if (unselectableObjects.Count > 0)
+                {
+                    result["unselectable_objects"] = unselectableObjects;
+                    result["unselectable_count"] = unselectableObjects.Count;
+                }
+
+                return result;
             }
             catch (Exception ex)
             {
@@ -80,159 +127,140 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
         }
 
-        private bool MatchesSelectionCriteria(RhinoObject rhinoObject, JObject criteria, RhinoDoc doc)
+        private bool IsObjectSelectable(RhinoObject rhinoObject, RhinoDoc doc)
         {
-            var userStrings = rhinoObject.Attributes.GetUserStrings();
+            // Check if object is locked
+            if (rhinoObject.IsLocked)
+                return false;
 
-            // Name criteria
-            if (criteria["name"] != null)
+            // Check if object is hidden
+            if (!rhinoObject.Visible)
+                return false;
+
+            // Check if object's layer is locked or hidden
+            var layer = doc.Layers[rhinoObject.Attributes.LayerIndex];
+            if (layer != null)
             {
-                string namePattern = criteria["name"].ToString();
-                string objectName = rhinoObject.Attributes.Name ?? "";
-                if (!MatchesWildcard(objectName, namePattern))
+                if (layer.IsLocked || !layer.IsVisible)
                     return false;
             }
 
-            // Layer criteria
-            if (criteria["layer"] != null)
+            // Check if object has grips and if it's selectable with grips on
+            if (rhinoObject.GripsOn)
             {
-                string layerPattern = criteria["layer"].ToString();
-                var layer = doc.Layers[rhinoObject.Attributes.LayerIndex];
-                string layerPath = layer?.FullPath ?? "Default";
-                if (!MatchesWildcard(layerPath, layerPattern))
-                    return false;
-            }
-
-            // Type criteria
-            if (criteria["type"] != null)
-            {
-                string typePattern = criteria["type"].ToString();
-                string objectType = rhinoObject.Geometry?.GetType().Name ?? "Unknown";
-                if (!MatchesWildcard(objectType, typePattern))
-                    return false;
-            }
-
-            // Short ID criteria (exact match)
-            if (criteria["short_id"] != null)
-            {
-                string shortIdFilter = criteria["short_id"].ToString();
-                string objectShortId = userStrings.Get("short_id") ?? "";
-                if (objectShortId != shortIdFilter)
-                    return false;
-            }
-
-            // Custom metadata criteria
-            if (criteria["metadata"] is JObject metadataCriteria)
-            {
-                foreach (var criterion in metadataCriteria.Properties())
-                {
-                    string metadataValue = userStrings.Get(criterion.Name) ?? "";
-                    string criterionValue = criterion.Value.ToString();
-                    
-                    if (!MatchesWildcard(metadataValue, criterionValue))
-                        return false;
-                }
-            }
-
-            // Bounding box criteria
-            if (criteria["bbox"] is JObject bboxCriteria)
-            {
-                var bbox = rhinoObject.Geometry?.GetBoundingBox(true);
-                if (!bbox.HasValue || !bbox.Value.IsValid)
-                    return false;
-
-                var box = bbox.Value;
-
-                // Check if object's bounding box intersects with the criteria box
-                if (bboxCriteria["min"] is JArray minArray && bboxCriteria["max"] is JArray maxArray)
-                {
-                    if (minArray.Count >= 3 && maxArray.Count >= 3)
-                    {
-                        double minX = GetDoubleFromToken(minArray[0]);
-                        double minY = GetDoubleFromToken(minArray[1]);
-                        double minZ = GetDoubleFromToken(minArray[2]);
-                        double maxX = GetDoubleFromToken(maxArray[0]);
-                        double maxY = GetDoubleFromToken(maxArray[1]);
-                        double maxZ = GetDoubleFromToken(maxArray[2]);
-
-                        // Check if bounding boxes intersect
-                        if (box.Max.X < minX || box.Min.X > maxX ||
-                            box.Max.Y < minY || box.Min.Y > maxY ||
-                            box.Max.Z < minZ || box.Min.Z > maxZ)
-                        {
-                            return false;
-                        }
-                    }
-                }
+                // Objects with grips on are generally selectable, but we can add more checks if needed
+                // The IsSelectableWithGripsOn method doesn't exist in the RhinoCommon API
+                return true;
             }
 
             return true;
         }
 
-        private bool MatchesWildcard(string text, string pattern)
+        private string GetUnselectableReason(RhinoObject rhinoObject, RhinoDoc doc)
         {
-            if (string.IsNullOrEmpty(pattern)) return true;
-            if (pattern == "*") return true;
-            
-            // Simple wildcard matching
-            if (pattern.Contains("*"))
-            {
-                var regex = new System.Text.RegularExpressions.Regex(
-                    "^" + pattern.Replace("*", ".*") + "$",
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                return regex.IsMatch(text);
-            }
-            
-            return text.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0;
-        }
+            if (rhinoObject.IsLocked)
+                return "Object is locked";
 
-        private JObject BuildSelectedObjectData(RhinoObject rhinoObject, RhinoDoc doc)
-        {
-            var userStrings = rhinoObject.Attributes.GetUserStrings();
-            
-            var objectData = new JObject
-            {
-                ["id"] = rhinoObject.Id.ToString(),
-                ["type"] = rhinoObject.Geometry?.GetType().Name ?? "Unknown",
-                ["name"] = rhinoObject.Attributes.Name ?? ""
-            };
+            if (!rhinoObject.Visible)
+                return "Object is hidden";
 
-            // Layer information
             var layer = doc.Layers[rhinoObject.Attributes.LayerIndex];
-            objectData["layer"] = layer?.FullPath ?? "Default";
-
-            // Bounding box
-            var bbox = rhinoObject.Geometry?.GetBoundingBox(true);
-            if (bbox.HasValue && bbox.Value.IsValid)
+            if (layer != null)
             {
-                var box = bbox.Value;
-                objectData["bbox"] = new JArray
-                {
-                    new JArray { box.Min.X, box.Min.Y, box.Min.Z },
-                    new JArray { box.Max.X, box.Max.Y, box.Max.Z }
-                };
+                if (layer.IsLocked)
+                    return "Object's layer is locked";
+                if (!layer.IsVisible)
+                    return "Object's layer is hidden";
             }
 
-            // Include all metadata
-            var metadata = new JObject();
-            foreach (string key in userStrings.AllKeys)
-            {
-                metadata[key] = userStrings[key];
-            }
+            if (rhinoObject.GripsOn)
+                return "Object has grips on"; // Generally selectable, but noting grips state
 
-            if (metadata.Count > 0)
-            {
-                objectData["metadata"] = metadata;
-            }
-
-            return objectData;
+            return "Unknown reason";
         }
 
-        private double GetDoubleFromToken(JToken token)
+        private bool MatchesAllFilters(RhinoObject rhinoObject, JObject filters, RhinoDoc doc)
         {
-            if (token != null && double.TryParse(token.ToString(), out double result))
-                return result;
-            return 0;
+            foreach (var filter in filters.Properties())
+            {
+                if (!MatchesFilter(rhinoObject, filter.Name, filter.Value, doc))
+                    return false;
+            }
+            return true;
+        }
+
+        private bool MatchesAnyFilter(RhinoObject rhinoObject, JObject filters, RhinoDoc doc)
+        {
+            foreach (var filter in filters.Properties())
+            {
+                if (MatchesFilter(rhinoObject, filter.Name, filter.Value, doc))
+                    return true;
+            }
+            return false;
+        }
+
+        private bool MatchesFilter(RhinoObject rhinoObject, string filterName, JToken filterValue, RhinoDoc doc)
+        {
+            var filterValues = ParameterUtils.CastToStringList(filterValue);
+            
+            switch (filterName.ToLower())
+            {
+                case "name":
+                    string objectName = rhinoObject.Attributes.Name ?? "";
+                    return filterValues.Any(value => objectName.Equals(value, StringComparison.OrdinalIgnoreCase));
+
+                case "color":
+                    return MatchesColorFilter(rhinoObject, filterValue);
+
+                case "layer":
+                    string layerName = doc.Layers[rhinoObject.Attributes.LayerIndex].Name;
+                    return filterValues.Any(value => layerName.Equals(value, StringComparison.OrdinalIgnoreCase));
+
+                default:
+                    // Handle custom attributes (user strings)
+                    string attributeValue = rhinoObject.Attributes.GetUserString(filterName) ?? "";
+                    return filterValues.Any(value => attributeValue.Equals(value, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        private bool MatchesColorFilter(RhinoObject rhinoObject, JToken colorFilter)
+        {
+            // Handle color as [R, G, B] array
+            if (colorFilter is JArray colorArray && colorArray.Count >= 3)
+            {
+                var targetColor = ParameterUtils.GetColorFromToken(colorFilter);
+                if (targetColor != null)
+                {
+                    var objectColor = rhinoObject.Attributes.ObjectColor;
+                    return objectColor.R == targetColor[0] && 
+                           objectColor.G == targetColor[1] && 
+                           objectColor.B == targetColor[2];
+                }
+            }
+
+            // Handle color as list of [R, G, B] arrays
+            if (colorFilter is JArray filterArray)
+            {
+                foreach (var colorItem in filterArray)
+                {
+                    if (colorItem is JArray)
+                    {
+                        var targetColor = ParameterUtils.GetColorFromToken(colorItem);
+                        if (targetColor != null)
+                        {
+                            var objectColor = rhinoObject.Attributes.ObjectColor;
+                            if (objectColor.R == targetColor[0] && 
+                                objectColor.G == targetColor[1] && 
+                                objectColor.B == targetColor[2])
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }

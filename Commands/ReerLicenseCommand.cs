@@ -20,31 +20,31 @@ namespace ReerRhinoMCPPlugin.Commands
         {
             var connectionManager = ReerRhinoMCPPlugin.Instance.ConnectionManager;
             
-            Task.Run(async () => 
+            try
             {
-                try
+                // Show menu on main thread
+                var option = ShowLicenseMenu();
+                
+                // Handle each option appropriately
+                switch (option)
                 {
-                    var option = ShowLicenseMenu();
-                    switch (option)
-                    {
-                        case LicenseMenuOption.Register:
-                            await RunRegisterLicense(connectionManager);
-                            break;
-                        case LicenseMenuOption.Check:
-                            await RunCheckLicense(connectionManager);
-                            break;
-                        case LicenseMenuOption.Clear:
-                            await RunClearLicense(connectionManager);
-                            break;
-                        default:
-                            break;
-                    }
+                    case LicenseMenuOption.Register:
+                        return HandleRegisterLicense();
+                    case LicenseMenuOption.Check:
+                        HandleCheckLicense();
+                        break;
+                    case LicenseMenuOption.Clear:
+                        HandleClearLicense();
+                        break;
+                    default:
+                        break;
                 }
-                catch (Exception ex)
-                {
-                    RhinoApp.WriteLine($"An error occurred: {ex.Message}");
-                }
-            });
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"An error occurred: {ex.Message}");
+                return Result.Failure;
+            }
 
             return Result.Success;
         }
@@ -73,76 +73,124 @@ namespace ReerRhinoMCPPlugin.Commands
             }
         }
 
-        private async Task<bool> RunRegisterLicense(IConnectionManager connectionManager)
+        private Result HandleRegisterLicense()
         {
             try
             {
                 RhinoApp.WriteLine("=== RhinoMCP License Registration ===");
+                
+                // Collect all inputs first before proceeding
                 var licenseKey = GetUserInput("Enter your license key:");
-                if (string.IsNullOrEmpty(licenseKey)) return true;
+                if (string.IsNullOrEmpty(licenseKey)) 
+                {
+                    RhinoApp.WriteLine("License registration cancelled.");
+                    return Result.Cancel;
+                }
 
                 var userId = GetUserInput("Enter your user ID:");
-                if (string.IsNullOrEmpty(userId)) return true;
+                if (string.IsNullOrEmpty(userId)) 
+                {
+                    RhinoApp.WriteLine("License registration cancelled.");
+                    return Result.Cancel;
+                }
 
-                var serverUrl = GetUserInput("Enter remote MCP server URL:", "https://rhinomcp.your-server.com");
-                if (string.IsNullOrEmpty(serverUrl)) return true;
+                var serverUrl = GetUserInput("Enter remote MCP server URL:", "http://127.0.0.1:8080");
+                if (string.IsNullOrEmpty(serverUrl)) 
+                {
+                    RhinoApp.WriteLine("License registration cancelled.");
+                    return Result.Cancel;
+                }
+                
+                // Confirm all inputs before proceeding
+                RhinoApp.WriteLine("\n=== Registration Details ===");
+                RhinoApp.WriteLine($"License Key: {licenseKey.Substring(0, Math.Min(8, licenseKey.Length))}...");
+                RhinoApp.WriteLine($"User ID: {userId}");
+                RhinoApp.WriteLine($"Server URL: {serverUrl}");
+                
+                var confirm = GetUserInput("Proceed with registration? (yes/no):", "yes");
+                if (confirm?.ToLower() != "yes")
+                {
+                    RhinoApp.WriteLine("License registration cancelled.");
+                    return Result.Cancel;
+                }
                 
                 RhinoApp.WriteLine("Registering license... (this may take a few seconds)");
                 
-                var remoteClient = new RhinoMCPClient();
-                var success = await remoteClient.RegisterLicenseAsync(licenseKey, userId, serverUrl);
+                // Run async operation and wait for completion
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        var remoteClient = new RhinoMCPClient();
+                        var success = await remoteClient.RegisterLicenseAsync(licenseKey, userId, serverUrl);
 
-                if (success)
-                {
-                    RhinoApp.WriteLine("\n✓ License registration completed successfully!");
-                    RhinoApp.WriteLine("You can now use 'StartRemote' to connect.");
-                }
-                else
-                {
-                    RhinoApp.WriteLine("\n✗ License registration failed. Please check your details and try again.");
-                }
-                return success;
+                        if (success)
+                        {
+                            RhinoApp.WriteLine("\n[OK] License registration completed successfully!");
+                            RhinoApp.WriteLine("You can now use 'ReerStart' to connect.");
+                        }
+                        else
+                        {
+                            RhinoApp.WriteLine("\n[ERR] License registration failed. Please check your details and try again.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        RhinoApp.WriteLine($"Error during license registration: {ex.Message}");
+                    }
+                });
+                
+                return Result.Success;
             }
             catch (Exception ex)
             {
                 RhinoApp.WriteLine($"Error during license registration: {ex.Message}");
-                return false;
+                return Result.Failure;
             }
         }
 
-        private async Task<bool> RunCheckLicense(IConnectionManager connectionManager)
+        private void HandleCheckLicense()
         {
             try
             {
                 RhinoApp.WriteLine("=== RhinoMCP License Status ===");
-                var remoteClient = new RhinoMCPClient();
-                var licenseResult = await remoteClient.GetLicenseStatusAsync();
+                
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        var remoteClient = new RhinoMCPClient();
+                        var licenseResult = await remoteClient.GetLicenseStatusAsync();
 
-                if (licenseResult.IsValid)
-                {
-                    RhinoApp.WriteLine("✓ License is valid and active");
-                    RhinoApp.WriteLine($"  License ID: {licenseResult.LicenseId}");
-                    RhinoApp.WriteLine($"  User ID: {licenseResult.UserId}");
-                    RhinoApp.WriteLine($"  Tier: {licenseResult.Tier}");
-                    RhinoApp.WriteLine($"  Max concurrent files: {licenseResult.MaxConcurrentFiles}");
-                    var displayFingerprint = MachineFingerprinting.GetDisplayFingerprint();
-                    RhinoApp.WriteLine($"  Machine fingerprint: {displayFingerprint}");
-                }
-                else
-                {
-                    RhinoApp.WriteLine("✗ License validation failed");
-                    RhinoApp.WriteLine($"  Reason: {licenseResult.Message}");
-                }
-                return true;
+                        if (licenseResult.IsValid)
+                        {
+                            RhinoApp.WriteLine("[OK] License is valid and active");
+                            RhinoApp.WriteLine($"  License ID: {licenseResult.LicenseId}");
+                            RhinoApp.WriteLine($"  User ID: {licenseResult.UserId}");
+                            RhinoApp.WriteLine($"  Tier: {licenseResult.Tier}");
+                            RhinoApp.WriteLine($"  Max concurrent files: {licenseResult.MaxConcurrentFiles}");
+                            var displayFingerprint = MachineFingerprinting.GetDisplayFingerprint();
+                            RhinoApp.WriteLine($"  Machine fingerprint: {displayFingerprint}");
+                        }
+                        else
+                        {
+                            RhinoApp.WriteLine("[ERR] License validation failed");
+                            RhinoApp.WriteLine($"  Reason: {licenseResult.Message}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        RhinoApp.WriteLine($"Error checking license: {ex.Message}");
+                    }
+                });
             }
             catch (Exception ex)
             {
                 RhinoApp.WriteLine($"Error checking license: {ex.Message}");
-                return false;
             }
         }
 
-        private async Task<bool> RunClearLicense(IConnectionManager connectionManager)
+        private void HandleClearLicense()
         {
             try
             {
@@ -151,19 +199,17 @@ namespace ReerRhinoMCPPlugin.Commands
                 if (confirm?.ToLower() != "yes")
                 {
                     RhinoApp.WriteLine("License clear cancelled.");
-                    return true;
+                    return;
                 }
                 
                 var remoteClient = new RhinoMCPClient();
                 remoteClient.ClearStoredLicense();
-                RhinoApp.WriteLine("✓ Stored license cleared successfully.");
-                return await Task.FromResult(true);
+                RhinoApp.WriteLine("[OK] Stored license cleared successfully.");
             }
             catch (Exception ex)
             {
                 RhinoApp.WriteLine($"Error clearing license: {ex.Message}");
-                return false;
-            }
+           }
         }
 
         private string GetUserInput(string prompt, string defaultValue = null)

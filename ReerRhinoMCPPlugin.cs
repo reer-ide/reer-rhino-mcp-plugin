@@ -6,7 +6,7 @@ using Rhino.PlugIns;
 using ReerRhinoMCPPlugin.Core;
 using ReerRhinoMCPPlugin.Core.Common;
 using ReerRhinoMCPPlugin.Config;
-using ReerRhinoMCPPlugin.Functions;
+
 using ReerRhinoMCPPlugin.Commands;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -30,7 +30,7 @@ namespace ReerRhinoMCPPlugin
         private static IConnectionManager connectionManager;
         private static RhinoMCPSettings settings;
         private static bool _avaloniaInitialized = false;
-        private CommandExecutor commandExecutor;
+        private ToolExecutor toolExecutor;
 
         
         public ReerRhinoMCPPlugin()
@@ -77,8 +77,8 @@ namespace ReerRhinoMCPPlugin
                 // Load settings
                 settings.Load();
                 
-                // Initialize command router
-                commandExecutor = new CommandExecutor();
+                // Initialize tool executor
+                toolExecutor = new ToolExecutor();
                 ConnectionManager.CommandReceived += OnCommandReceived;
                 
                 // Subscribe to connection events
@@ -99,6 +99,19 @@ namespace ReerRhinoMCPPlugin
                 }
                 
                 return LoadReturnCode.Success;
+            }
+            catch (System.IO.FileNotFoundException fileEx)
+            {
+                errorMessage = $"Assembly loading error in REER Rhino MCP Plugin: {fileEx.Message}";
+                RhinoApp.WriteLine($"File not found: {fileEx.FileName}");
+                RhinoApp.WriteLine($"Full error: {errorMessage}");
+                return LoadReturnCode.ErrorShowDialog;
+            }
+            catch (System.BadImageFormatException imageEx)
+            {
+                errorMessage = $"Assembly format error in REER Rhino MCP Plugin: {imageEx.Message}";
+                RhinoApp.WriteLine($"Bad image format: {errorMessage}");
+                return LoadReturnCode.ErrorShowDialog;
             }
             catch (Exception ex)
             {
@@ -140,19 +153,6 @@ namespace ReerRhinoMCPPlugin
                     RhinoApp.WriteLine($"[ERROR] Exception in InitializeAvalonia: {ex}");
                     throw;
                 }
-            }
-            catch (System.IO.FileNotFoundException fileEx)
-            {
-                errorMessage = $"Assembly loading error in REER Rhino MCP Plugin: {fileEx.Message}";
-                RhinoApp.WriteLine($"File not found: {fileEx.FileName}");
-                RhinoApp.WriteLine($"Full error: {errorMessage}");
-                return Rhino.PlugIns.LoadReturnCode.ErrorShowDialog;
-            }
-            catch (System.BadImageFormatException imageEx)
-            {
-                errorMessage = $"Assembly format error in REER Rhino MCP Plugin: {imageEx.Message}";
-                RhinoApp.WriteLine($"Bad image format: {errorMessage}");
-                return Rhino.PlugIns.LoadReturnCode.ErrorShowDialog;
             }
             catch (Exception ex)
             {
@@ -208,7 +208,7 @@ namespace ReerRhinoMCPPlugin
         {
             try
             {
-                var responseJson = commandExecutor.ProcessCommand(e.Command, e.ClientId);
+                var responseJson = toolExecutor.ProcessTool(e.Command, e.ClientId);
                 
                 if (ConnectionManager.ActiveConnection != null)
                 {

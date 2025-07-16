@@ -7,12 +7,13 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Rhino;
 using Rhino.DocObjects;
-using ReerRhinoMCPPlugin.Core.Functions;
+using Rhino.Runtime;
+using ReerRhinoMCPPlugin.Core;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
     [MCPTool("execute_rhino_script", "Execute RhinoScript/Python code with automatic metadata tracking", ModifiesDocument = true)]
-    public class ExecuteRhinoscript
+    public class ExecuteRhinoscript : ITool
     {
         public JObject Execute(JObject parameters)
         {
@@ -42,51 +43,25 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 // Get object count before execution to track new objects
                 var objectsBefore = doc.Objects.Select(obj => obj.Id).ToHashSet();
 
-                // Capture output
-                var output = new List<string>();
-                var originalOut = Console.Out;
+                // Inject metadata helper function into the code
+                string enhancedCode = InjectMetadataHelper(code);
+
+                var output = new StringBuilder();
                 
-                using (var stringWriter = new StringWriter())
+                // Create a new Python script instance
+                PythonScript pythonScript = PythonScript.Create();
+
+                pythonScript.Output += (message) =>
                 {
-                    try
-                    {
-                        Console.SetOut(stringWriter);
+                    output.Append(message);
+                };
 
-                        // Inject metadata helper function into the code
-                        string enhancedCode = InjectMetadataHelper(code);
+                // Setup the script context with the current document
+                if (doc != null)
+                    pythonScript.SetupScriptContext(doc);
 
-                        // Execute the code
-                        var script = RhinoApp.GetPlugInObject("RhinoScript") as dynamic;
-                        if (script != null)
-                        {
-                            // Execute via RhinoScript
-                            script.RunScript(enhancedCode, 0);
-                        }
-                        else
-                        {
-                            // Fallback: Execute via RunPythonScript command
-                            string tempFile = Path.GetTempFileName() + ".py";
-                            File.WriteAllText(tempFile, enhancedCode);
-                            
-                            var result = RhinoApp.RunScript($"_-RunPythonScript \"{tempFile}\"", false);
-                            
-                            // Clean up temp file
-                            try { File.Delete(tempFile); } catch { }
-                            
-                            if (!result)
-                            {
-                                throw new InvalidOperationException("Failed to execute Python script");
-                            }
-                        }
-
-                        // Capture any printed output
-                        output.AddRange(stringWriter.ToString().Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries));
-                    }
-                    finally
-                    {
-                        Console.SetOut(originalOut);
-                    }
-                }
+                // Execute the Python code
+                pythonScript.ExecuteScript(enhancedCode);
 
                 // Find new objects created during execution
                 var objectsAfter = doc.Objects.Select(obj => obj.Id).ToHashSet();
@@ -99,7 +74,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 {
                     ["status"] = "success",
                     ["message"] = "Code executed successfully",
-                    ["printed_output"] = new JArray(output),
+                    ["printed_output"] = output.ToString(),
                     ["new_objects_count"] = newObjects.Count,
                     ["new_objects"] = new JArray(newObjects.Select(id => id.ToString()))
                 };

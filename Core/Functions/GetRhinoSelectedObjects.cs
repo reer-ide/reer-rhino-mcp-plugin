@@ -8,7 +8,7 @@ using ReerRhinoMCPPlugin.Core.Functions;
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
     [MCPTool("get_rhino_selected_objects", "Get information about currently selected objects in Rhino")]
-    public class GetRhinoSelectedObjects
+    public class GetRhinoSelectedObjects : ITool
     {
         public JObject Execute(JObject parameters)
         {
@@ -23,8 +23,8 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     };
                 }
 
-                bool includeLights = GetBoolValue(parameters, "include_lights", false);
-                bool includeGrips = GetBoolValue(parameters, "include_grips", false);
+                bool includeLights = ParameterUtils.GetBoolValue(parameters, "include_lights", false);
+                bool includeGrips = ParameterUtils.GetBoolValue(parameters, "include_grips", false);
 
                 var selectedObjects = new JArray();
                 var selectedIds = new JArray();
@@ -149,14 +149,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
 
             // Return as string
             return value;
-        }
-
-        private bool GetBoolValue(JObject parameters, string key, bool defaultValue)
-        {
-            var token = parameters[key];
-            if (token != null && bool.TryParse(token.ToString(), out bool result))
-                return result;
-            return defaultValue;
         }
     }
 }

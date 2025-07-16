@@ -11,7 +11,7 @@ using ReerRhinoMCPPlugin.Core.Functions;
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
     [MCPTool("create_rhino_basic_geometries", "Create basic geometries in Rhino", ModifiesDocument = true)]
-    public class CreateRhinoBasicObjects
+    public class CreateRhinoBasicObjects : ITool
     {
         private readonly AddRhinoObjectMetadata _metadataHandler;
 
@@ -263,7 +263,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             string colorStr = parameters["color"]?.ToString();
             if (!string.IsNullOrEmpty(colorStr))
             {
-                if (TryParseColor(colorStr, out Color color))
+                if (ParameterUtils.TryParseColor(colorStr, out Color color))
                 {
                     attributes.ObjectColor = color;
                     attributes.ColorSource = ObjectColorSource.ColorFromObject;
@@ -300,13 +300,9 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             bool needsTransform = false;
 
             // Apply translation
-            if (parameters["translate"] is JArray translateArray && translateArray.Count >= 3)
+            var translation = ParameterUtils.GetTranslationTransform(parameters, "translate");
+            if (!translation.Equals(Transform.Identity))
             {
-                var translation = Transform.Translation(
-                    GetDoubleFromToken(translateArray[0]),
-                    GetDoubleFromToken(translateArray[1]),
-                    GetDoubleFromToken(translateArray[2])
-                );
                 transform = transform * translation;
                 needsTransform = true;
             }
@@ -314,9 +310,9 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             // Apply rotation
             if (parameters["rotate"] is JObject rotateObj)
             {
-                var axis = GetPoint3d(rotateObj["axis"] as JArray, new Point3d(0, 0, 1));
-                var angle = GetDoubleFromToken(rotateObj["angle"]);
-                var center = GetPoint3d(rotateObj["center"] as JArray, Point3d.Origin);
+                var axis = ParameterUtils.GetPoint3dFromArray(rotateObj["axis"] as JArray, new Point3d(0, 0, 1));
+                var angle = ParameterUtils.GetDoubleFromToken(rotateObj["angle"]);
+                var center = ParameterUtils.GetPoint3dFromArray(rotateObj["center"] as JArray, Point3d.Origin);
                 
                 var rotation = Transform.Rotation(angle, new Vector3d(axis), center);
                 transform = transform * rotation;
@@ -326,11 +322,10 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             // Apply scale
             if (parameters["scale"] != null)
             {
-                double scale = GetDoubleFromToken(parameters["scale"]);
-                if (scale != 1.0 && scale > 0)
+                var center = ParameterUtils.GetPoint3dFromArray(parameters["scale_center"] as JArray, Point3d.Origin);
+                var scaling = ParameterUtils.GetScaleTransform(parameters, center, "scale");
+                if (!scaling.Equals(Transform.Identity))
                 {
-                    var center = GetPoint3d(parameters["scale_center"] as JArray, Point3d.Origin);
-                    var scaling = Transform.Scale(center, scale);
                     transform = transform * scaling;
                     needsTransform = true;
                 }
@@ -342,99 +337,107 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
         }
 
-        private bool TryParseColor(string colorStr, out Color color)
-        {
-            color = Color.Black;
-            
-            // Try hex format (#RRGGBB)
-            if (colorStr.StartsWith("#") && colorStr.Length == 7)
-            {
-                try
-                {
-                    color = ColorTranslator.FromHtml(colorStr);
-                    return true;
-                }
-                catch { }
-            }
-            
-            // Try RGB format (r,g,b)
-            if (colorStr.Contains(","))
-            {
-                var parts = colorStr.Split(',');
-                if (parts.Length == 3)
-                {
-                    if (int.TryParse(parts[0].Trim(), out int r) && 
-                        int.TryParse(parts[1].Trim(), out int g) && 
-                        int.TryParse(parts[2].Trim(), out int b))
-                    {
-                        color = Color.FromArgb(r, g, b);
-                        return true;
-                    }
-                }
-            }
-            
-            // Try named color
-            try
-            {
-                color = Color.FromName(colorStr);
-                return color.IsKnownColor;
-            }
-            catch { }
-            
-            return false;
-        }
+
 
         private Guid CreatePoint(RhinoDoc doc, JObject parameters)
         {
-            double x = GetDoubleValue(parameters, "x", 0);
-            double y = GetDoubleValue(parameters, "y", 0);
-            double z = GetDoubleValue(parameters, "z", 0);
+            double x = ParameterUtils.GetDoubleValue(parameters, "x", 0);
+            double y = ParameterUtils.GetDoubleValue(parameters, "y", 0);
+            double z = ParameterUtils.GetDoubleValue(parameters, "z", 0);
             return doc.Objects.AddPoint(x, y, z);
         }
 
         private Guid CreateLine(RhinoDoc doc, JObject parameters)
         {
-            var start = GetPoint3d(parameters, "start");
-            var end = GetPoint3d(parameters, "end");
+            var start = ParameterUtils.GetPoint3d(parameters, "start");
+            var end = ParameterUtils.GetPoint3d(parameters, "end");
             return doc.Objects.AddLine(start, end);
         }
 
         private Guid CreatePolyline(RhinoDoc doc, JObject parameters)
         {
-            var points = GetPoint3dList(parameters, "points");
+            var points = ParameterUtils.GetPoint3dList(parameters, "points");
             return doc.Objects.AddPolyline(points);
         }
 
         private Guid CreateCircle(RhinoDoc doc, JObject parameters)
         {
-            var center = GetPoint3d(parameters, "center", Point3d.Origin);
-            double radius = GetDoubleValue(parameters, "radius", 1.0);
+            var center = ParameterUtils.GetPoint3d(parameters, "center", Point3d.Origin);
+            double radius = ParameterUtils.GetDoubleValue(parameters, "radius", 1.0);
             var circle = new Circle(center, radius);
             return doc.Objects.AddCircle(circle);
         }
 
         private Guid CreateArc(RhinoDoc doc, JObject parameters)
         {
-            var center = GetPoint3d(parameters, "center", Point3d.Origin);
-            double radius = GetDoubleValue(parameters, "radius", 1.0);
-            double angle = GetDoubleValue(parameters, "angle", 90.0);
+            var center = ParameterUtils.GetPoint3d(parameters, "center", Point3d.Origin);
+            double radius = ParameterUtils.GetDoubleValue(parameters, "radius", 1.0);
+            double angle = ParameterUtils.GetDoubleValue(parameters, "angle", 90.0);
             var arc = new Arc(new Plane(center, Vector3d.ZAxis), radius, angle * Math.PI / 180);
             return doc.Objects.AddArc(arc);
         }
 
         private Guid CreateEllipse(RhinoDoc doc, JObject parameters)
         {
-            var center = GetPoint3d(parameters, "center", Point3d.Origin);
-            double radiusX = GetDoubleValue(parameters, "radius_x", 1.0);
-            double radiusY = GetDoubleValue(parameters, "radius_y", 0.5);
+            var center = ParameterUtils.GetPoint3d(parameters, "center", Point3d.Origin);
+            double radiusX = ParameterUtils.GetDoubleValue(parameters, "radius_x", 1.0);
+            double radiusY = ParameterUtils.GetDoubleValue(parameters, "radius_y", 0.5);
             var ellipse = new Ellipse(new Plane(center, Vector3d.ZAxis), radiusX, radiusY);
             return doc.Objects.AddEllipse(ellipse);
         }
 
+        private Guid CreateRectangle(RhinoDoc doc, JObject parameters)
+        {
+            var center = ParameterUtils.GetPoint3d(parameters, "center", Point3d.Origin);
+            double width = ParameterUtils.GetDoubleValue(parameters, "width", 2.0);
+            double height = ParameterUtils.GetDoubleValue(parameters, "height", 1.0);
+            
+            var plane = new Plane(center, Vector3d.ZAxis);
+            var rect = new Rectangle3d(plane, new Interval(-width/2, width/2), new Interval(-height/2, height/2));
+            return doc.Objects.AddCurve(rect.ToPolyline().ToPolylineCurve());
+        }
+
+        private Guid CreatePolygon(RhinoDoc doc, JObject parameters)
+        {
+            var center = ParameterUtils.GetPoint3d(parameters, "center", Point3d.Origin);
+            double radius = ParameterUtils.GetDoubleValue(parameters, "radius", 1.0);
+            int sides = ParameterUtils.GetIntValue(parameters, "sides", 6);
+            
+            var plane = new Plane(center, Vector3d.ZAxis);
+            var polygon = Polyline.CreateInscribedPolygon(new Circle(plane, radius), sides);
+            polygon.Add(polygon[0]); // Close the polygon
+            return doc.Objects.AddPolyline(polygon);
+        }
+
+        private Guid CreateTorus(RhinoDoc doc, JObject parameters)
+        {
+            var center = ParameterUtils.GetPoint3d(parameters, "center", Point3d.Origin);
+            double majorRadius = ParameterUtils.GetDoubleValue(parameters, "major_radius", 2.0);
+            double minorRadius = ParameterUtils.GetDoubleValue(parameters, "minor_radius", 0.5);
+            
+            var plane = new Plane(center, Vector3d.ZAxis);
+            var torus = new Torus(plane, majorRadius, minorRadius);
+            var brep = torus.ToRevSurface().ToBrep();
+            return doc.Objects.AddBrep(brep);
+        }
+
+        private Guid CreatePlane(RhinoDoc doc, JObject parameters)
+        {
+            var center = ParameterUtils.GetPoint3d(parameters, "center", Point3d.Origin);
+            double width = ParameterUtils.GetDoubleValue(parameters, "width", 2.0);
+            double height = ParameterUtils.GetDoubleValue(parameters, "height", 2.0);
+            
+            var plane = new Plane(center, Vector3d.ZAxis);
+            var interval = new Interval(-width/2, width/2);
+            var intervalY = new Interval(-height/2, height/2);
+            var surface = new PlaneSurface(plane, interval, intervalY);
+            return doc.Objects.AddSurface(surface);
+        }
+
         private Guid CreateCurve(RhinoDoc doc, JObject parameters)
         {
-            var points = GetPoint3dList(parameters, "points");
-            int degree = GetIntValue(parameters, "degree", 3);
+            var points = ParameterUtils.GetPoint3dList(parameters, "points");
+            int degree = ParameterUtils.GetIntValue(parameters, "degree", 3);
             var curve = Curve.CreateControlPointCurve(points, degree);
             if (curve == null)
                 throw new InvalidOperationException("Unable to create control point curve from given points");
@@ -443,11 +446,11 @@ namespace ReerRhinoMCPPlugin.Core.Functions
 
         private Guid CreateBox(RhinoDoc doc, JObject parameters)
         {
-            double width = GetDoubleValue(parameters, "width", 1.0);
-            double length = GetDoubleValue(parameters, "length", 1.0);
-            double height = GetDoubleValue(parameters, "height", 1.0);
+            double width = ParameterUtils.GetDoubleValue(parameters, "width", 1.0);
+            double length = ParameterUtils.GetDoubleValue(parameters, "length", 1.0);
+            double height = ParameterUtils.GetDoubleValue(parameters, "height", 1.0);
             
-            var center = GetPoint3d(parameters, "center", Point3d.Origin);
+            var center = ParameterUtils.GetPoint3d(parameters, "center", Point3d.Origin);
             var plane = new Plane(center, Vector3d.ZAxis);
             
             var box = new Box(
@@ -461,18 +464,18 @@ namespace ReerRhinoMCPPlugin.Core.Functions
 
         private Guid CreateSphere(RhinoDoc doc, JObject parameters)
         {
-            var center = GetPoint3d(parameters, "center", Point3d.Origin);
-            double radius = GetDoubleValue(parameters, "radius", 1.0);
+            var center = ParameterUtils.GetPoint3d(parameters, "center", Point3d.Origin);
+            double radius = ParameterUtils.GetDoubleValue(parameters, "radius", 1.0);
             var sphere = new Sphere(center, radius);
             return doc.Objects.AddBrep(sphere.ToBrep());
         }
 
         private Guid CreateCone(RhinoDoc doc, JObject parameters)
         {
-            var center = GetPoint3d(parameters, "center", Point3d.Origin);
-            double radius = GetDoubleValue(parameters, "radius", 1.0);
-            double height = GetDoubleValue(parameters, "height", 2.0);
-            bool cap = GetBoolValue(parameters, "cap", true);
+            var center = ParameterUtils.GetPoint3d(parameters, "center", Point3d.Origin);
+            double radius = ParameterUtils.GetDoubleValue(parameters, "radius", 1.0);
+            double height = ParameterUtils.GetDoubleValue(parameters, "height", 2.0);
+            bool cap = ParameterUtils.GetBoolValue(parameters, "cap", true);
             
             var plane = new Plane(center, Vector3d.ZAxis);
             var cone = new Cone(plane, height, radius);
@@ -482,10 +485,10 @@ namespace ReerRhinoMCPPlugin.Core.Functions
 
         private Guid CreateCylinder(RhinoDoc doc, JObject parameters)
         {
-            var center = GetPoint3d(parameters, "center", Point3d.Origin);
-            double radius = GetDoubleValue(parameters, "radius", 1.0);
-            double height = GetDoubleValue(parameters, "height", 2.0);
-            bool cap = GetBoolValue(parameters, "cap", true);
+            var center = ParameterUtils.GetPoint3d(parameters, "center", Point3d.Origin);
+            double radius = ParameterUtils.GetDoubleValue(parameters, "radius", 1.0);
+            double height = ParameterUtils.GetDoubleValue(parameters, "height", 2.0);
+            bool cap = ParameterUtils.GetBoolValue(parameters, "cap", true);
             
             var plane = new Plane(center, Vector3d.ZAxis);
             var circle = new Circle(plane, radius);
@@ -495,10 +498,10 @@ namespace ReerRhinoMCPPlugin.Core.Functions
 
         private Guid CreateSurface(RhinoDoc doc, JObject parameters)
         {
-            var points = GetPoint3dList(parameters, "points");
-            var count = GetIntArray(parameters, "count", new int[] { 2, 2 });
-            var degree = GetIntArray(parameters, "degree", new int[] { 3, 3 });
-            var closed = GetBoolArray(parameters, "closed", new bool[] { false, false });
+            var points = ParameterUtils.GetPoint3dList(parameters, "points");
+            var count = ParameterUtils.GetIntArray(parameters, "count", new int[] { 2, 2 });
+            var degree = ParameterUtils.GetIntArray(parameters, "degree", new int[] { 3, 3 });
+            var closed = ParameterUtils.GetBoolArray(parameters, "closed", new bool[] { false, false });
             
             var surface = NurbsSurface.CreateThroughPoints(
                 points, count[0], count[1], degree[0], degree[1], closed[0], closed[1]);
@@ -507,154 +510,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 throw new InvalidOperationException("Unable to create surface from given points");
                 
             return doc.Objects.AddSurface(surface);
-        }
-
-        private void ApplyVisualAttributes(RhinoDoc doc, Guid objectId, JObject parameters)
-        {
-            var rhinoObject = doc.Objects.Find(objectId);
-            if (rhinoObject == null) return;
-
-            var attributes = rhinoObject.Attributes.Duplicate();
-            bool modified = false;
-
-            // Apply color
-            if (parameters["color"] != null)
-            {
-                var colorArray = GetIntArray(parameters, "color", null);
-                if (colorArray != null && colorArray.Length >= 3)
-                {
-                    attributes.ColorSource = ObjectColorSource.ColorFromObject;
-                    attributes.ObjectColor = Color.FromArgb(colorArray[0], colorArray[1], colorArray[2]);
-                    modified = true;
-                }
-            }
-
-            // Apply layer
-            string layerName = parameters["layer"]?.ToString();
-            if (!string.IsNullOrEmpty(layerName))
-            {
-                var layer = doc.Layers.FindName(layerName);
-                if (layer != null)
-                {
-                    attributes.LayerIndex = layer.Index;
-                    modified = true;
-                }
-            }
-
-            if (modified)
-            {
-                doc.Objects.ModifyAttributes(rhinoObject, attributes, true);
-            }
-        }
-
-        // Helper methods for parameter extraction
-        private double GetDoubleValue(JObject parameters, string key, double defaultValue = 0)
-        {
-            var token = parameters[key];
-            if (token != null && double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double result))
-                return result;
-            return defaultValue;
-        }
-
-        private int GetIntValue(JObject parameters, string key, int defaultValue = 0)
-        {
-            var token = parameters[key];
-            if (token != null && int.TryParse(token.ToString(), out int result))
-                return result;
-            return defaultValue;
-        }
-
-        private bool GetBoolValue(JObject parameters, string key, bool defaultValue = false)
-        {
-            var token = parameters[key];
-            if (token != null && bool.TryParse(token.ToString(), out bool result))
-                return result;
-            return defaultValue;
-        }
-
-        private Point3d GetPoint3d(JObject parameters, string key, Point3d defaultValue = default)
-        {
-            var token = parameters[key] as JArray;
-            if (token != null && token.Count >= 3)
-            {
-                double x = GetDoubleFromToken(token[0]);
-                double y = GetDoubleFromToken(token[1]);
-                double z = GetDoubleFromToken(token[2]);
-                return new Point3d(x, y, z);
-            }
-            return defaultValue;
-        }
-
-        private List<Point3d> GetPoint3dList(JObject parameters, string key)
-        {
-            var points = new List<Point3d>();
-            var token = parameters[key] as JArray;
-            if (token != null)
-            {
-                foreach (var pointToken in token)
-                {
-                    var pointArray = pointToken as JArray;
-                    if (pointArray != null && pointArray.Count >= 3)
-                    {
-                        double x = GetDoubleFromToken(pointArray[0]);
-                        double y = GetDoubleFromToken(pointArray[1]);
-                        double z = GetDoubleFromToken(pointArray[2]);
-                        points.Add(new Point3d(x, y, z));
-                    }
-                }
-            }
-            return points;
-        }
-
-        private int[] GetIntArray(JObject parameters, string key, int[] defaultValue = null)
-        {
-            var token = parameters[key] as JArray;
-            if (token != null)
-            {
-                var result = new int[token.Count];
-                for (int i = 0; i < token.Count; i++)
-                {
-                    result[i] = GetIntFromToken(token[i]);
-                }
-                return result;
-            }
-            return defaultValue;
-        }
-
-        private bool[] GetBoolArray(JObject parameters, string key, bool[] defaultValue = null)
-        {
-            var token = parameters[key] as JArray;
-            if (token != null)
-            {
-                var result = new bool[token.Count];
-                for (int i = 0; i < token.Count; i++)
-                {
-                    result[i] = GetBoolFromToken(token[i]);
-                }
-                return result;
-            }
-            return defaultValue;
-        }
-
-        private double GetDoubleFromToken(JToken token)
-        {
-            if (token != null && double.TryParse(token.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double result))
-                return result;
-            return 0;
-        }
-
-        private int GetIntFromToken(JToken token)
-        {
-            if (token != null && int.TryParse(token.ToString(), out int result))
-                return result;
-            return 0;
-        }
-
-        private bool GetBoolFromToken(JToken token)
-        {
-            if (token != null && bool.TryParse(token.ToString(), out bool result))
-                return result;
-            return false;
         }
     }
 }

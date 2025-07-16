@@ -9,7 +9,7 @@ using ReerRhinoMCPPlugin.Core.Functions;
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
     [MCPTool("update_rhino_objects_metadata", "Update name and description of Rhino objects", ModifiesDocument = true)]
-    public class UpdateRhinoObjectMetadata
+    public class UpdateRhinoObjectMetadata : ITool
     {
         public JObject Execute(JObject parameters)
         {

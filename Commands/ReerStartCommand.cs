@@ -20,30 +20,25 @@ namespace ReerRhinoMCPPlugin.Commands
         {
             var connectionManager = ReerRhinoMCPPlugin.Instance.ConnectionManager;
 
-            Task.Run(async () =>
+            try
             {
-                try
+                // Handle menu selection on main thread
+                var option = ShowStartMenu();
+                switch (option)
                 {
-                    var option = ShowStartMenu();
-                    switch (option)
-                    {
-                        case StartMenuOption.Local:
-                            await RunStartLocal(connectionManager);
-                            break;
-                        case StartMenuOption.Remote:
-                            await RunStartRemote(connectionManager);
-                            break;
-                        default:
-                            break;
-                    }
+                    case StartMenuOption.Local:
+                        return HandleStartLocal(connectionManager);
+                    case StartMenuOption.Remote:
+                        return HandleStartRemote(connectionManager);
+                    default:
+                        return Result.Success;
                 }
-                catch (Exception ex)
-                {
-                    RhinoApp.WriteLine($"An error occurred: {ex.Message}");
-                }
-            });
-
-            return Result.Success;
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"An error occurred: {ex.Message}");
+                return Result.Failure;
+            }
         }
 
         private StartMenuOption ShowStartMenu()
@@ -68,15 +63,52 @@ namespace ReerRhinoMCPPlugin.Commands
             }
         }
 
-        private async Task<bool> RunStartLocal(IConnectionManager connectionManager)
+        private Result HandleStartLocal(IConnectionManager connectionManager)
+        {
+            // Collect inputs on main thread first
+            RhinoApp.WriteLine("=== Starting Local TCP Server ===");
+            
+            var host = GetUserInput("Enter host (default: 127.0.0.1):", "127.0.0.1");
+            if (string.IsNullOrEmpty(host))
+            {
+                RhinoApp.WriteLine("Local server start cancelled.");
+                return Result.Cancel;
+            }
+            
+            var portStr = GetUserInput("Enter port (default: 1999):", "1999");
+            if (string.IsNullOrEmpty(portStr))
+            {
+                RhinoApp.WriteLine("Local server start cancelled.");
+                return Result.Cancel;
+            }
+            
+            if (!int.TryParse(portStr, out int port)) 
+            {
+                port = 1999;
+                RhinoApp.WriteLine($"Invalid port number, using default: {port}");
+            }
+
+            // Confirm settings before starting
+            RhinoApp.WriteLine($"\n=== Server Configuration ===");
+            RhinoApp.WriteLine($"Host: {host}");
+            RhinoApp.WriteLine($"Port: {port}");
+            
+            var confirm = GetUserInput("Start server with these settings? (yes/no):", "yes");
+            if (confirm?.ToLower() != "yes")
+            {
+                RhinoApp.WriteLine("Local server start cancelled.");
+                return Result.Cancel;
+            }
+
+            // Now run async operation in background
+            Task.Run(async () => await RunStartLocalAsync(connectionManager, host, port));
+            return Result.Success;
+        }
+
+        private async Task<bool> RunStartLocalAsync(IConnectionManager connectionManager, string host, int port)
         {
             try
             {
-                RhinoApp.WriteLine("=== Starting Local TCP Server ===");
-                var host = GetUserInput("Enter host (default: 127.0.0.1):", "127.0.0.1");
-                var portStr = GetUserInput("Enter port (default: 1999):", "1999");
-                if (!int.TryParse(portStr, out int port)) port = 1999;
-
                 var settings = new ConnectionSettings
                 {
                     Mode = ConnectionMode.Local,
@@ -84,6 +116,7 @@ namespace ReerRhinoMCPPlugin.Commands
                     LocalPort = port
                 };
                 
+                RhinoApp.WriteLine("Starting local TCP server...");
                 var success = await connectionManager.StartConnectionAsync(settings);
                 if (success)
                 {
@@ -102,11 +135,20 @@ namespace ReerRhinoMCPPlugin.Commands
             }
         }
 
-        private async Task<bool> RunStartRemote(IConnectionManager connectionManager)
+        private Result HandleStartRemote(IConnectionManager connectionManager)
+        {
+            RhinoApp.WriteLine("=== Connecting to Remote MCP Server ===");
+            RhinoApp.WriteLine("Checking license and connecting...");
+            
+            // Run async operation in background
+            Task.Run(async () => await RunStartRemoteAsync(connectionManager));
+            return Result.Success;
+        }
+
+        private async Task<bool> RunStartRemoteAsync(IConnectionManager connectionManager)
         {
             try
             {
-                RhinoApp.WriteLine("=== Connecting to Remote MCP Server ===");
                 var remoteClient = new RhinoMCPClient();
                 var licenseResult = await remoteClient.GetLicenseStatusAsync();
 
@@ -120,8 +162,8 @@ namespace ReerRhinoMCPPlugin.Commands
                 var serverUrl = storedLicense?.ServerUrl;
                 if(string.IsNullOrEmpty(serverUrl))
                 {
-                    serverUrl = GetUserInput("Enter remote MCP server URL:", "https://rhinomcp.your-server.com");
-                    if (string.IsNullOrEmpty(serverUrl)) return true;
+                    RhinoApp.WriteLine("✗ No server URL found in stored license. Please re-register your license with 'ReerLicense'.");
+                    return false;
                 }
 
                 var settings = new ConnectionSettings

@@ -11,7 +11,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Rhino;
 using ReerRhinoMCPPlugin.Core.Common;
-using ReerRhinoMCPPlugin.Functions;
+using ReerRhinoMCPPlugin.Core;
 
 namespace ReerRhinoMCPPlugin.Core.Client
 {
@@ -21,7 +21,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
     public class RhinoMCPClient : IRhinoMCPConnection
     {
         private readonly object lockObject = new object();
-        private readonly CommandExecutor commandHandler;
+        private readonly ToolExecutor toolExecutor;
         private readonly CancellationTokenSource cancellationTokenSource;
         private readonly HttpClient httpClient;
         private readonly LicenseManager licenseManager;
@@ -39,7 +39,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
 
         public RhinoMCPClient()
         {
-            commandHandler = new CommandExecutor();
+            toolExecutor = new ToolExecutor();
             cancellationTokenSource = new CancellationTokenSource();
             httpClient = new HttpClient();
             licenseManager = new LicenseManager();
@@ -208,7 +208,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// </summary>
         /// <param name="settings">Connection settings to use</param>
         /// <returns>True if connection started successfully, false otherwise</returns>
-        public Task<bool> StartAsync(ConnectionSettings settings)
+        public async Task<bool> StartAsync(ConnectionSettings settings)
         {
             if (settings == null || settings.Mode != ConnectionMode.Remote)
                 return false;
@@ -287,7 +287,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// Stops the connection and cleans up resources
         /// </summary>
         /// <returns>Task representing the async operation</returns>
-        public Task StopAsync()
+        public async Task StopAsync()
         {
             ConnectionStatus currentStatus;
             lock (lockObject)
@@ -312,7 +312,6 @@ namespace ReerRhinoMCPPlugin.Core.Client
 
             OnStatusChanged(ConnectionStatus.Disconnected, "WebSocket client stopped");
             RhinoApp.WriteLine("RhinoMCP WebSocket client stopped");
-            return Task.CompletedTask;
         }
         
         /// <summary>
@@ -545,8 +544,8 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 var commandArgs = new CommandReceivedEventArgs(data.ToString(), data, instanceId ?? "unknown");
                 CommandReceived?.Invoke(this, commandArgs);
 
-                // Process command using the command handler
-                string result = await Task.Run(() => commandHandler.ProcessCommand(new JObject
+                // Process command using the tool executor
+                string result = await Task.Run(() => toolExecutor.ProcessTool(new JObject
                 {
                     ["type"] = tool,
                     ["params"] = parameters

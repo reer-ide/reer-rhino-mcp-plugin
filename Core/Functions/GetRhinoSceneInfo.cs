@@ -10,7 +10,7 @@ using ReerRhinoMCPPlugin.Serializers;
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
     [MCPTool("get_rhino_scene_info", "Get basic information about the current Rhino scene")]
-    public class GetRhinoSceneInfo
+    public class GetRhinoSceneInfo : ITool
     {
         public JObject Execute(JObject parameters)
         {

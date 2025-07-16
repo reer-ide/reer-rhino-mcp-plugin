@@ -11,7 +11,7 @@ using ReerRhinoMCPPlugin.Serializers;
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
     [MCPTool("get_rhino_objects_info", "Get detailed information about objects in the active Rhino document, including metadata and filters", RequiresDocument = true)]
-    public class GetRhinoObjectsInfo
+    public class GetRhinoObjectsInfo : ITool
     {
         public JObject Execute(JObject parameters)
         {

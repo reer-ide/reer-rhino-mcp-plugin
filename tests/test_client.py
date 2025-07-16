@@ -38,19 +38,19 @@ def print_step(message: str, color: str = Colors.CYAN):
 
 def print_success(message: str):
     """Print a success message"""
-    print(f"{Colors.GREEN}✓ {message}{Colors.RESET}")
+    print(f"{Colors.GREEN}[OK] {message}{Colors.RESET}")
 
 def print_error(message: str):
     """Print an error message"""
-    print(f"{Colors.RED}✗ {message}{Colors.RESET}")
+    print(f"{Colors.RED}[ERR] {message}{Colors.RESET}")
 
 def print_info(message: str):
     """Print an info message"""
-    print(f"{Colors.BLUE}ℹ {message}{Colors.RESET}")
+    print(f"{Colors.BLUE}[INFO] {message}{Colors.RESET}")
 
 def print_warning(message: str):
     """Print a warning message"""
-    print(f"{Colors.YELLOW}⚠ {message}{Colors.RESET}")
+    print(f"{Colors.YELLOW}[WARN] {message}{Colors.RESET}")
 
 class MockHostApp:
     """Mock Host Application simulating reer's IDE behavior according to architecture"""
@@ -118,7 +118,7 @@ class MockHostApp:
         print_info("1. Install the RhinoMCP plugin in Rhino")
         print_info("")
         print_info("2. Run the following command in Rhino:")
-        print_info(f"   RhinoMCP → RegisterLicense")
+        print_info(f"   RhinoMCP -> RegisterLicense")
         print_info("")
         print_info("3. When prompted, enter the following information:")
         print_info(f"   License Key: {self.license_key}")
@@ -163,8 +163,8 @@ class MockHostApp:
                     print_success(f"User ID: {data.get('user_id')}")
                     print_success(f"Tier: {data.get('tier')}")
                     print_info("")
-                    print_info("✓ License is available for plugin registration")
-                    print_info("✓ Plugin can now register using this license")
+                    print_info("[OK] License is available for plugin registration")
+                    print_info("[OK] Plugin can now register using this license")
                     return True
                 elif response.status_code == 404:
                     # License not found yet, continue waiting
