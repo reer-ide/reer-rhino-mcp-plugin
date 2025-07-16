@@ -34,8 +34,9 @@ namespace ReerRhinoMCPPlugin.Core.Common
         /// <summary>
         /// Stops the current connection if one is active
         /// </summary>
+        /// <param name="cleanSessionInfo">Whether to clean stored session info (default: true)</param>
         /// <returns>Task representing the async operation</returns>
-        Task StopConnectionAsync();
+        Task StopConnectionAsync(bool cleanSessionInfo = true);
         
         /// <summary>
         /// Switches to a different connection mode

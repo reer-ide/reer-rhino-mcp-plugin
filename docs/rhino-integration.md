@@ -1,6 +1,46 @@
 # Rhino Integration Guide
 
-This guide explains how to properly integrate with Rhino's API for the REER Rhino MCP Plugin.
+This guide explains how to properly integrate with Rhino's API for the REER Rhino MCP Plugin and how to use the plugin's advanced session management features.
+
+## Plugin Commands
+
+The plugin provides several commands for different use cases:
+
+### Connection Commands
+- **`ReerStart`**: Start a new connection (Local TCP server or Remote WebSocket client)
+  - Automatically saves successful connection settings for future use
+  - Supports both interactive prompts and direct execution
+- **`ReerStop`**: Stop current connection
+  - Preserves session info for remote connections (allows reconnection)
+  - Cleans session info for local connections
+- **`ReerRestart`**: Restart with fresh session
+  - Forces session cleanup and starts a new connection
+  - Useful when you need to clear all cached session data
+
+### Management Commands
+- **`ReerLicense`**: License management for remote connections
+- **`ReerRhinoMCP`**: Main control interface with status information
+
+## Auto-Start Behavior
+
+The plugin automatically:
+1. **Loads on Rhino startup** (no manual loading required)
+2. **Connects to last successful configuration** after a 2-second delay
+3. **Preserves session context** for remote connections across Rhino restarts
+4. **Saves connection settings** automatically when `ReerStart` succeeds
+
+## Session Management
+
+### For Remote Connections
+- Sessions are **persistent** across Rhino restarts
+- **File integrity validation** ensures secure session management
+- **Automatic reconnection** to existing sessions when possible
+- Use `ReerRestart` when you need a completely fresh session
+
+### For Local Connections
+- Sessions are **temporary** and cleaned when stopping
+- No session persistence (stateless connections)
+- Each `ReerStart` creates a fresh TCP server instance
 
 ## Key Rhino APIs
 

@@ -122,8 +122,9 @@ namespace ReerRhinoMCPPlugin.Core.Server
         /// <summary>
         /// Stops the connection and cleans up resources
         /// </summary>
+        /// <param name="cleanSessionInfo">Whether to clean stored session info (default: true)</param>
         /// <returns>Task representing the async operation</returns>
-        public async Task StopAsync()
+        public async Task StopAsync(bool cleanSessionInfo = true)
         {
             ConnectionStatus currentStatus;
             lock (lockObject)

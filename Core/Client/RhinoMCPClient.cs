@@ -168,6 +168,18 @@ namespace ReerRhinoMCPPlugin.Core.Client
         }
         
         /// <summary>
+        /// Clean up expired sessions (sessions older than specified hours)
+        /// Note: Session expiration is now managed by the remote server (30 days)
+        /// This method is for manual cleanup only
+        /// </summary>
+        /// <param name="expiredHours">Number of hours after which a session is considered expired</param>
+        /// <returns>Number of sessions cleaned up</returns>
+        public async Task<int> CleanupExpiredSessionsAsync(int expiredHours = 720) // 30 days = 720 hours
+        {
+            return await fileIntegrityManager.CleanupExpiredSessionsAsync(expiredHours);
+        }
+        
+        /// <summary>
         /// Send file status updates to the remote server
         /// </summary>
         /// <param name="statusChanges">List of status changes to report</param>
@@ -286,8 +298,9 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// <summary>
         /// Stops the connection and cleans up resources
         /// </summary>
+        /// <param name="cleanSessionInfo">Whether to clean stored session info (default: true)</param>
         /// <returns>Task representing the async operation</returns>
-        public async Task StopAsync()
+        public async Task StopAsync(bool cleanSessionInfo = true)
         {
             ConnectionStatus currentStatus;
             lock (lockObject)
@@ -302,10 +315,15 @@ namespace ReerRhinoMCPPlugin.Core.Client
             OnStatusChanged(ConnectionStatus.Disconnected, "Stopping WebSocket client...");
             RhinoApp.WriteLine("Stopping RhinoMCP WebSocket client...");
 
-            // Unregister file if we have a session
-            if (!string.IsNullOrEmpty(sessionId))
+            // Unregister file if we have a session and cleanSessionInfo is true
+            if (!string.IsNullOrEmpty(sessionId) && cleanSessionInfo)
             {
                 await fileIntegrityManager.UnregisterLinkedFileAsync(sessionId);
+                RhinoApp.WriteLine("Session info cleaned - will require fresh connection next time");
+            }
+            else if (!string.IsNullOrEmpty(sessionId))
+            {
+                RhinoApp.WriteLine("Session info preserved for automatic reconnection");
             }
 
             await CleanupAsync();
@@ -344,7 +362,8 @@ namespace ReerRhinoMCPPlugin.Core.Client
         }
 
         /// <summary>
-        /// Creates a session with the remote server using license-based authentication
+        /// Creates or reuses a session with the remote server using license-based authentication
+        /// Session expiration is managed by the remote server (30 days)
         /// </summary>
         private async Task<string> CreateSessionAsync(LicenseValidationResult licenseInfo)
         {
@@ -359,48 +378,178 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 
                 RhinoApp.WriteLine($"✓ File hash calculated: {currentFileHash?.Substring(0, 16)}...");
                 
-                // Create session request with license authentication and file info
-                var sessionRequest = new
+                // First, check if we have an existing valid session for this file
+                var existingSession = await TryReconnectToExistingSessionAsync(licenseInfo, currentFilePath, currentFileHash);
+                if (existingSession != null)
                 {
-                    user_id = licenseInfo.UserId,
-                    file_path = currentFilePath,
-                    file_hash = currentFileHash,
-                    file_size = fileSize,
-                    license_id = licenseInfo.LicenseId
+                    RhinoApp.WriteLine($"✓ Reusing existing session - ID: {existingSession.SessionId}");
+                    sessionId = existingSession.SessionId;
+                    instanceId = existingSession.InstanceId;
+                    return existingSession.WebSocketUrl;
+                }
+                
+                // No valid existing session, create a new one
+                RhinoApp.WriteLine("Creating new session...");
+                return await CreateNewSessionAsync(licenseInfo, currentFilePath, currentFileHash, fileSize);
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error creating/reusing session: {ex.Message}");
+                throw;
+            }
+        }
+        
+        /// <summary>
+        /// Try to reconnect to an existing session for the current file
+        /// Server manages session expiration (30 days), client validates file integrity
+        /// </summary>
+        private async Task<ExistingSessionInfo> TryReconnectToExistingSessionAsync(LicenseValidationResult licenseInfo, string filePath, string fileHash)
+        {
+            try
+            {
+                // Check if we have any linked files for this file path
+                var linkedFiles = fileIntegrityManager.GetAllLinkedFiles();
+                var potentialSession = linkedFiles.FirstOrDefault(f => 
+                    string.Equals(f.FilePath, filePath, StringComparison.OrdinalIgnoreCase) &&
+                    f.Status == FileStatus.Available);
+                
+                if (potentialSession == null)
+                {
+                    RhinoApp.WriteLine("No existing session found for this file");
+                    return null;
+                }
+                
+                // Validate file integrity
+                var validationResult = await fileIntegrityManager.ValidateFileForReconnectionAsync(
+                    potentialSession.SessionId, filePath, fileHash);
+                
+                if (!validationResult.IsValid)
+                {
+                    RhinoApp.WriteLine($"File validation failed: {validationResult.Message}");
+                    // Clean up invalid session
+                    await fileIntegrityManager.UnregisterLinkedFileAsync(potentialSession.SessionId);
+                    return null;
+                }
+                
+                // Try to reconnect to the existing session
+                var reconnectResult = await TryReconnectToServerSessionAsync(licenseInfo, potentialSession.SessionId);
+                if (reconnectResult != null)
+                {
+                    return reconnectResult;
+                }
+                
+                // Session is no longer valid on server, clean up
+                await fileIntegrityManager.UnregisterLinkedFileAsync(potentialSession.SessionId);
+                return null;
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error checking existing session: {ex.Message}");
+                return null;
+            }
+        }
+        
+        /// <summary>
+        /// Try to reconnect to an existing session on the server
+        /// Server validates session expiration, license, and user authorization
+        /// </summary>
+        private async Task<ExistingSessionInfo> TryReconnectToServerSessionAsync(LicenseValidationResult licenseInfo, string sessionId)
+        {
+            try
+            {
+                var reconnectRequest = new
+                {
+                    session_id = sessionId,
+                    license_id = licenseInfo.LicenseId,
+                    user_id = licenseInfo.UserId
                 };
 
-                var jsonContent = JsonConvert.SerializeObject(sessionRequest);
+                var jsonContent = JsonConvert.SerializeObject(reconnectRequest);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PostAsync($"{Settings.RemoteUrl}/sessions/create", content);
+                var response = await httpClient.PostAsync($"{Settings.RemoteUrl}/sessions/reconnect", content);
                 
                 if (!response.IsSuccessStatusCode)
                 {
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        RhinoApp.WriteLine("Session no longer exists on server");
+                        return null;
+                    }
+                    else if (response.StatusCode == System.Net.HttpStatusCode.Gone) // 410 - Session expired
+                    {
+                        RhinoApp.WriteLine("Session has expired on server (server manages 30-day expiration)");
+                        return null;
+                    }
+                    else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden) // 403 - License/User mismatch
+                    {
+                        RhinoApp.WriteLine("License or user validation failed for session");
+                        return null;
+                    }
+                    
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    throw new Exception($"Session creation failed: {response.StatusCode} - {errorContent}");
+                    RhinoApp.WriteLine($"Session reconnection failed: {response.StatusCode} - {errorContent}");
+                    return null;
                 }
 
                 var responseJson = await response.Content.ReadAsStringAsync();
                 var sessionData = JsonConvert.DeserializeObject<JObject>(responseJson);
 
-                sessionId = sessionData["session_id"]?.ToString();
-                instanceId = sessionData["instance_id"]?.ToString();
-                string websocketUrl = sessionData["websocket_url"]?.ToString();
-
-                // Register file with integrity manager
-                await fileIntegrityManager.RegisterLinkedFileAsync(sessionId, currentFilePath, currentFileHash);
-
-                RhinoApp.WriteLine($"✓ Session created - ID: {sessionId}");
-                RhinoApp.WriteLine($"  File: {Path.GetFileName(currentFilePath)}");
-                RhinoApp.WriteLine($"  File size: {fileSize:N0} bytes");
-                
-                return websocketUrl;
+                return new ExistingSessionInfo
+                {
+                    SessionId = sessionData["session_id"]?.ToString(),
+                    InstanceId = sessionData["instance_id"]?.ToString(),
+                    WebSocketUrl = sessionData["websocket_url"]?.ToString()
+                };
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error creating session: {ex.Message}");
-                throw;
+                RhinoApp.WriteLine($"Error reconnecting to session: {ex.Message}");
+                return null;
             }
+        }
+        
+        /// <summary>
+        /// Create a new session on the server
+        /// </summary>
+        private async Task<string> CreateNewSessionAsync(LicenseValidationResult licenseInfo, string filePath, string fileHash, long fileSize)
+        {
+            // Create session request with license authentication and file info
+            var sessionRequest = new
+            {
+                user_id = licenseInfo.UserId,
+                file_path = filePath,
+                file_hash = fileHash,
+                file_size = fileSize,
+                license_id = licenseInfo.LicenseId
+            };
+
+            var jsonContent = JsonConvert.SerializeObject(sessionRequest);
+            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+            var response = await httpClient.PostAsync($"{Settings.RemoteUrl}/sessions/create", content);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Session creation failed: {response.StatusCode} - {errorContent}");
+            }
+
+            var responseJson = await response.Content.ReadAsStringAsync();
+            var sessionData = JsonConvert.DeserializeObject<JObject>(responseJson);
+
+            sessionId = sessionData["session_id"]?.ToString();
+            instanceId = sessionData["instance_id"]?.ToString();
+            string websocketUrl = sessionData["websocket_url"]?.ToString();
+
+            // Register file with integrity manager
+            await fileIntegrityManager.RegisterLinkedFileAsync(sessionId, filePath, fileHash);
+
+            RhinoApp.WriteLine($"✓ New session created - ID: {sessionId}");
+            RhinoApp.WriteLine($"  File: {Path.GetFileName(filePath)}");
+            RhinoApp.WriteLine($"  File size: {fileSize:N0} bytes");
+            
+            return websocketUrl;
         }
         
         /// <summary>
@@ -650,7 +799,17 @@ namespace ReerRhinoMCPPlugin.Core.Client
         {
             if (disposed) return;
             disposed = true;
-            Task.Run(StopAsync).Wait();
+            Task.Run(() => StopAsync()).Wait();
         }
+    }
+    
+    /// <summary>
+    /// Information about an existing session that can be reused
+    /// </summary>
+    public class ExistingSessionInfo
+    {
+        public string SessionId { get; set; }
+        public string InstanceId { get; set; }
+        public string WebSocketUrl { get; set; }
     }
 } 

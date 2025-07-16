@@ -121,6 +121,13 @@ namespace ReerRhinoMCPPlugin.Commands
                 if (success)
                 {
                     RhinoApp.WriteLine($"✓ Local TCP server started successfully on {host}:{port}.");
+                    
+                    // Save settings for future auto-start and restart
+                    var pluginSettings = ReerRhinoMCPPlugin.Instance.MCPSettings;
+                    pluginSettings.DefaultConnection = settings;
+                    pluginSettings.LastUsedMode = ConnectionMode.Local;
+                    pluginSettings.Save();
+                    RhinoApp.WriteLine("Settings saved for auto-start and restart");
                 }
                 else
                 {
@@ -178,6 +185,13 @@ namespace ReerRhinoMCPPlugin.Commands
                 if (success)
                 {
                     RhinoApp.WriteLine("✓ Remote connection established successfully!");
+                    
+                    // Save settings for future auto-start and restart
+                    var pluginSettings = ReerRhinoMCPPlugin.Instance.MCPSettings;
+                    pluginSettings.DefaultConnection = settings;
+                    pluginSettings.LastUsedMode = ConnectionMode.Remote;
+                    pluginSettings.Save();
+                    RhinoApp.WriteLine("Settings saved for auto-start and restart");
                 }
                 else
                 {

@@ -10,17 +10,24 @@ The REER Rhino MCP Plugin follows a modular architecture with clear separation o
 ## Core Components
 
 1. **Plugin Base**
-   - `ReerRhinoMCPPlugin.cs`: Plugin entry point, initialization, and lifecycle management.
+   - `ReerRhinoMCPPlugin.cs`: Plugin entry point with auto-start functionality (`PlugInLoadTime.AtStartup`)
+   - Automatic connection initialization with stored settings
+   - Comprehensive lifecycle management and graceful shutdown
 
-2. **UI and Configuration Layer**
-   - **First-Time Setup UI**: A user-friendly dialog (Eto form) shown on the first run to configure connection settings (Local port, Remote URL/Token).
-   - `RhinoMCPSettings`: Manages loading and saving of persistent settings to a local config file.
-   - `RhinoReer` Command: Acts as the primary user interface for manually starting/stopping the server and checking status.
+2. **Connection Management Layer**
+   - `RhinoMCPConnectionManager`: Central coordinator with session persistence support
+   - `RhinoMCPSettings`: Persistent settings with auto-start preferences and connection history
+   - **Command Interface**: Multiple commands for different connection scenarios:
+     - `ReerStart`: Start connections with automatic settings persistence
+     - `ReerStop`: Stop with optional session preservation (preserves remote sessions by default)
+     - `ReerRestart`: Force fresh session cleanup and restart
+     - `ReerLicense`: License management for remote connections
 
-3. **Connection Components**
-   - `RhinoMCPServer`: Local TCP socket server implementation. Handles client connections and exposes MCP Tools and Resources.
-   - `RhinoMCPClient`: WebSocket client for remote connections.
-   - `RhinoMCPConnectionManager`: Manages the active connection type.
+3. **Connection Implementations**
+   - `RhinoMCPServer`: Local TCP socket server implementation with multi-client support
+   - `RhinoMCPClient`: Full WebSocket client with license authentication and session management
+   - `LicenseManager`: Hardware-bound license validation with encrypted storage
+   - `FileIntegrityManager`: File integrity validation for secure session linking
 
 4. **Component Library Service**
    - **Purpose**: Manages Grasshopper component library information for AI-assisted component creation and lookup.
@@ -35,15 +42,25 @@ The REER Rhino MCP Plugin follows a modular architecture with clear separation o
    - Collects and structures contextual data (command history, document metadata).
    - Provides this data to the active connection's MCP Resources endpoint.
 
-6. **Command Handlers (MCP Tools)**
-   - Handlers for specific MCP commands (e.g., `create_box`, `get_document_info`).
-   - **Grasshopper Tools**: `look_up_gh_components`, `create_gh_component` for AI-assisted Grasshopper workflow.
-   - These are the "Tools" that the AI model can execute.
+6. **Session Management System**
+   - **Session Persistence**: Remote connections maintain session context across restarts
+   - **File Integrity Validation**: Sessions linked to specific Rhino files for security
+   - **Smart Stop Behavior**: Preserves sessions for remote connections, cleans for local
+   - **Automatic Reconnection**: Attempts to resume existing sessions when available
+   - **Fresh Session Support**: `ReerRestart` command forces clean session state
 
-7. **MCP Resources**
-   - Read-only data endpoints exposed by the server.
-   - Provides context to the AI (e.g., `command_history`, `document_metadata`).
-   - Supports querying and potentially real-time subscriptions.
+7. **Command Handlers (MCP Tools)**
+   - Handlers for specific MCP commands via `ToolExecutor` with attribute-based discovery
+   - **Core Functions**: Complete set in `Core/Functions/` (object creation, selection, modification)
+   - **Grasshopper Tools**: `look_up_gh_components`, `create_gh_component` for AI-assisted workflows
+   - **Scene Tools**: Viewport capture, document info, layer management
+   - All tools marked with `MCPToolAttribute` for automatic discovery
+
+8. **MCP Resources**
+   - Read-only data endpoints exposed by the server
+   - Real-time context updates from Resource Monitoring Service
+   - Provides context to AI (command history, document metadata, object information)
+   - Supports querying and real-time subscriptions
 
 ## Connection Modes
 
@@ -109,14 +126,32 @@ The flow of execution is:
 
 ## Data and Control Flow
 
-1.  **First Run**: The plugin shows a UI for the user to configure connection settings. Settings are saved locally.
-2.  **Startup**: The plugin loads the settings. If auto-start is enabled, it initiates the chosen connection mode.
-3.  **User Actions**: The **Resource Monitoring Service** listens to Rhino events (e.g., user runs a command, adds an object).
-4.  **Context Update**: The service updates the **MCP Resources** (e.g., adds to `command_history`).
-5.  **AI Interaction**:
-    *   An external AI client queries the MCP Resources to get the latest context.
-    *   Based on the context and user prompt, the AI decides to call an **MCP Tool** (a command).
-    *   The `RhinoMCPServer` receives the command, the corresponding **Command Handler** executes it, and a result is returned.
+### Startup Sequence
+1. **Plugin Auto-Load**: Plugin loads automatically on Rhino startup (`PlugInLoadTime.AtStartup`)
+2. **Settings Initialization**: Load persistent settings including connection preferences
+3. **Auto-Start Connection**: If enabled and valid settings exist, automatically connect after 2-second delay
+4. **Session Restoration**: For remote connections, attempt to resume existing sessions if available
+
+### Connection Lifecycle
+1. **Manual Connection**: User runs `ReerStart` → selects mode → connection established → **settings saved**
+2. **Session Management**: 
+   - `ReerStop`: Disconnects but preserves session info for remote connections
+   - `ReerRestart`: Forces session cleanup and fresh connection
+3. **Automatic Reconnection**: Plugin attempts to resume sessions when restarting
+
+### Runtime Operation
+1. **Resource Monitoring**: Service listens to Rhino events (commands, object changes, etc.)
+2. **Context Updates**: Real-time updates to MCP Resources (command history, document state)
+3. **AI Interaction Flow**:
+   - AI queries MCP Resources for current context
+   - AI calls appropriate MCP Tools based on context and user requests
+   - Tools execute via `ToolExecutor` with automatic function discovery
+   - Results returned to AI with appropriate success/error handling
+
+### Security & Validation
+- **License Validation**: Remote connections validate license with machine fingerprinting
+- **File Integrity**: Sessions linked to specific files with hash validation
+- **Encrypted Storage**: License and session data stored securely
 
 ## Component Library Service Architecture
 

@@ -19,7 +19,7 @@ namespace ReerRhinoMCPPlugin.Config
         /// </summary>
         public ConnectionSettings DefaultConnection { get; set; } = new ConnectionSettings
         {
-            Mode = ConnectionMode.Local
+            Mode = ConnectionMode.Remote
         };
         
         /// <summary>
@@ -141,11 +141,11 @@ namespace ReerRhinoMCPPlugin.Config
         /// </summary>
         public void Reset()
         {
-            DefaultConnection = new ConnectionSettings { Mode = ConnectionMode.Local };
-            AutoStart = false;
+            DefaultConnection = new ConnectionSettings { Mode = ConnectionMode.Remote };
+            AutoStart = true;
             ShowStatusBar = true;
             EnableDebugLogging = false;
-            LastUsedMode = ConnectionMode.Local;
+            LastUsedMode = ConnectionMode.Remote;
         }
         
         /// <summary>

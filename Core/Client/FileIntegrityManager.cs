@@ -291,6 +291,41 @@ namespace ReerRhinoMCPPlugin.Core.Client
             await SaveLinkedFiles();
             RhinoApp.WriteLine("All linked files cleared");
         }
+        
+        /// <summary>
+        /// Clean up expired sessions (sessions older than specified hours)
+        /// Note: Session expiration is now managed by the remote server (30 days)
+        /// This method is kept for manual cleanup only
+        /// </summary>
+        /// <param name="expiredHours">Number of hours after which a session is considered expired</param>
+        /// <returns>Number of sessions cleaned up</returns>
+        public async Task<int> CleanupExpiredSessionsAsync(int expiredHours = 720) // 30 days = 720 hours
+        {
+            var expiredSessions = new List<string>();
+            var cutoffTime = DateTime.Now.AddHours(-expiredHours);
+            
+            lock (lockObject)
+            {
+                foreach (var kvp in linkedFiles.ToList())
+                {
+                    var linkedFile = kvp.Value;
+                    // Consider a session expired if it's older than the cutoff time
+                    if (linkedFile.RegisteredAt < cutoffTime)
+                    {
+                        expiredSessions.Add(kvp.Key);
+                        linkedFiles.Remove(kvp.Key);
+                    }
+                }
+            }
+            
+            if (expiredSessions.Any())
+            {
+                await SaveLinkedFiles();
+                RhinoApp.WriteLine($"Cleaned up {expiredSessions.Count} expired sessions");
+            }
+            
+            return expiredSessions.Count;
+        }
 
         private FileStatus GetCurrentFileStatus(string filePath)
         {
@@ -310,6 +345,29 @@ namespace ReerRhinoMCPPlugin.Core.Client
                     return $"File {fileName} is now available";
                 default:
                     return $"File {fileName} status changed from {oldStatus} to {newStatus}";
+            }
+        }
+
+        /// <summary>
+        /// Clears all stored session information for a fresh start
+        /// </summary>
+        /// <returns>Task representing the async operation</returns>
+        public async Task ClearAllSessionsAsync()
+        {
+            try
+            {
+                lock (lockObject)
+                {
+                    linkedFiles.Clear();
+                }
+
+                await SaveLinkedFiles();
+                RhinoApp.WriteLine("All session data cleared");
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error clearing session data: {ex.Message}");
+                throw;
             }
         }
 

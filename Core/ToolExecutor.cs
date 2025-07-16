@@ -52,9 +52,10 @@ namespace ReerRhinoMCPPlugin.Core
                     {
                         var toolInstance = (ITool)Activator.CreateInstance(toolType);
                         tools[attr.ToolName] = (toolInstance, attr);
-                        RhinoApp.WriteLine($"Registered tool: {attr.ToolName}");
+                        // RhinoApp.WriteLine($"Registered tool: {attr.ToolName}");
                     }
                 }
+                RhinoApp.WriteLine($"ReerRhinoMCPPlugin: Registered {tools.Count} tools");
             }
             catch (Exception ex)
             {

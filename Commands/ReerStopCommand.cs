@@ -29,9 +29,18 @@ namespace ReerRhinoMCPPlugin.Commands
                         return;
                     }
 
-                    await connectionManager.StopConnectionAsync();
+                    // For remote connections, preserve session info for automatic reconnection
+                    bool cleanSessionInfo = connectionManager.ActiveConnection?.Settings?.Mode != ConnectionMode.Remote;
+                    await connectionManager.StopConnectionAsync(cleanSessionInfo);
 
-                    RhinoApp.WriteLine("✓ Connection stopped successfully.");
+                    if (cleanSessionInfo)
+                    {
+                        RhinoApp.WriteLine("✓ Connection stopped successfully.");
+                    }
+                    else
+                    {
+                        RhinoApp.WriteLine("✓ Connection stopped successfully. Session info preserved for automatic reconnection.");
+                    }
                 }
                 catch (Exception ex)
                 {

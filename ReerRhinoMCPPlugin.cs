@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
 using Rhino;
 using Rhino.PlugIns;
 using ReerRhinoMCPPlugin.Core;
@@ -31,6 +32,14 @@ namespace ReerRhinoMCPPlugin
         private static RhinoMCPSettings settings;
         private static bool _avaloniaInitialized = false;
         private ToolExecutor toolExecutor;
+
+        /// <summary>
+        /// Override LoadTime property to auto-load plugin at startup
+        /// </summary>
+        public override PlugInLoadTime LoadTime
+        {
+            get { return PlugInLoadTime.AtStartup; }
+        }
 
         
         public ReerRhinoMCPPlugin()
@@ -86,12 +95,34 @@ namespace ReerRhinoMCPPlugin
                 connectionManager.StatusChanged += OnConnectionStatusChanged;
                 
 
-                // Auto-start if enabled
-                if (settings.AutoStart)
+                // Auto-start if enabled and settings are valid
+                if (settings.AutoStart && settings.IsValid())
                 {
-                    RhinoApp.WriteLine("ReerRhinoMCPPlugin: Auto-starting server...");
-                    // Note: In a real implementation, you might want to delay this
-                    // until Rhino is fully loaded
+                    RhinoApp.WriteLine("ReerRhinoMCPPlugin: Auto-starting connection...");
+                    
+                    // Auto-start on a background task to not block plugin loading
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await Task.Delay(2000); // Give Rhino time to finish loading
+                            var connectionSettings = settings.GetDefaultConnectionSettings();
+                            bool success = await connectionManager.StartConnectionAsync(connectionSettings);
+                            
+                            if (success)
+                            {
+                                RhinoApp.WriteLine($"✓ Auto-started {connectionSettings.Mode} connection successfully");
+                            }
+                            else
+                            {
+                                RhinoApp.WriteLine($"⚠ Failed to auto-start {connectionSettings.Mode} connection");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            RhinoApp.WriteLine($"Error during auto-start: {ex.Message}");
+                        }
+                    });
                 }
                 else
                 {

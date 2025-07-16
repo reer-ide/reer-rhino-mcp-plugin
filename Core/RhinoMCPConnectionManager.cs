@@ -156,8 +156,9 @@ namespace ReerRhinoMCPPlugin.Core
         /// <summary>
         /// Stops the current connection if one is active
         /// </summary>
+        /// <param name="cleanSessionInfo">Whether to clean stored session info (false for remote connections to maintain persistence)</param>
         /// <returns>Task representing the async operation</returns>
-        public async Task StopConnectionAsync()
+        public async Task StopConnectionAsync(bool cleanSessionInfo = true)
         {
             IRhinoMCPConnection connectionToStop = null;
             lock (lockObject)
@@ -184,7 +185,7 @@ namespace ReerRhinoMCPPlugin.Core
                     {
                         try
                         {
-                            await connectionToStop.StopAsync();
+                            await connectionToStop.StopAsync(cleanSessionInfo);
                             RhinoApp.WriteLine("Connection stopped successfully");
                         }
                         catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested)
