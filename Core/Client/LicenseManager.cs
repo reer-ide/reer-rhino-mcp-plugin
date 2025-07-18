@@ -7,7 +7,6 @@ using System.Security.Cryptography;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Rhino;
-using Microsoft.Win32;
 
 namespace ReerRhinoMCPPlugin.Core.Client
 {
@@ -16,8 +15,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
     /// </summary>
     public class LicenseManager
     {
-        private const string REGISTRY_KEY = @"SOFTWARE\ReerRhinoMCPPlugin";
-        private const string LICENSE_VALUE = "LicenseRegistration";
+        private const string LICENSE_STORAGE_KEY = "license_registration";
         
         private readonly HttpClient httpClient;
         
@@ -84,7 +82,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                     ServerUrl = serverUrl
                 };
                 
-                await StoreLicenseInfoAsync(licenseInfo);
+                await CrossPlatformStorage.StoreDataAsync(LICENSE_STORAGE_KEY, licenseInfo);
                 
                 RhinoApp.WriteLine($"License registered successfully!");
                 RhinoApp.WriteLine($"License ID: {licenseId}");
@@ -119,7 +117,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
         {
             try
             {
-                var storedLicense = await GetStoredLicenseInfoAsync();
+                var storedLicense = await CrossPlatformStorage.RetrieveDataAsync<StoredLicenseInfo>(LICENSE_STORAGE_KEY);
                 if (storedLicense == null)
                 {
                     return new LicenseValidationResult
@@ -192,74 +190,11 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// Get stored license information
         /// </summary>
         /// <returns>Stored license info or null if not found</returns>
-        public Task<StoredLicenseInfo> GetStoredLicenseInfoAsync()
+        public async Task<StoredLicenseInfo> GetStoredLicenseInfoAsync()
         {
-            return Task.Run(() =>
-            {
-                try
-                {
-                    if (Environment.OSVersion.Platform != PlatformID.Win32NT)
-                    {
-                        RhinoApp.WriteLine("License storage is only supported on Windows");
-                        return null;
-                    }
-
-                    using (var key = Registry.CurrentUser.OpenSubKey(REGISTRY_KEY))
-                    {
-                        if (key == null)
-                            return null;
-                        
-                        var encryptedData = key.GetValue(LICENSE_VALUE) as string;
-                        if (string.IsNullOrEmpty(encryptedData))
-                            return null;
-                        
-                        // Decrypt and deserialize
-                        var decryptedJson = DecryptString(encryptedData);
-                        return JsonConvert.DeserializeObject<StoredLicenseInfo>(decryptedJson);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    RhinoApp.WriteLine($"Error reading stored license: {ex.Message}");
-                    return null;
-                }
-            });
+            return await CrossPlatformStorage.RetrieveDataAsync<StoredLicenseInfo>(LICENSE_STORAGE_KEY);
         }
         
-        /// <summary>
-        /// Store license information securely in the registry
-        /// </summary>
-        /// <param name="licenseInfo">License information to store</param>
-        private Task StoreLicenseInfoAsync(StoredLicenseInfo licenseInfo)
-        {
-            return Task.Run(() =>
-            {
-                try
-                {
-                    if (Environment.OSVersion.Platform != PlatformID.Win32NT)
-                    {
-                        throw new PlatformNotSupportedException("License storage is only supported on Windows");
-                    }
-
-                    // Serialize and encrypt
-                    var json = JsonConvert.SerializeObject(licenseInfo);
-                    var encryptedData = EncryptString(json);
-                    
-                    // Store in registry
-                    using (var key = Registry.CurrentUser.CreateSubKey(REGISTRY_KEY))
-                    {
-                        key.SetValue(LICENSE_VALUE, encryptedData);
-                    }
-                    
-                    RhinoApp.WriteLine("License information stored securely");
-                }
-                catch (Exception ex)
-                {
-                    RhinoApp.WriteLine($"Error storing license: {ex.Message}");
-                    throw;
-                }
-            });
-        }
         
         /// <summary>
         /// Clear stored license information
@@ -268,20 +203,8 @@ namespace ReerRhinoMCPPlugin.Core.Client
         {
             try
             {
-                if (Environment.OSVersion.Platform != PlatformID.Win32NT)
-                {
-                    RhinoApp.WriteLine("License storage is only supported on Windows");
-                    return;
-                }
-
-                using (var key = Registry.CurrentUser.OpenSubKey(REGISTRY_KEY, true))
-                {
-                    if (key != null)
-                    {
-                        key.DeleteValue(LICENSE_VALUE, false);
-                        RhinoApp.WriteLine("Stored license information cleared");
-                    }
-                }
+                CrossPlatformStorage.DeleteData(LICENSE_STORAGE_KEY);
+                RhinoApp.WriteLine("Stored license information cleared");
             }
             catch (Exception ex)
             {
@@ -290,33 +213,22 @@ namespace ReerRhinoMCPPlugin.Core.Client
         }
         
         /// <summary>
-        /// Encrypt a string using DPAPI (Data Protection API)
+        /// Get the license status (convenience method for UI)
         /// </summary>
-        private string EncryptString(string plainText)
+        /// <returns>License validation result</returns>
+        public async Task<LicenseValidationResult> GetLicenseStatusAsync()
         {
-            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+            var storedLicense = await GetStoredLicenseInfoAsync();
+            if (storedLicense == null)
             {
-                throw new PlatformNotSupportedException("Encryption is only supported on Windows");
+                return new LicenseValidationResult
+                {
+                    IsValid = false,
+                    Message = "No license registered"
+                };
             }
-
-            var data = Encoding.UTF8.GetBytes(plainText);
-            var encryptedData = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
-            return Convert.ToBase64String(encryptedData);
-        }
-        
-        /// <summary>
-        /// Decrypt a string using DPAPI (Data Protection API)
-        /// </summary>
-        private string DecryptString(string encryptedText)
-        {
-            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
-            {
-                throw new PlatformNotSupportedException("Decryption is only supported on Windows");
-            }
-
-            var encryptedData = Convert.FromBase64String(encryptedText);
-            var decryptedData = ProtectedData.Unprotect(encryptedData, null, DataProtectionScope.CurrentUser);
-            return Encoding.UTF8.GetString(decryptedData);
+            
+            return await ValidateLicenseAsync();
         }
         
         public void Dispose()

@@ -33,6 +33,11 @@
     <DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
   
+  <!-- Platform-specific compilation symbols -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net48' OR $([MSBuild]::IsOSPlatform('Windows'))">
+    <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
+  </PropertyGroup>
+  
   <PropertyGroup>
     <!-- Specifies information for Assembly and Yak -->
     <Version>1.0</Version>
@@ -54,8 +59,9 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.119.0" />
     <PackageReference Include="System.Net.WebSockets.Client" Version="4.3.2" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
-    <PackageReference Include="System.Management" Version="7.0.2" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="7.0.1" />
+    <!-- Windows-specific packages for hardware detection and encryption -->
+    <PackageReference Include="System.Management" Version="7.0.2" Condition="'$(TargetFramework)' == 'net48' OR $([MSBuild]::IsOSPlatform('Windows'))" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="7.0.1" Condition="'$(TargetFramework)' == 'net48' OR $([MSBuild]::IsOSPlatform('Windows'))" />
   </ItemGroup>
   
   <ItemGroup>

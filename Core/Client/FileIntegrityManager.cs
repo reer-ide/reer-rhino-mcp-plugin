@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using System.Linq;
 using Newtonsoft.Json;
 using Rhino;
-using Microsoft.Win32;
 
 namespace ReerRhinoMCPPlugin.Core.Client
 {
@@ -15,8 +14,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
     /// </summary>
     public class FileIntegrityManager
     {
-        private const string REGISTRY_KEY = @"SOFTWARE\ReerRhinoMCPPlugin";
-        private const string LINKED_FILES_VALUE = "LinkedFiles";
+        private const string LINKED_FILES_STORAGE_KEY = "linked_files";
         
         private readonly Dictionary<string, LinkedFileInfo> linkedFiles;
         private readonly object lockObject = new object();
@@ -24,7 +22,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
         public FileIntegrityManager()
         {
             linkedFiles = new Dictionary<string, LinkedFileInfo>();
-            LoadLinkedFiles();
+            _ = Task.Run(LoadLinkedFilesAsync); // Load asynchronously
         }
 
         /// <summary>
@@ -375,19 +373,8 @@ namespace ReerRhinoMCPPlugin.Core.Client
         {
             try
             {
-                if (Environment.OSVersion.Platform != PlatformID.Win32NT)
-                {
-                    RhinoApp.WriteLine("File tracking storage is only supported on Windows");
-                    return;
-                }
-
-                var json = JsonConvert.SerializeObject(linkedFiles.Values.ToList(), Formatting.Indented);
-                var encryptedData = EncryptString(json);
-
-                using (var key = Registry.CurrentUser.CreateSubKey(REGISTRY_KEY))
-                {
-                    key.SetValue(LINKED_FILES_VALUE, encryptedData);
-                }
+                var fileList = linkedFiles.Values.ToList();
+                await CrossPlatformStorage.StoreDataAsync(LINKED_FILES_STORAGE_KEY, fileList);
             }
             catch (Exception ex)
             {
@@ -395,26 +382,14 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
         }
 
-        private void LoadLinkedFiles()
+        private async Task LoadLinkedFilesAsync()
         {
             try
             {
-                if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+                var fileList = await CrossPlatformStorage.RetrieveDataAsync<List<LinkedFileInfo>>(LINKED_FILES_STORAGE_KEY);
+                
+                if (fileList != null)
                 {
-                    RhinoApp.WriteLine("File tracking storage is only supported on Windows");
-                    return;
-                }
-
-                using (var key = Registry.CurrentUser.OpenSubKey(REGISTRY_KEY))
-                {
-                    if (key == null) return;
-
-                    var encryptedData = key.GetValue(LINKED_FILES_VALUE) as string;
-                    if (string.IsNullOrEmpty(encryptedData)) return;
-
-                    var decryptedJson = DecryptString(encryptedData);
-                    var fileList = JsonConvert.DeserializeObject<List<LinkedFileInfo>>(decryptedJson);
-
                     lock (lockObject)
                     {
                         linkedFiles.Clear();
@@ -433,29 +408,6 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
         }
 
-        private string EncryptString(string plainText)
-        {
-            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
-            {
-                throw new PlatformNotSupportedException("Encryption is only supported on Windows");
-            }
-
-            var data = System.Text.Encoding.UTF8.GetBytes(plainText);
-            var encryptedData = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
-            return Convert.ToBase64String(encryptedData);
-        }
-
-        private string DecryptString(string encryptedText)
-        {
-            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
-            {
-                throw new PlatformNotSupportedException("Decryption is only supported on Windows");
-            }
-
-            var encryptedData = Convert.FromBase64String(encryptedText);
-            var decryptedData = ProtectedData.Unprotect(encryptedData, null, DataProtectionScope.CurrentUser);
-            return System.Text.Encoding.UTF8.GetString(decryptedData);
-        }
     }
 
     /// <summary>
