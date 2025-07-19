@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using Rhino;
+using Rhino.Commands;
 using Rhino.Display;
 using Rhino.DocObjects;
 using Rhino.Geometry;
@@ -34,16 +35,24 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 var activeView = doc.Views.ActiveView;
                 if (activeView == null)
                 {
+                    RhinoApp.WriteLine("No active viewport found");
                     return new JObject
                     {
                         ["error"] = "No active viewport"
                     };
                 }
 
+                RhinoApp.WriteLine($"Active view found: {activeView.ActiveViewport.Name}");
+                
+                // Use the official sample approach - work directly with the active view
+                // instead of trying to change view focus during capture
+
                 // Parse parameters
                 string layerName = parameters["layer"]?.ToString();
                 bool showAnnotations = parameters["show_annotations"]?.Value<bool>() ?? true;
                 int maxSize = parameters["max_size"]?.Value<int>() ?? 800;
+                
+                RhinoApp.WriteLine($"Capture parameters - Layer: {layerName ?? "All"}, Annotations: {showAnnotations}, MaxSize: {maxSize}");
 
                 string originalLayer = doc.Layers.CurrentLayer.Name;
                 var tempDots = new List<Guid>();
@@ -56,22 +65,38 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                         tempDots = AddAnnotations(doc, layerName);
                     }
 
-                    // Capture viewport to bitmap
-                    using (var bitmap = CaptureViewportToBitmap(activeView))
+                    // Capture viewport to bitmap using official sample approach
+                    using (var bitmap = CaptureViewportToBitmap(doc))
                     {
                         if (bitmap == null)
                         {
                             return new JObject
                             {
-                                ["error"] = "Failed to capture viewport"
+                                ["error"] = "Failed to capture viewport: ViewCapture returned null"
                             };
                         }
 
                         // Resize image while maintaining aspect ratio
                         using (var resizedBitmap = ResizeImage(bitmap, maxSize))
                         {
+                            if (resizedBitmap == null)
+                            {
+                                return new JObject
+                                {
+                                    ["error"] = "Failed to resize captured image"
+                                };
+                            }
+
                             // Convert to base64 JPEG
                             string base64Data = ConvertBitmapToBase64(resizedBitmap);
+                            
+                            if (string.IsNullOrEmpty(base64Data))
+                            {
+                                return new JObject
+                                {
+                                    ["error"] = "Failed to convert image to base64"
+                                };
+                            }
 
                             return new JObject
                             {
@@ -79,7 +104,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                                 ["source"] = new JObject
                                 {
                                     ["type"] = "base64",
-                                    ["media_type"] = "image/jpeg",
+                                    ["media_type"] = "image/png",
                                     ["data"] = base64Data
                                 }
                             };
@@ -154,16 +179,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                             continue;
                     }
 
-                    // Get or create short_id
-                    string shortId = rhinoObject.Attributes.GetUserString("short_id");
-                    if (string.IsNullOrEmpty(shortId))
-                    {
-                        shortId = DateTime.Now.ToString("ddHHmmss");
-                        var attributes = rhinoObject.Attributes.Duplicate();
-                        attributes.SetUserString("short_id", shortId);
-                        doc.Objects.ModifyAttributes(rhinoObject, attributes, true);
-                    }
-
                     // Get object name
                     string objectName = rhinoObject.Attributes.Name ?? "Unnamed";
 
@@ -173,7 +188,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     {
                         // Use top corner of bounding box
                         var dotPosition = new Point3d(bbox.Value.Max.X, bbox.Value.Max.Y, bbox.Value.Max.Z);
-                        string dotText = $"{objectName}\n{shortId}";
+                        string dotText = $"{objectName}";
 
                         // Create text dot
                         var textDot = new TextDot(dotText, dotPosition);
@@ -197,23 +212,105 @@ namespace ReerRhinoMCPPlugin.Core.Functions
 
             return tempDots;
         }
-
-        private Bitmap CaptureViewportToBitmap(RhinoView rhinoView)
+        
+        private Bitmap CaptureViewportToBitmap(RhinoDoc doc)
+        {
+            Bitmap result = null;
+            
+            // ViewCapture operations need to run on the main UI thread
+            if (System.Threading.Thread.CurrentThread.GetApartmentState() != System.Threading.ApartmentState.STA)
+            {
+                RhinoApp.WriteLine("Invoking ViewCapture on main UI thread...");
+                
+                // Use manual reset event to wait for completion
+                using (var resetEvent = new System.Threading.ManualResetEventSlim(false))
+                {
+                    var captureAction = new System.Action(() =>
+                    {
+                        try
+                        {
+                            result = PerformViewCapture(doc);
+                        }
+                        finally
+                        {
+                            resetEvent.Set();
+                        }
+                    });
+                    
+                    RhinoApp.InvokeOnUiThread(captureAction);
+                    
+                    // Wait for completion (with timeout)
+                    bool completed = resetEvent.Wait(10000); // 10 second timeout
+                    
+                    if (!completed)
+                    {
+                        RhinoApp.WriteLine("UI thread invocation timed out");
+                        return null;
+                    }
+                }
+                
+                if (result != null)
+                {
+                    RhinoApp.WriteLine($"UI thread invocation succeeded, bitmap: {result.Width}x{result.Height}");
+                }
+                else
+                {
+                    RhinoApp.WriteLine("UI thread invocation completed but result is null");
+                }
+            }
+            else
+            {
+                RhinoApp.WriteLine("Already on UI thread, performing ViewCapture directly...");
+                result = PerformViewCapture(doc);
+            }
+            
+            return result;
+        }
+        
+        private Bitmap PerformViewCapture(RhinoDoc doc)
         {
             try
             {
-                // Capture the view to a bitmap
-                var size = rhinoView.ActiveViewport.Size;
-                var bitmap = rhinoView.CaptureToBitmap(size);
+                RhinoView view = doc.Views.ActiveView;
+                if (view == null)
+                {
+                    RhinoApp.WriteLine("No active view found");
+                    return null;
+                }
+
+                RhinoApp.WriteLine($"Active viewport: {view.ActiveViewport.Name}");
+
+                ViewCapture viewCapture = new ViewCapture
+                {
+                    Width = view.ActiveViewport.Size.Width,
+                    Height = view.ActiveViewport.Size.Height,
+                    ScaleScreenItems = false,
+                    DrawAxes = true,
+                    DrawGrid = true,
+                    DrawGridAxes = true,
+                    TransparentBackground = false
+                };
+                
+                System.Drawing.Bitmap bitmap = viewCapture.CaptureToBitmap(view);
+                
+                if (bitmap != null)
+                {
+                    RhinoApp.WriteLine($"ViewCapture succeeded: {bitmap.Width}x{bitmap.Height}");
+                }
+                else
+                {
+                    RhinoApp.WriteLine("ViewCapture.CaptureToBitmap returned null");
+                }
+                
                 return bitmap;
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error capturing viewport bitmap: {ex.Message}");
+                RhinoApp.WriteLine($"ViewCapture exception: {ex.Message}");
                 return null;
             }
         }
-
+       
         private Bitmap ResizeImage(Bitmap originalBitmap, int maxSize)
         {
             try
@@ -257,8 +354,8 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             {
                 using (var memoryStream = new MemoryStream())
                 {
-                    // Save as JPEG
-                    bitmap.Save(memoryStream, ImageFormat.Jpeg);
+                    // Save as PNG to preserve transparency if TransparentBackground=true
+                    bitmap.Save(memoryStream, ImageFormat.Png);
                     
                     // Convert to base64
                     byte[] imageBytes = memoryStream.ToArray();

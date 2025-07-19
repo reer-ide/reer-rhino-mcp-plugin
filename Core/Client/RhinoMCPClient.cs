@@ -170,11 +170,10 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// <summary>
         /// Clean up expired sessions (sessions older than specified hours)
         /// Note: Session expiration is now managed by the remote server (30 days)
-        /// This method is for manual cleanup only
         /// </summary>
         /// <param name="expiredHours">Number of hours after which a session is considered expired</param>
         /// <returns>Number of sessions cleaned up</returns>
-        public async Task<int> CleanupExpiredSessionsAsync(int expiredHours = 720) // 30 days = 720 hours
+        public async Task<int> CleanupExpiredSessionsAsync(int expiredHours = 24)
         {
             return await fileIntegrityManager.CleanupExpiredSessionsAsync(expiredHours);
         }
@@ -316,17 +315,22 @@ namespace ReerRhinoMCPPlugin.Core.Client
             RhinoApp.WriteLine("Stopping RhinoMCP WebSocket client...");
 
             // Unregister file if we have a session and cleanSessionInfo is true
-            if (!string.IsNullOrEmpty(sessionId) && cleanSessionInfo)
+            if (cleanSessionInfo && !string.IsNullOrEmpty(sessionId))
             {
                 await fileIntegrityManager.UnregisterLinkedFileAsync(sessionId);
-                RhinoApp.WriteLine("Session info cleaned - will require fresh connection next time");
-            }
-            else if (!string.IsNullOrEmpty(sessionId))
-            {
-                RhinoApp.WriteLine("Session info preserved for automatic reconnection");
             }
 
             await CleanupAsync();
+
+            // Clear session information if requested
+            if (cleanSessionInfo)
+            {
+                sessionId = null;
+                instanceId = null;
+                licenseId = null;
+                currentFilePath = null;
+                currentFileHash = null;
+            }
 
             OnStatusChanged(ConnectionStatus.Disconnected, "WebSocket client stopped");
             RhinoApp.WriteLine("RhinoMCP WebSocket client stopped");
@@ -401,7 +405,6 @@ namespace ReerRhinoMCPPlugin.Core.Client
         
         /// <summary>
         /// Try to reconnect to an existing session for the current file
-        /// Server manages session expiration (30 days), client validates file integrity
         /// </summary>
         private async Task<ExistingSessionInfo> TryReconnectToExistingSessionAsync(LicenseValidationResult licenseInfo, string filePath, string fileHash)
         {
@@ -451,7 +454,6 @@ namespace ReerRhinoMCPPlugin.Core.Client
         
         /// <summary>
         /// Try to reconnect to an existing session on the server
-        /// Server validates session expiration, license, and user authorization
         /// </summary>
         private async Task<ExistingSessionInfo> TryReconnectToServerSessionAsync(LicenseValidationResult licenseInfo, string sessionId)
         {
@@ -709,7 +711,15 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 };
 
                 await SendResponseAsync(response.ToString());
-                RhinoApp.WriteLine($"Response sent for correlation_id: {correlationId}");
+                // For capture_rhino_viewport, do not log the whole result's image data
+                if (tool == "capture_rhino_viewport")
+                {
+                    RhinoApp.WriteLine($"Response sent: {response.ToString().Substring(0, 150)}...");
+                }
+                else
+                {
+                    RhinoApp.WriteLine($"Response sent: {response.ToString()}");
+                }
             }
             catch (Exception ex)
             {

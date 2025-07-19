@@ -23,14 +23,26 @@ namespace ReerRhinoMCPPlugin.Core
             try
             {
                 string toolType = tool["type"]?.ToString();
-                JObject parameters = tool["params"] as JObject ?? new JObject();
-                RhinoApp.WriteLine($"Executing tool '{toolType}' from client {clientId}");
-                JObject result = ExecuteTool(toolType, parameters);
+                if (string.IsNullOrEmpty(toolType))
+                {
+                    return CreateErrorResponse("Tool type is required").ToString();
+                }
+
+                var parameters = tool["params"] as JObject ?? new JObject();
+
+                if (!_tools.ContainsKey(toolType))
+                {
+                    return CreateErrorResponse($"Unknown tool: {toolType}").ToString();
+                }
+
+                var result = ExecuteTool(toolType, parameters);
+                
+                // Return the raw tool result directly without extra wrapping
+                // The RhinoMCPClient will handle the response structure
                 return result.ToString();
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error processing tool: {ex.Message}");
                 return CreateErrorResponse(ex.Message).ToString();
             }
         }
@@ -66,40 +78,34 @@ namespace ReerRhinoMCPPlugin.Core
 
         private JObject ExecuteTool(string toolType, JObject parameters)
         {
-            if (string.IsNullOrEmpty(toolType) || !_tools.TryGetValue(toolType, out var tool))
-            {
-                return CreateErrorResponse($"Unknown tool type: {toolType}");
-            }
-
-            var (toolInstance, attr) = tool;
-            if (attr.RequiresDocument && RhinoDoc.ActiveDoc == null)
-            {
-                    return CreateErrorResponse("Tool requires an active Rhino document.");
-            }
-
             try
             {
-                if (attr.ModifiesDocument && RhinoDoc.ActiveDoc != null)
+                if (!_tools.ContainsKey(toolType))
+                {
+                    throw new InvalidOperationException($"Tool '{toolType}' not found");
+                }
+
+                var (toolInstance, toolAttribute) = _tools[toolType];
+
+                // Check if tool requires document
+                if (toolAttribute.RequiresDocument)
                 {
                     var doc = RhinoDoc.ActiveDoc;
-                    var undoRecord = doc.BeginUndoRecord($"MCP Tool: {toolType}");
-                    var result = toolInstance.Execute(parameters);
-                    doc.EndUndoRecord(undoRecord);
-                    return CreateSuccessResponse(result);
+                    if (doc == null)
+                    {
+                        throw new InvalidOperationException("This tool requires an active Rhino document");
+                    }
                 }
-                else
-                {
-                    var result = toolInstance.Execute(parameters);
-                    return CreateSuccessResponse(result);
-                }
+
+                // Execute the tool
+                return toolInstance.Execute(parameters);
             }
             catch (Exception ex)
             {
-                return CreateErrorResponse($"Error executing '{toolType}': {ex.Message}");
+                throw new Exception($"Error executing tool '{toolType}': {ex.Message}", ex);
             }
         }
 
-        private JObject CreateSuccessResponse(JObject result) => new JObject { ["status"] = "success", ["result"] = result };
         private JObject CreateErrorResponse(string message) => new JObject { ["status"] = "error", ["message"] = message };
     }
 } 
