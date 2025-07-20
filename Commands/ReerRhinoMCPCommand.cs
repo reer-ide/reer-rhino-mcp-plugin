@@ -22,9 +22,12 @@ namespace ReerRhinoMCPPlugin.Commands
             RhinoApp.WriteLine("");
             RhinoApp.WriteLine("Available commands:");
             RhinoApp.WriteLine("  - ReerLicense: Manage your software license.");
+            RhinoApp.WriteLine("  - ReerLicenseUI: Manage your software license with a user interface.");
             RhinoApp.WriteLine("  - ReerStart: Start a local or remote connection.");
             RhinoApp.WriteLine("  - ReerStop: Stop the active connection.");
             RhinoApp.WriteLine("  - ReerRestart: Stop and start a new connection.");
+            RhinoApp.WriteLine("  - ReerUtils: Access utility tools for status and file management.");
+            RhinoApp.WriteLine("  - TestNewMCPUI: Test local TCP server connection with user interface.");
             RhinoApp.WriteLine("  - ReerUtils: Access utility tools for status and file management.");
             RhinoApp.WriteLine("");
             RhinoApp.WriteLine("For more detailed instructions, please refer to the documentation.");
