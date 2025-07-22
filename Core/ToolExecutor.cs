@@ -37,9 +37,8 @@ namespace ReerRhinoMCPPlugin.Core
 
                 var result = ExecuteTool(toolType, parameters);
                 
-                // Return the raw tool result directly without extra wrapping
-                // The RhinoMCPClient will handle the response structure
-                return result.ToString();
+                // Ensure the result has a proper status field
+                return EnsureStatusField(result).ToString();
             }
             catch (Exception ex)
             {
@@ -97,13 +96,38 @@ namespace ReerRhinoMCPPlugin.Core
                     }
                 }
 
-                // Execute the tool
+                // Execute the tool and return the result as-is
                 return toolInstance.Execute(parameters);
             }
             catch (Exception ex)
             {
                 throw new Exception($"Error executing tool '{toolType}': {ex.Message}", ex);
             }
+        }
+
+        private JObject EnsureStatusField(JObject response)
+        {
+            // If response already has an error field, ensure it has status = "error"
+            if (response["error"] != null)
+            {
+                response["status"] = "error";
+                return response;
+            }
+            
+            // If response has status = "error", keep it as is
+            var status = response["status"]?.ToString();
+            if (!string.IsNullOrEmpty(status) && status.Equals("error", StringComparison.OrdinalIgnoreCase))
+            {
+                return response;
+            }
+            
+            // If no status field or status is not "error", assume success
+            if (response["status"] == null)
+            {
+                response["status"] = "success";
+            }
+            
+            return response;
         }
 
         private JObject CreateErrorResponse(string message) => new JObject { ["status"] = "error", ["message"] = message };

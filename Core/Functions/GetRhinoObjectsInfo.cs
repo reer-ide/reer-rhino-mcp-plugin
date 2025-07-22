@@ -10,7 +10,7 @@ using ReerRhinoMCPPlugin.Serializers;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
-    [MCPTool("get_rhino_objects_info", "Get detailed information about objects in the active Rhino document, including metadata and filters", RequiresDocument = true)]
+    [MCPTool("get_rhino_objects_info", "Get detailed information about specific objects by their GUIDs, or all objects in the document", RequiresDocument = true)]
     public class GetRhinoObjectsInfo : ITool
     {
         public JObject Execute(JObject parameters)
@@ -26,30 +26,56 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     };
                 }
 
-                var filters = parameters["filters"] as JObject ?? new JObject();
+                var objGuids = parameters["obj_guids"] as JArray;
+                bool getAllObjects = parameters["get_all_objects"]?.ToObject<bool>() ?? false;
                 bool includeAttributes = parameters["include_attributes"]?.ToObject<bool>() ?? false;
                 
                 var objects = new JArray();
-                int matchedCount = 0;
+                int foundCount = 0;
 
-                foreach (var rhinoObject in doc.Objects)
+                if (getAllObjects)
                 {
-                    if (rhinoObject == null || !rhinoObject.IsValid) continue;
+                    // Get all objects in the document
+                    foreach (var rhinoObject in doc.Objects)
+                    {
+                        if (rhinoObject == null || !rhinoObject.IsValid) continue;
 
-                    // Check if object matches filters
-                    if (!MatchesFilters(rhinoObject, filters, doc)) continue;
-
-                    var objectData = BuildObjectData(rhinoObject, includeAttributes, doc);
-                    objects.Add(objectData);
-                    matchedCount++;
+                        var objectData = BuildObjectData(rhinoObject, includeAttributes, doc);
+                        objects.Add(objectData);
+                        foundCount++;
+                    }
+                }
+                else if (objGuids != null && objGuids.Count > 0)
+                {
+                    // Get specific objects by GUID
+                    foreach (var guidToken in objGuids)
+                    {
+                        if (Guid.TryParse(guidToken.ToString(), out Guid objectGuid))
+                        {
+                            var rhinoObject = doc.Objects.Find(objectGuid);
+                            if (rhinoObject != null && rhinoObject.IsValid)
+                            {
+                                var objectData = BuildObjectData(rhinoObject, includeAttributes, doc);
+                                objects.Add(objectData);
+                                foundCount++;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    return new JObject
+                    {
+                        ["error"] = "Either 'obj_guids' array or 'get_all_objects' = true must be provided"
+                    };
                 }
 
                 return new JObject
                 {
                     ["status"] = "success",
                     ["objects"] = objects,
-                    ["count"] = matchedCount,
-                    ["filters_applied"] = filters,
+                    ["count"] = foundCount,
+                    ["get_all_objects"] = getAllObjects,
                     ["timestamp"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
                 };
             }
@@ -63,69 +89,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
         }
 
-        private bool MatchesFilters(RhinoObject rhinoObject, JObject filters, RhinoDoc doc)
-        {
-            // Layer filter
-            if (filters["layer"] != null)
-            {
-                string layerFilter = filters["layer"].ToString();
-                var layer = doc.Layers[rhinoObject.Attributes.LayerIndex];
-                string layerName = layer?.Name ?? "Default";
-                
-                if (!MatchesWildcard(layerName, layerFilter))
-                    return false;
-            }
-
-            // Name filter
-            if (filters["name"] != null)
-            {
-                string nameFilter = filters["name"].ToString();
-                string objectName = rhinoObject.Attributes.Name ?? "";
-                
-                if (!MatchesWildcard(objectName, nameFilter))
-                    return false;
-            }
-
-            // Object type filter
-            if (filters["type"] != null)
-            {
-                string typeFilter = filters["type"].ToString();
-                string objectType = rhinoObject.ObjectType.ToString();
-                
-                if (!MatchesWildcard(objectType, typeFilter))
-                    return false;
-            }
-
-            // Description filter (from user text)
-            if (filters["description"] != null)
-            {
-                string descriptionFilter = filters["description"].ToString();
-                string description = rhinoObject.Attributes.GetUserString("description") ?? "";
-                
-                if (!MatchesWildcard(description, descriptionFilter))
-                    return false;
-            }
-
-            return true;
-        }
-
-        private bool MatchesWildcard(string text, string pattern)
-        {
-            if (string.IsNullOrEmpty(pattern)) return true;
-            if (pattern == "*") return true;
-            
-            // Simple wildcard matching
-            if (pattern.Contains("*"))
-            {
-                var regex = new System.Text.RegularExpressions.Regex(
-                    "^" + pattern.Replace("*", ".*") + "$",
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                return regex.IsMatch(text);
-            }
-            
-            return text.IndexOf(pattern, StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
         private JObject BuildObjectData(RhinoObject rhinoObject, bool includeAttributes, RhinoDoc doc)
         {
             // Use the standard serializer to get object info
@@ -136,6 +99,18 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             if (!string.IsNullOrEmpty(description))
             {
                 objectData["description"] = description;
+            }
+
+            // Include all user metadata
+            var userStrings = rhinoObject.Attributes.GetUserStrings();
+            if (userStrings != null && userStrings.Count > 0)
+            {
+                var metadata = new JObject();
+                foreach (string key in userStrings.AllKeys)
+                {
+                    metadata[key] = userStrings[key];
+                }
+                objectData["user_metadata"] = metadata;
             }
 
             // Include all attributes if requested

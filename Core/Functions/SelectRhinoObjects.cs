@@ -101,11 +101,9 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 var result = new JObject
                 {
                     ["status"] = "success",
+                    ["total_filtered"] = filteredObjects.Count,
                     ["count"] = selectedObjects.Count,
                     ["selected_ids"] = selectedIds,
-                    ["filters"] = filters,
-                    ["filters_type"] = filtersType,
-                    ["total_filtered"] = filteredObjects.Count
                 };
 
                 // Include information about unselectable objects if any
@@ -216,6 +214,9 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     string layerName = doc.Layers[rhinoObject.Attributes.LayerIndex].Name;
                     return filterValues.Any(value => layerName.Equals(value, StringComparison.OrdinalIgnoreCase));
 
+                case "material":
+                    return MatchesMaterialFilter(rhinoObject, filterValue);
+
                 default:
                     // Handle custom attributes (user strings)
                     string attributeValue = rhinoObject.Attributes.GetUserString(filterName) ?? "";
@@ -255,6 +256,64 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                             {
                                 return true;
                             }
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private bool MatchesMaterialFilter(RhinoObject rhinoObject, JToken materialFilter)
+        {
+            // Get the object's material ID
+            string objectMaterialId = null;
+            if (rhinoObject.RenderMaterial != null)
+            {
+                objectMaterialId = rhinoObject.RenderMaterial.Id.ToString();
+            }
+            else
+            {
+                // Object uses layer default material - we'll use null to represent this
+                objectMaterialId = null;
+            }
+
+            // Handle single material ID as string
+            if (materialFilter.Type == JTokenType.String)
+            {
+                string targetMaterialId = materialFilter.ToString();
+                
+                // Handle special case for layer default material
+                if (string.IsNullOrEmpty(targetMaterialId) || 
+                    targetMaterialId.Equals("layer_default", StringComparison.OrdinalIgnoreCase) ||
+                    targetMaterialId.Equals("default", StringComparison.OrdinalIgnoreCase))
+                {
+                    return objectMaterialId == null;
+                }
+                
+                return string.Equals(objectMaterialId, targetMaterialId, StringComparison.OrdinalIgnoreCase);
+            }
+
+            // Handle array of material IDs
+            if (materialFilter is JArray materialArray)
+            {
+                foreach (var materialItem in materialArray)
+                {
+                    if (materialItem.Type == JTokenType.String)
+                    {
+                        string targetMaterialId = materialItem.ToString();
+                        
+                        // Handle special case for layer default material
+                        if (string.IsNullOrEmpty(targetMaterialId) || 
+                            targetMaterialId.Equals("layer_default", StringComparison.OrdinalIgnoreCase) ||
+                            targetMaterialId.Equals("default", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (objectMaterialId == null)
+                                return true;
+                        }
+                        else if (string.Equals(objectMaterialId, targetMaterialId, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return true;
                         }
                     }
                 }

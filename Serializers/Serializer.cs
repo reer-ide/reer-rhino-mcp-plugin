@@ -113,6 +113,28 @@ namespace ReerRhinoMCPPlugin.Serializers
             return attributesDict;
         }
 
+        public static JObject GetMaterialInfo(RhinoObject obj)
+        {
+            if (obj.RenderMaterial != null)
+            {
+                return new JObject
+                {
+                    ["name"] = obj.RenderMaterial.DisplayName,
+                    ["type"] = obj.RenderMaterial.TypeName,
+                    ["id"] = obj.RenderMaterial.Id.ToString()
+                };
+            }
+            else
+            {
+                return new JObject
+                {
+                    ["name"] = "Layer Default",
+                    ["type"] = "Default",
+                    ["id"] = null
+                };
+            }
+        }
+
         public static JObject RhinoObject(RhinoObject obj)
         {
             var objInfo = new JObject
@@ -121,7 +143,7 @@ namespace ReerRhinoMCPPlugin.Serializers
                 ["name"] = obj.Name ?? "(unnamed)",
                 ["type"] = obj.ObjectType.ToString(),
                 ["layer"] = doc.Layers[obj.Attributes.LayerIndex].Name,
-                ["material"] = obj.Attributes.MaterialIndex.ToString(),
+                ["material"] = GetMaterialInfo(obj),
                 ["color"] = SerializeColor(obj.Attributes.ObjectColor)
             };
 
@@ -170,8 +192,6 @@ namespace ReerRhinoMCPPlugin.Serializers
             {
                 objInfo["type"] = "EXTRUSION";
             }
-
-
             return objInfo;
         }
     }
