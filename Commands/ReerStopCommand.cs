@@ -44,7 +44,7 @@ namespace ReerRhinoMCPPlugin.Commands
                 }
                 catch (Exception ex)
                 {
-                    RhinoApp.WriteLine($"Error stopping connection: {ex.Message}");
+                    Logger.Error($"Error stopping connection: {ex.Message}");
                 }
             });
             

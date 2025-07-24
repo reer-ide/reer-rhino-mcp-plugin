@@ -3,6 +3,7 @@ using Avalonia.Markup.Xaml;
 using ReerRhinoMCPPlugin.UI.ViewModels;
 using Rhino;
 using System;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.UI.Windows
 {
@@ -33,11 +34,11 @@ namespace ReerRhinoMCPPlugin.UI.Windows
                 // Window event handlers
                 this.Opened += OnWindowOpened;
                 
-                RhinoApp.WriteLine("[DEBUG] MCPControlPanelNew initialized successfully");
+                Logger.Info("[DEBUG] MCPControlPanelNew initialized successfully");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"[ERROR] MCPControlPanelNew constructor exception: {ex}");
+                Logger.Error($"[ERROR] MCPControlPanelNew constructor exception: {ex}");
             }
         }
 
@@ -54,11 +55,11 @@ namespace ReerRhinoMCPPlugin.UI.Windows
                 this.Activate();
                 UpdateTopmost();
                 this.Focus();
-                RhinoApp.WriteLine("[DEBUG] Window opened and activated");
+                Logger.Info("[DEBUG] Window opened and activated");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"[ERROR] Error in OnWindowOpened: {ex.Message}");
+                Logger.Error($"[ERROR] Error in OnWindowOpened: {ex.Message}");
             }
         }
 
@@ -67,11 +68,11 @@ namespace ReerRhinoMCPPlugin.UI.Windows
             try
             {
                 UpdateTopmost();
-                RhinoApp.WriteLine($"[DEBUG] KeepOnTop changed to: {keepOnTop}");
+                Logger.Info($"[DEBUG] KeepOnTop changed to: {keepOnTop}");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"[ERROR] Error in OnKeepOnTopChanged: {ex.Message}");
+                Logger.Error($"[ERROR] Error in OnKeepOnTopChanged: {ex.Message}");
             }
         }
 
@@ -86,7 +87,7 @@ namespace ReerRhinoMCPPlugin.UI.Windows
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"[ERROR] Error updating topmost: {ex.Message}");
+                Logger.Error($"[ERROR] Error updating topmost: {ex.Message}");
             }
         }
 
@@ -95,11 +96,11 @@ namespace ReerRhinoMCPPlugin.UI.Windows
             try
             {
                 _viewModel?.Dispose();
-                RhinoApp.WriteLine("[DEBUG] MCPControlPanelNew closed and disposed");
+                Logger.Info("[DEBUG] MCPControlPanelNew closed and disposed");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"[ERROR] Error in OnClosed: {ex.Message}");
+                Logger.Error($"[ERROR] Error in OnClosed: {ex.Message}");
             }
             
             base.OnClosed(e);

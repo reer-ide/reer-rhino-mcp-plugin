@@ -42,7 +42,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"An error occurred: {ex.Message}");
+                Logger.Error($"An error occurred: {ex.Message}");
                 return Result.Failure;
             }
 
@@ -144,7 +144,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error during license registration: {ex.Message}");
+                Logger.Error($"Error during license registration: {ex.Message}");
                 return Result.Failure;
             }
         }
@@ -180,13 +180,13 @@ namespace ReerRhinoMCPPlugin.Commands
                     }
                     catch (Exception ex)
                     {
-                        RhinoApp.WriteLine($"Error checking license: {ex.Message}");
+                        Logger.Error($"Error checking license: {ex.Message}");
                     }
                 });
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error checking license: {ex.Message}");
+                Logger.Error($"Error checking license: {ex.Message}");
             }
         }
 
@@ -208,7 +208,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error clearing license: {ex.Message}");
+                Logger.Error($"Error clearing license: {ex.Message}");
            }
         }
 

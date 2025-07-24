@@ -1,6 +1,7 @@
 using System;
 using Rhino;
 using Rhino.Commands;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Commands
 {

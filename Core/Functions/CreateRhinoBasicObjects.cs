@@ -7,6 +7,7 @@ using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 using ReerRhinoMCPPlugin.Core.Functions;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
@@ -122,7 +123,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error creating geometries: {ex.Message}");
+                Logger.Error($"Error creating geometries: {ex.Message}");
                 return new JObject
                 {
                     ["error"] = $"Error creating geometries: {ex.Message}"

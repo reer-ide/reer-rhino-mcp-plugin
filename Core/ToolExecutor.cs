@@ -5,6 +5,7 @@ using System.Reflection;
 using Newtonsoft.Json.Linq;
 using Rhino;
 using ReerRhinoMCPPlugin.Core.Functions;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core
 {
@@ -15,7 +16,7 @@ namespace ReerRhinoMCPPlugin.Core
             public ToolExecutor()
         {
             _tools = DiscoverTools();
-            RhinoApp.WriteLine($"ToolExecutor initialized with {_tools.Count} tools.");
+            Logger.Info($"ToolExecutor initialized with {_tools.Count} tools.");
         }
 
         public string ProcessTool(JObject tool, string clientId)
@@ -63,14 +64,14 @@ namespace ReerRhinoMCPPlugin.Core
                     {
                         var toolInstance = (ITool)Activator.CreateInstance(toolType);
                         tools[attr.ToolName] = (toolInstance, attr);
-                        // RhinoApp.WriteLine($"Registered tool: {attr.ToolName}");
+                        // Logger.Info($"Registered tool: {attr.ToolName}");
                     }
                 }
-                RhinoApp.WriteLine($"ReerRhinoMCPPlugin: Registered {tools.Count} tools");
+                Logger.Info($"ReerRhinoMCPPlugin: Registered {tools.Count} tools");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error discovering tools: {ex.Message}");
+                Logger.Error($"Error discovering tools: {ex.Message}");
             }
             return tools;
         }

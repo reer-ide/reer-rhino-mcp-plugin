@@ -9,6 +9,7 @@ using Rhino;
 using Rhino.DocObjects;
 using Rhino.Runtime;
 using ReerRhinoMCPPlugin.Core;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
@@ -87,7 +88,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 // Undo the changes since execution failed
                 doc.Undo();
                 
-                RhinoApp.WriteLine($"Error executing code: {ex.Message}");
+                Logger.Error($"Error executing code: {ex.Message}");
                 return new JObject
                 {
                     ["status"] = "error",

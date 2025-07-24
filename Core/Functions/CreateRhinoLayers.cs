@@ -5,6 +5,7 @@ using Rhino;
 using Rhino.DocObjects;
 using ReerRhinoMCPPlugin.Core.Functions;
 using ReerRhinoMCPPlugin.Serializers;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
@@ -106,7 +107,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error creating layers: {ex.Message}");
+                Logger.Error($"Error creating layers: {ex.Message}");
                 return new JObject
                 {
                     ["error"] = $"Error creating layers: {ex.Message}"

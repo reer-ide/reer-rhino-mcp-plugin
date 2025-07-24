@@ -100,7 +100,7 @@ namespace ReerRhinoMCPPlugin.Core
                 
             if (!settings.IsValid())
             {
-                RhinoApp.WriteLine("Invalid connection settings provided");
+                Logger.Error("Invalid connection settings provided");
                 return false;
             }
             
@@ -114,7 +114,7 @@ namespace ReerRhinoMCPPlugin.Core
                 
                 if (newConnection == null)
                 {
-                    RhinoApp.WriteLine($"Failed to create connection for mode: {settings.Mode}");
+                    Logger.Error($"Failed to create connection for mode: {settings.Mode}");
                     return false;
                 }
                 
@@ -132,7 +132,7 @@ namespace ReerRhinoMCPPlugin.Core
                         activeConnection = newConnection;
                     }
                     
-                    RhinoApp.WriteLine($"RhinoMCP connection started successfully in {settings.Mode} mode");
+                    Logger.Success($"RhinoMCP connection started successfully in {settings.Mode} mode");
                     return true;
                 }
                 else
@@ -142,13 +142,13 @@ namespace ReerRhinoMCPPlugin.Core
                     newConnection.StatusChanged -= OnConnectionStatusChanged;
                     newConnection.Dispose();
                     
-                    RhinoApp.WriteLine($"Failed to start RhinoMCP connection in {settings.Mode} mode");
+                    Logger.Error($"Failed to start RhinoMCP connection in {settings.Mode} mode");
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error starting connection: {ex.Message}");
+                Logger.Error($"Error starting connection: {ex.Message}");
                 return false;
             }
         }
@@ -174,7 +174,7 @@ namespace ReerRhinoMCPPlugin.Core
             {
                 try
                 {
-                    RhinoApp.WriteLine("Stopping RhinoMCP connection...");
+                    Logger.Info("Stopping RhinoMCP connection...");
                     
                     // Unsubscribe from events first
                     connectionToStop.CommandReceived -= OnConnectionCommandReceived;
@@ -186,15 +186,15 @@ namespace ReerRhinoMCPPlugin.Core
                         try
                         {
                             await connectionToStop.StopAsync(cleanSessionInfo);
-                            RhinoApp.WriteLine("Connection stopped successfully");
+                            Logger.Success("Connection stopped successfully");
                         }
                         catch (OperationCanceledException) when (timeoutCts.Token.IsCancellationRequested)
                         {
-                            RhinoApp.WriteLine("Stop operation timed out, forcing disposal");
+                            Logger.Error("Stop operation timed out, forcing disposal");
                         }
                         catch (Exception ex)
                         {
-                            RhinoApp.WriteLine($"Error during graceful stop: {ex.Message}");
+                            Logger.Error($"Error during graceful stop: {ex.Message}");
                         }
                     }
                     
@@ -202,21 +202,21 @@ namespace ReerRhinoMCPPlugin.Core
                     try
                     {
                         connectionToStop.Dispose();
-                        RhinoApp.WriteLine("Connection resources disposed");
+                        Logger.Info("Connection resources disposed");
                     }
                     catch (Exception ex)
                     {
-                        RhinoApp.WriteLine($"Error disposing connection: {ex.Message}");
+                        Logger.Error($"Error disposing connection: {ex.Message}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    RhinoApp.WriteLine($"Error stopping connection: {ex.Message}");
+                    Logger.Error($"Error stopping connection: {ex.Message}");
                 }
             }
             else
             {
-                RhinoApp.WriteLine("No active connection to stop");
+                Logger.Info("No active connection to stop");
             }
         }
         
@@ -231,7 +231,7 @@ namespace ReerRhinoMCPPlugin.Core
             if (settings == null)
                 throw new ArgumentNullException(nameof(settings));
             
-            RhinoApp.WriteLine($"Switching to {settings.Mode} mode...");
+            Logger.Info($"Switching to {settings.Mode} mode...");
             return await StartConnectionAsync(settings);
         }
         
@@ -251,7 +251,7 @@ namespace ReerRhinoMCPPlugin.Core
                     return new RhinoMCPClient();
                     
                 default:
-                    RhinoApp.WriteLine($"Unsupported connection mode: {mode}");
+                    Logger.Error($"Unsupported connection mode: {mode}");
                     return null;
             }
         }

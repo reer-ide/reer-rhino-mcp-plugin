@@ -124,7 +124,7 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
             // Handle command received events if needed
             string commandType = e.Command["type"]?.ToString() ?? "unknown";
             LogViewer.AddLogEntry("COMMAND", $"Received command: {commandType} from {e.ClientId}");
-            RhinoApp.WriteLine($"[UI] Command received: {commandType} from {e.ClientId}");
+            Logger.Info($"[UI] Command received: {commandType} from {e.ClientId}");
         }
 
         private void OnServerStarted(int port)
@@ -133,13 +133,13 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
             ConnectionStatus.CurrentPort = port.ToString();
             StartUptimeTimer();
             LogViewer.AddLogEntry("SUCCESS", $"MCP server started on port {port}");
-            RhinoApp.WriteLine($"[UI] Server started on port {port}");
+            Logger.Info($"[UI] Server started on port {port}");
         }
 
         private void OnServerStartFailed(string error)
         {
             LogViewer.AddLogEntry("ERROR", $"Failed to start MCP server: {error}");
-            RhinoApp.WriteLine($"[UI] Server start failed: {error}");
+            Logger.Error($"[UI] Server start failed: {error}");
         }
 
         private void OnServerStopped()
@@ -150,13 +150,13 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
             ConnectionStatus.CurrentPort = "";
             ConnectionStatus.ClientCount = 0;
             LogViewer.AddLogEntry("SUCCESS", "MCP server stopped successfully");
-            RhinoApp.WriteLine("[UI] Server stopped");
+            Logger.Info("[UI] Server stopped");
         }
 
         private void OnServerStopFailed(string error)
         {
             LogViewer.AddLogEntry("ERROR", $"Error stopping server: {error}");
-            RhinoApp.WriteLine($"[UI] Server stop failed: {error}");
+            Logger.Error($"[UI] Server stop failed: {error}");
         }
 
         private void StartUptimeTimer()
@@ -197,7 +197,7 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
         private void OpenSettings()
         {
             // TODO: Implement settings dialog
-            RhinoApp.WriteLine("[UI] Settings dialog not implemented yet");
+            Logger.Info("[UI] Settings dialog not implemented yet");
         }
 
         private void OpenDocumentation()
@@ -212,7 +212,7 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"[UI] Failed to open documentation: {ex.Message}");
+                Logger.Error($"[UI] Failed to open documentation: {ex.Message}");
             }
         }
 
@@ -228,7 +228,7 @@ namespace ReerRhinoMCPPlugin.UI.ViewModels
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"[UI] Failed to open GitHub: {ex.Message}");
+                Logger.Error($"[UI] Failed to open GitHub: {ex.Message}");
             }
         }
 

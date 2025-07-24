@@ -71,7 +71,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
             {
                 if (status != ConnectionStatus.Disconnected)
                 {
-                    RhinoApp.WriteLine("TCP server is already running or starting");
+                    Logger.Info("TCP server is already running or starting");
                     return false;
                 }
 
@@ -100,7 +100,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
                 }
 
                 OnStatusChanged(ConnectionStatus.Connected, $"TCP server started on {settings.LocalHost}:{settings.LocalPort}");
-                RhinoApp.WriteLine($"RhinoMCP TCP server started on {settings.LocalHost}:{settings.LocalPort}");
+                Logger.Success($"RhinoMCP TCP server started on {settings.LocalHost}:{settings.LocalPort}");
 
                 return true;
             }
@@ -112,7 +112,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
                 }
 
                 OnStatusChanged(ConnectionStatus.Failed, $"Failed to start TCP server: {ex.Message}", ex);
-                RhinoApp.WriteLine($"Failed to start RhinoMCP TCP server: {ex.Message}");
+                Logger.Error($"Failed to start RhinoMCP TCP server: {ex.Message}");
 
                 await CleanupAsync();
                 return false;
@@ -137,12 +137,12 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
 
             OnStatusChanged(ConnectionStatus.Disconnected, "Stopping TCP server...");
-            RhinoApp.WriteLine("Stopping RhinoMCP TCP server...");
+            Logger.Info("Stopping RhinoMCP TCP server...");
 
             await CleanupAsync();
 
             OnStatusChanged(ConnectionStatus.Disconnected, "TCP server stopped");
-            RhinoApp.WriteLine("RhinoMCP TCP server stopped");
+            Logger.Success("RhinoMCP TCP server stopped");
         }
         
         /// <summary>
@@ -167,7 +167,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
                     }
                     else
                     {
-                        RhinoApp.WriteLine($"Client {clientId} not found");
+                        Logger.Error($"Client {clientId} not found");
                         return false;
                     }
                 }
@@ -187,14 +187,14 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error sending response: {ex.Message}");
+                Logger.Error($"Error sending response: {ex.Message}");
                 return false;
             }
         }
         
         private async Task ServerLoopAsync(CancellationToken cancellationToken)
         {
-            RhinoApp.WriteLine("TCP server loop started");
+            Logger.Info("TCP server loop started");
 
             try
             {
@@ -224,7 +224,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
                     }
                     catch (Exception ex)
                     {
-                        RhinoApp.WriteLine($"Error in server loop: {ex.Message}");
+                        Logger.Error($"Error in server loop: {ex.Message}");
                         
                         if (!cancellationToken.IsCancellationRequested)
                         {
@@ -239,10 +239,10 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Unexpected error in server loop: {ex.Message}");
+                Logger.Error($"Unexpected error in server loop: {ex.Message}");
             }
 
-            RhinoApp.WriteLine("TCP server loop stopped");
+            Logger.Info("TCP server loop stopped");
         }
         
         private async Task<TcpClient> AcceptTcpClientAsync(TcpListener listener, CancellationToken cancellationToken)
@@ -259,7 +259,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error accepting client: {ex.Message}");
+                Logger.Error($"Error accepting client: {ex.Message}");
                 return null;
             }
         }
@@ -284,7 +284,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error handling new client: {ex.Message}");
+                Logger.Error($"Error handling new client: {ex.Message}");
             }
             finally
             {
@@ -313,7 +313,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error handling client command: {ex.Message}");
+                Logger.Error($"Error handling client command: {ex.Message}");
             }
         }
         
@@ -322,11 +322,11 @@ namespace ReerRhinoMCPPlugin.Core.Server
             try
             {
                 clients.TryRemove(e.ClientId, out _);
-                RhinoApp.WriteLine($"Client {e.ClientId} removed from active connections");
+                Logger.Info($"Client {e.ClientId} removed from active connections");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error handling client disconnection: {ex.Message}");
+                Logger.Error($"Error handling client disconnection: {ex.Message}");
             }
         }
         
@@ -338,7 +338,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error in status changed handler: {ex.Message}");
+                Logger.Error($"Error in status changed handler: {ex.Message}");
             }
         }
         
@@ -362,7 +362,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
                     }
                     catch (Exception ex)
                     {
-                        RhinoApp.WriteLine($"Error disposing client: {ex.Message}");
+                        Logger.Error($"Error disposing client: {ex.Message}");
                     }
                 }
                 clients.Clear();
@@ -376,7 +376,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
                     }
                     catch (Exception ex)
                     {
-                        RhinoApp.WriteLine($"Error waiting for server task: {ex.Message}");
+                        Logger.Error($"Error waiting for server task: {ex.Message}");
                     }
                 }
 
@@ -388,7 +388,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error during cleanup: {ex.Message}");
+                Logger.Error($"Error during cleanup: {ex.Message}");
             }
         }
         
@@ -410,7 +410,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error disposing RhinoMCPServer: {ex.Message}");
+                Logger.Error($"Error disposing RhinoMCPServer: {ex.Message}");
             }
         }
     }

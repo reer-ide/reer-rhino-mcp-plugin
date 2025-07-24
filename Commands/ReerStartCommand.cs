@@ -36,7 +36,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"An error occurred: {ex.Message}");
+                Logger.Error($"An error occurred: {ex.Message}");
                 return Result.Failure;
             }
         }
@@ -131,13 +131,13 @@ namespace ReerRhinoMCPPlugin.Commands
                 }
                 else
                 {
-                    RhinoApp.WriteLine("✗ Failed to start local TCP server.");
+                    Logger.Error("✗ Failed to start local TCP server.");
                 }
                 return success;
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error starting local server: {ex.Message}");
+                Logger.Error($"Error starting local server: {ex.Message}");
                 return false;
             }
         }
@@ -161,7 +161,7 @@ namespace ReerRhinoMCPPlugin.Commands
 
                 if (!licenseResult.IsValid)
                 {
-                    RhinoApp.WriteLine("✗ No valid license found. Please run 'ReerLicense' to register first.");
+                    Logger.Error("✗ No valid license found. Please run 'ReerLicense' to register first.");
                     return false;
                 }
 
@@ -169,7 +169,7 @@ namespace ReerRhinoMCPPlugin.Commands
                 var serverUrl = storedLicense?.ServerUrl;
                 if(string.IsNullOrEmpty(serverUrl))
                 {
-                    RhinoApp.WriteLine("✗ No server URL found in stored license. Please re-register your license with 'ReerLicense'.");
+                    Logger.Error("✗ No server URL found in stored license. Please re-register your license with 'ReerLicense'.");
                     return false;
                 }
 
@@ -179,7 +179,7 @@ namespace ReerRhinoMCPPlugin.Commands
                     RemoteUrl = serverUrl
                 };
 
-                RhinoApp.WriteLine($"Connecting to: {serverUrl} with License: {licenseResult.LicenseId}");
+                Logger.Info($"Connecting to: {serverUrl} with License: {licenseResult.LicenseId}");
                 var success = await connectionManager.StartConnectionAsync(settings);
 
                 if (success)
@@ -195,13 +195,13 @@ namespace ReerRhinoMCPPlugin.Commands
                 }
                 else
                 {
-                    RhinoApp.WriteLine("✗ Failed to establish remote connection.");
+                    Logger.Error("✗ Failed to establish remote connection.");
                 }
                 return success;
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error starting remote connection: {ex.Message}");
+                Logger.Error($"Error starting remote connection: {ex.Message}");
                 return false;
             }
         }

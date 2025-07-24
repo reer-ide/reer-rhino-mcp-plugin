@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using Newtonsoft.Json;
 using Rhino;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Client
 {
@@ -36,7 +37,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             {
                 if (!File.Exists(filePath))
                 {
-                    RhinoApp.WriteLine($"File not found for hash calculation: {filePath}");
+                    Logger.Error($"File not found for hash calculation: {filePath}");
                     return null;
                 }
 
@@ -49,7 +50,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error calculating file hash for {filePath}: {ex.Message}");
+                Logger.Error($"Error calculating file hash for {filePath}: {ex.Message}");
                 return null;
             }
         }
@@ -72,7 +73,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error getting file size for {filePath}: {ex.Message}");
+                Logger.Error($"Error getting file size for {filePath}: {ex.Message}");
                 return 0;
             }
         }
@@ -111,11 +112,11 @@ namespace ReerRhinoMCPPlugin.Core.Client
 
                 await SaveLinkedFiles();
 
-                RhinoApp.WriteLine($"File registered for session {sessionId}: {Path.GetFileName(filePath)}");
+                Logger.Info($"File registered for session {sessionId}: {Path.GetFileName(filePath)}");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error registering linked file: {ex.Message}");
+                Logger.Error($"Error registering linked file: {ex.Message}");
             }
         }
 
@@ -164,7 +165,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                             Message = GetStatusChangeMessage(currentStatus, newStatus, linkedFile.FilePath)
                         });
 
-                        RhinoApp.WriteLine($"File status changed for session {sessionId}: {currentStatus} -> {newStatus}");
+                        Logger.Info($"File status changed for session {sessionId}: {currentStatus} -> {newStatus}");
                     }
                 }
             }
@@ -257,7 +258,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 {
                     var filePath = linkedFiles[sessionId].FilePath;
                     linkedFiles.Remove(sessionId);
-                    RhinoApp.WriteLine($"File unregistered for session {sessionId}: {Path.GetFileName(filePath)}");
+                    Logger.Info($"File unregistered for session {sessionId}: {Path.GetFileName(filePath)}");
                 }
             }
 
@@ -287,7 +288,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
 
             await SaveLinkedFiles();
-            RhinoApp.WriteLine("All linked files cleared");
+            Logger.Info("All linked files cleared");
         }
         
         /// <summary>
@@ -319,7 +320,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             if (expiredSessions.Any())
             {
                 await SaveLinkedFiles();
-                RhinoApp.WriteLine($"Cleaned up {expiredSessions.Count} expired sessions");
+                Logger.Info($"Cleaned up {expiredSessions.Count} expired sessions");
             }
             
             return expiredSessions.Count;
@@ -360,11 +361,11 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 }
 
                 await SaveLinkedFiles();
-                RhinoApp.WriteLine("All session data cleared");
+                Logger.Info("All session data cleared");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error clearing session data: {ex.Message}");
+                Logger.Error($"Error clearing session data: {ex.Message}");
                 throw;
             }
         }
@@ -378,7 +379,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error saving linked files: {ex.Message}");
+                Logger.Error($"Error saving linked files: {ex.Message}");
             }
         }
 
@@ -399,12 +400,12 @@ namespace ReerRhinoMCPPlugin.Core.Client
                         }
                     }
 
-                    RhinoApp.WriteLine($"Loaded {fileList.Count} linked files from storage");
+                    Logger.Info($"Loaded {fileList.Count} linked files from storage");
                 }
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error loading linked files: {ex.Message}");
+                Logger.Error($"Error loading linked files: {ex.Message}");
             }
         }
 

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Rhino;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Server
 {
@@ -76,7 +77,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
                 isRunning = true;
             }
 
-            RhinoApp.WriteLine($"Client {clientId} connected from {tcpClient.Client.RemoteEndPoint}");
+            Logger.Info($"Client {clientId} connected from {tcpClient.Client.RemoteEndPoint}");
 
             try
             {
@@ -84,7 +85,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error handling client {clientId}: {ex.Message}");
+                Logger.Error($"Error handling client {clientId}: {ex.Message}");
             }
             finally
             {
@@ -114,7 +115,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Failed to send response to client {clientId}: {ex.Message}");
+                Logger.Error($"Failed to send response to client {clientId}: {ex.Message}");
                 return false;
             }
         }
@@ -154,7 +155,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
                     int bytesRead = await stream.ReadAsync(buffer, 0, bufferSize, cancellationToken);
                     if (bytesRead == 0)
                     {
-                        RhinoApp.WriteLine($"Client {clientId} disconnected");
+                        Logger.Info($"Client {clientId} disconnected");
                         break;
                     }
 
@@ -172,11 +173,11 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (IOException ex)
             {
-                RhinoApp.WriteLine($"IO error with client {clientId}: {ex.Message}");
+                Logger.Error($"IO error with client {clientId}: {ex.Message}");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Unexpected error with client {clientId}: {ex.Message}");
+                Logger.Error($"Unexpected error with client {clientId}: {ex.Message}");
             }
         }
 
@@ -196,7 +197,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
                     }
                     catch (Exception ex)
                     {
-                        RhinoApp.WriteLine($"Error in command received handler: {ex.Message}");
+                        Logger.Error($"Error in command received handler: {ex.Message}");
                     }
                 }));
             }
@@ -221,7 +222,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error in disconnected handler: {ex.Message}");
+                Logger.Error($"Error in disconnected handler: {ex.Message}");
             }
         }
 
@@ -242,10 +243,10 @@ namespace ReerRhinoMCPPlugin.Core.Server
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error disposing client {clientId}: {ex.Message}");
+                Logger.Error($"Error disposing client {clientId}: {ex.Message}");
             }
 
-            RhinoApp.WriteLine($"Client {clientId} disposed");
+            Logger.Info($"Client {clientId} disposed");
         }
     }
 

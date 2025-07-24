@@ -18,6 +18,23 @@
       "group": "build"
     },
     {
+      "label": "build debug",
+      "command": "dotnet",
+      "type": "shell",
+      "args": [
+        "build",
+        "-c:Debug",
+        "-clp:NoSummary",
+        "${workspaceFolder}/rhino_mcp_plugin.csproj"
+      ],
+      "problemMatcher": "$msCompile",
+      "presentation": {
+        "reveal": "always",
+        "clear": true
+      },
+      "group": "build"
+    },
+    {
       "label": "build release",
       "command": "dotnet",
       "type": "shell",

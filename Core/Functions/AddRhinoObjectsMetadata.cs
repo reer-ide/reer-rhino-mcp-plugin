@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using Rhino;
 using Rhino.DocObjects;
 using ReerRhinoMCPPlugin.Core.Functions;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
@@ -65,7 +66,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error adding metadata: {ex.Message}");
+                Logger.Error($"Error adding metadata: {ex.Message}");
                 return new JObject
                 {
                     ["error"] = $"Error adding metadata: {ex.Message}"
@@ -106,7 +107,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
 
             if (success)
             {
-                RhinoApp.WriteLine($"Updated object {objectId}: name='{name}', description='{description}'");
+                Logger.Success($"Updated object {objectId}: name='{name}', description='{description}'");
                 
                 return new JObject
                 {

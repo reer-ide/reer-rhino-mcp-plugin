@@ -6,6 +6,7 @@ using Newtonsoft.Json.Linq;
 using Rhino;
 using Rhino.DocObjects;
 using ReerRhinoMCPPlugin.Core.Functions;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
@@ -117,7 +118,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error selecting objects: {ex.Message}");
+                Logger.Error($"Error selecting objects: {ex.Message}");
                 return new JObject
                 {
                     ["error"] = $"Error selecting objects: {ex.Message}"

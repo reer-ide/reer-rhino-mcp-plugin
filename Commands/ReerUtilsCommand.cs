@@ -42,7 +42,7 @@ namespace ReerRhinoMCPPlugin.Commands
                 }
                 catch (Exception ex)
                 {
-                    RhinoApp.WriteLine($"An error occurred: {ex.Message}");
+                    Logger.Error($"An error occurred: {ex.Message}");
                 }
             });
             
@@ -92,7 +92,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error getting status: {ex.Message}");
+                Logger.Error($"Error getting status: {ex.Message}");
                 return false;
             }
         }
@@ -121,7 +121,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error checking files: {ex.Message}");
+                Logger.Error($"Error checking files: {ex.Message}");
                 return false;
             }
         }
@@ -129,7 +129,7 @@ namespace ReerRhinoMCPPlugin.Commands
         private async Task<bool> RunClearFiles(IConnectionManager connectionManager)
         {
             try
-            {
+            {   
                 RhinoApp.WriteLine("=== Clear Linked Files ===");
                  var confirm = GetUserInput("This will clear all linked file records. Are you sure? (yes/no):", "no");
                 if (confirm?.ToLower() != "yes")
@@ -145,7 +145,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error clearing files: {ex.Message}");
+                Logger.Error($"Error clearing files: {ex.Message}");
                 return false;
             }
         }

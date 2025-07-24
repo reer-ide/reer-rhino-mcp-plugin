@@ -7,6 +7,7 @@ using Rhino;
 using Rhino.DocObjects;
 using ReerRhinoMCPPlugin.Core.Functions;
 using ReerRhinoMCPPlugin.Serializers;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
@@ -81,7 +82,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error getting objects info: {ex.Message}");
+                Logger.Error($"Error getting objects info: {ex.Message}");
                 return new JObject
                 {
                     ["error"] = $"Error getting objects info: {ex.Message}"

@@ -56,7 +56,7 @@ namespace ReerRhinoMCPPlugin.Commands
                         }
                         catch (Exception ex)
                         {
-                            RhinoApp.WriteLine($"Warning: Could not clear session data: {ex.Message}");
+                            Logger.Warning($"Warning: Could not clear session data: {ex.Message}");
                         }
                     }
 
@@ -84,7 +84,7 @@ namespace ReerRhinoMCPPlugin.Commands
                 }
                 catch (Exception ex)
                 {
-                    RhinoApp.WriteLine($"Error restarting connection: {ex.Message}");
+                    Logger.Error($"Error restarting connection: {ex.Message}");
                 }
             });
             

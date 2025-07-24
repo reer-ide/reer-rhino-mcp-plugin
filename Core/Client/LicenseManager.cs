@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Rhino;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Client
 {
@@ -38,8 +39,8 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 // Generate machine fingerprint
                 var machineFingerprint = MachineFingerprinting.GenerateMachineFingerprint();
                 
-                RhinoApp.WriteLine($"Registering license with server...");
-                RhinoApp.WriteLine($"Machine fingerprint: {MachineFingerprinting.GetDisplayFingerprint()}");
+                Logger.Info($"Registering license with server...");
+                Logger.Info($"Machine fingerprint: {MachineFingerprinting.GetDisplayFingerprint()}");
                 
                 // Prepare registration request
                 var registrationRequest = new
@@ -84,10 +85,10 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 
                 await CrossPlatformStorage.StoreDataAsync(LICENSE_STORAGE_KEY, licenseInfo);
                 
-                RhinoApp.WriteLine($"License registered successfully!");
-                RhinoApp.WriteLine($"License ID: {licenseId}");
-                RhinoApp.WriteLine($"Tier: {tier}");
-                RhinoApp.WriteLine($"Max concurrent files: {maxConcurrentFiles}");
+                Logger.Success($"License registered successfully!");
+                Logger.Info($"License ID: {licenseId}");
+                Logger.Info($"Tier: {tier}");
+                Logger.Info($"Max concurrent files: {maxConcurrentFiles}");
                 
                 return new LicenseRegistrationResult
                 {
@@ -100,7 +101,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"License registration failed: {ex.Message}");
+                Logger.Error($"License registration failed: {ex.Message}");
                 return new LicenseRegistrationResult
                 {
                     Success = false,
@@ -140,7 +141,8 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 
                 // Validate with server
                 var validationRequest = new
-                {
+                {   
+                    license_id = storedLicense.LicenseId,
                     license_key = storedLicense.LicenseKey,
                     machine_fingerprint = currentFingerprint
                 };
@@ -204,11 +206,11 @@ namespace ReerRhinoMCPPlugin.Core.Client
             try
             {
                 CrossPlatformStorage.DeleteData(LICENSE_STORAGE_KEY);
-                RhinoApp.WriteLine("Stored license information cleared");
+                Logger.Info("Stored license information cleared");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error clearing stored license: {ex.Message}");
+                Logger.Error($"Error clearing stored license: {ex.Message}");
             }
         }
         

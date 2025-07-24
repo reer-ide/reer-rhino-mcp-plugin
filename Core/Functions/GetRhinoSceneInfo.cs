@@ -6,6 +6,7 @@ using Rhino;
 using Rhino.DocObjects;
 using ReerRhinoMCPPlugin.Core.Functions;
 using ReerRhinoMCPPlugin.Serializers;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
@@ -16,7 +17,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
         {
             const int SAMPLE_OBJECTS_PER_LAYER = 5;
             
-            RhinoApp.WriteLine("Getting scene info...");
+            Logger.Info("Getting scene info...");
 
             var doc = RhinoDoc.ActiveDoc;
             if (doc == null)
@@ -85,7 +86,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     }
                     catch (Exception ex)
                     {
-                        RhinoApp.WriteLine($"Error processing object {obj.Id}: {ex.Message}");
+                        Logger.Error($"Error processing object {obj.Id}: {ex.Message}");
                     }
                 }
 
@@ -112,7 +113,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 ["timestamp"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
             };
 
-            RhinoApp.WriteLine($"Scene info collected for {layersData.Count} layers");
+            Logger.Info($"Scene info collected for {layersData.Count} layers");
             return result;
         }
     }

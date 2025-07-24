@@ -11,6 +11,7 @@ using Rhino.Display;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 using ReerRhinoMCPPlugin.Core.Functions;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
@@ -35,14 +36,14 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 var activeView = doc.Views.ActiveView;
                 if (activeView == null)
                 {
-                    RhinoApp.WriteLine("No active viewport found");
+                    Logger.Error("No active viewport found");
                     return new JObject
                     {
                         ["error"] = "No active viewport"
                     };
                 }
 
-                RhinoApp.WriteLine($"Active view found: {activeView.ActiveViewport.Name}");
+                Logger.Info($"Active view found: {activeView.ActiveViewport.Name}");
                 
                 // Use the official sample approach - work directly with the active view
                 // instead of trying to change view focus during capture
@@ -52,7 +53,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 bool showAnnotations = parameters["show_annotations"]?.Value<bool>() ?? true;
                 int maxSize = parameters["max_size"]?.Value<int>() ?? 800;
                 
-                RhinoApp.WriteLine($"Capture parameters - Layer: {layerName ?? "All"}, Annotations: {showAnnotations}, MaxSize: {maxSize}");
+                Logger.Info($"Capture parameters - Layer: {layerName ?? "All"}, Annotations: {showAnnotations}, MaxSize: {maxSize}");
 
                 string originalLayer = doc.Layers.CurrentLayer.Name;
                 var tempDots = new List<Guid>();
@@ -135,7 +136,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error capturing viewport: {ex.Message}");
+                Logger.Error($"Error capturing viewport: {ex.Message}");
                 return new JObject
                 {
                     ["type"] = "text",
@@ -207,7 +208,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error adding annotations: {ex.Message}");
+                Logger.Error($"Error adding annotations: {ex.Message}");
             }
 
             return tempDots;
@@ -220,7 +221,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             // ViewCapture operations need to run on the main UI thread
             if (System.Threading.Thread.CurrentThread.GetApartmentState() != System.Threading.ApartmentState.STA)
             {
-                RhinoApp.WriteLine("Invoking ViewCapture on main UI thread...");
+                Logger.Info("Invoking ViewCapture on main UI thread...");
                 
                 // Use manual reset event to wait for completion
                 using (var resetEvent = new System.Threading.ManualResetEventSlim(false))
@@ -244,23 +245,23 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     
                     if (!completed)
                     {
-                        RhinoApp.WriteLine("UI thread invocation timed out");
+                        Logger.Error("UI thread invocation timed out");
                         return null;
                     }
                 }
                 
                 if (result != null)
                 {
-                    RhinoApp.WriteLine($"UI thread invocation succeeded, bitmap: {result.Width}x{result.Height}");
+                    Logger.Success($"UI thread invocation succeeded, bitmap: {result.Width}x{result.Height}");
                 }
                 else
                 {
-                    RhinoApp.WriteLine("UI thread invocation completed but result is null");
+                    Logger.Error("UI thread invocation completed but result is null");
                 }
             }
             else
             {
-                RhinoApp.WriteLine("Already on UI thread, performing ViewCapture directly...");
+                Logger.Info("Already on UI thread, performing ViewCapture directly...");
                 result = PerformViewCapture(doc);
             }
             
@@ -274,11 +275,11 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 RhinoView view = doc.Views.ActiveView;
                 if (view == null)
                 {
-                    RhinoApp.WriteLine("No active view found");
+                    Logger.Error("No active view found");
                     return null;
                 }
 
-                RhinoApp.WriteLine($"Active viewport: {view.ActiveViewport.Name}");
+                Logger.Info($"Active viewport: {view.ActiveViewport.Name}");
 
                 ViewCapture viewCapture = new ViewCapture
                 {
@@ -295,18 +296,18 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 
                 if (bitmap != null)
                 {
-                    RhinoApp.WriteLine($"ViewCapture succeeded: {bitmap.Width}x{bitmap.Height}");
+                    Logger.Success($"ViewCapture succeeded: {bitmap.Width}x{bitmap.Height}");
                 }
                 else
                 {
-                    RhinoApp.WriteLine("ViewCapture.CaptureToBitmap returned null");
+                    Logger.Error("ViewCapture.CaptureToBitmap returned null");
                 }
                 
                 return bitmap;
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"ViewCapture exception: {ex.Message}");
+                Logger.Error($"ViewCapture exception: {ex.Message}");
                 return null;
             }
         }
@@ -343,7 +344,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error resizing image: {ex.Message}");
+                Logger.Error($"Error resizing image: {ex.Message}");
                 return null;
             }
         }
@@ -364,7 +365,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error converting bitmap to base64: {ex.Message}");
+                Logger.Error($"Error converting bitmap to base64: {ex.Message}");
                 return string.Empty;
             }
         }

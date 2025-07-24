@@ -18,7 +18,7 @@
   </PropertyGroup>
   
   <!-- Debug configuration -->
-  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug|AnyCPU'">
     <DebugType>full</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <Optimize>false</Optimize>
@@ -26,7 +26,7 @@
   </PropertyGroup>
   
   <!-- Release configuration -->
-  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+  <PropertyGroup Condition="'$(Configuration)' == 'Release|AnyCPU'">
     <DebugType>pdbonly</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <Optimize>true</Optimize>

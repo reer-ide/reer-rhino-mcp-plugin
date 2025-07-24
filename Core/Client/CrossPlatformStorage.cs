@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Rhino;
+using ReerRhinoMCPPlugin.Core.Common;
 
 #if WINDOWS
 using Microsoft.Win32;
@@ -94,15 +95,15 @@ namespace ReerRhinoMCPPlugin.Core.Client
                     }
                     catch (Exception ex)
                     {
-                        RhinoApp.WriteLine($"Warning: Could not set file permissions: {ex.Message}");
+                        Logger.Warning($"Warning: Could not set file permissions: {ex.Message}");
                     }
                 }
                 
-                RhinoApp.WriteLine($"Data stored securely: {key}");
+                Logger.Info($"Data stored securely: {key}");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error storing data {key}: {ex.Message}");
+                Logger.Error($"Error storing data {key}: {ex.Message}");
                 throw;
             }
         }
@@ -131,7 +132,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error retrieving data {key}: {ex.Message}");
+                Logger.Error($"Error retrieving data {key}: {ex.Message}");
                 return default(T);
             }
         }
@@ -149,12 +150,12 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 if (File.Exists(filePath))
                 {
                     File.Delete(filePath);
-                    RhinoApp.WriteLine($"Data deleted: {key}");
+                    Logger.Info($"Data deleted: {key}");
                 }
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error deleting data {key}: {ex.Message}");
+                Logger.Error($"Error deleting data {key}: {ex.Message}");
             }
         }
         
@@ -189,7 +190,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Encryption error: {ex.Message}");
+                Logger.Error($"Encryption error: {ex.Message}");
                 // Fallback to base64 encoding (not secure, but better than plain text)
                 return Convert.ToBase64String(Encoding.UTF8.GetBytes(plainText));
             }

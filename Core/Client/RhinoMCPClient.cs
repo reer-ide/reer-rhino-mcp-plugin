@@ -84,28 +84,28 @@ namespace ReerRhinoMCPPlugin.Core.Client
         {
             try
             {
-                RhinoApp.WriteLine("=== RhinoMCP License Registration ===");
+                Logger.Info("=== RhinoMCP License Registration ===");
                 
                 var result = await licenseManager.RegisterLicenseAsync(licenseKey, userId, serverUrl);
                 
                 if (result.Success)
                 {
-                    RhinoApp.WriteLine($"✓ License registration successful!");
-                    RhinoApp.WriteLine($"  License ID: {result.LicenseId}");
-                    RhinoApp.WriteLine($"  Tier: {result.Tier}");
-                    RhinoApp.WriteLine($"  Max concurrent files: {result.MaxConcurrentFiles}");
-                    RhinoApp.WriteLine("  License stored securely for future use");
+                    Logger.Success($"✓ License registration successful!");
+                    Logger.Info($"  License ID: {result.LicenseId}");
+                    Logger.Info($"  Tier: {result.Tier}");
+                    Logger.Info($"  Max concurrent files: {result.MaxConcurrentFiles}");
+                    Logger.Info("  License stored securely for future use");
                     return true;
                 }
                 else
                 {
-                    RhinoApp.WriteLine($"✗ License registration failed: {result.Message}");
+                    Logger.Error($"✗ License registration failed: {result.Message}");
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"License registration error: {ex.Message}");
+                Logger.Error($"License registration error: {ex.Message}");
                 return false;
             }
         }
@@ -125,7 +125,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
         public void ClearStoredLicense()
         {
             licenseManager.ClearStoredLicense();
-            RhinoApp.WriteLine("Stored license cleared. You will need to register again.");
+            Logger.Info("Stored license cleared. You will need to register again.");
         }
         
         /// <summary>
@@ -164,7 +164,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
         public async Task ClearLinkedFilesAsync()
         {
             await fileIntegrityManager.ClearAllLinkedFilesAsync();
-            RhinoApp.WriteLine("All linked files cleared.");
+            Logger.Info("All linked files cleared.");
         }
         
         /// <summary>
@@ -206,11 +206,11 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 
                 await SendResponseAsync(JsonConvert.SerializeObject(notification));
                 
-                RhinoApp.WriteLine($"Reported {statusChanges.Count} file status changes to server");
+                Logger.Info($"Reported {statusChanges.Count} file status changes to server");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error reporting file status changes: {ex.Message}");
+                Logger.Error($"Error reporting file status changes: {ex.Message}");
             }
         }
         
@@ -231,7 +231,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             {
                 if (status != ConnectionStatus.Disconnected)
                 {
-                    RhinoApp.WriteLine("WebSocket client is already running or starting");
+                    Logger.Info("WebSocket client is already running or starting");
                     return false;
                 }
 
@@ -251,7 +251,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 }
                 
                 licenseId = licenseValidation.LicenseId;
-                RhinoApp.WriteLine($"✓ License validated: {licenseId} (Tier: {licenseValidation.Tier})");
+                Logger.Success($"✓ License validated: {licenseId} (Tier: {licenseValidation.Tier})");
 
                 // Step 2: Create session with remote server
                 string websocketUrl = await CreateSessionAsync(licenseValidation);
@@ -275,7 +275,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 receiveTask = Task.Run(() => ReceiveMessagesAsync(cancellationTokenSource.Token));
 
                 OnStatusChanged(ConnectionStatus.Connected, $"WebSocket client connected to {websocketUrl}");
-                RhinoApp.WriteLine($"✓ RhinoMCP WebSocket client connected successfully");
+                Logger.Success($"✓ RhinoMCP WebSocket client connected successfully");
 
                 return true;
             }
@@ -287,7 +287,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 }
 
                 OnStatusChanged(ConnectionStatus.Failed, $"Failed to connect WebSocket client: {ex.Message}", ex);
-                RhinoApp.WriteLine($"✗ Failed to connect RhinoMCP WebSocket client: {ex.Message}");
+                Logger.Error($"✗ Failed to connect RhinoMCP WebSocket client: {ex.Message}");
 
                 await CleanupAsync();
                 return false;
@@ -312,7 +312,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
 
             OnStatusChanged(ConnectionStatus.Disconnected, "Stopping WebSocket client...");
-            RhinoApp.WriteLine("Stopping RhinoMCP WebSocket client...");
+            Logger.Info("Stopping RhinoMCP WebSocket client...");
 
             // Unregister file if we have a session and cleanSessionInfo is true
             if (cleanSessionInfo && !string.IsNullOrEmpty(sessionId))
@@ -333,7 +333,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
 
             OnStatusChanged(ConnectionStatus.Disconnected, "WebSocket client stopped");
-            RhinoApp.WriteLine("RhinoMCP WebSocket client stopped");
+            Logger.Info("RhinoMCP WebSocket client stopped");
         }
         
         /// <summary>
@@ -360,7 +360,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error sending WebSocket response: {ex.Message}");
+                Logger.Error($"Error sending WebSocket response: {ex.Message}");
                 return false;
             }
         }
@@ -380,25 +380,25 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 currentFileHash = await fileIntegrityManager.CalculateFileHashAsync(currentFilePath);
                 var fileSize = fileIntegrityManager.GetFileSize(currentFilePath);
                 
-                RhinoApp.WriteLine($"✓ File hash calculated: {currentFileHash?.Substring(0, 16)}...");
+                Logger.Success($"✓ File hash calculated: {currentFileHash?.Substring(0, 16)}...");
                 
                 // First, check if we have an existing valid session for this file
                 var existingSession = await TryReconnectToExistingSessionAsync(licenseInfo, currentFilePath, currentFileHash);
                 if (existingSession != null)
                 {
-                    RhinoApp.WriteLine($"✓ Reusing existing session - ID: {existingSession.SessionId}");
+                    Logger.Success($"✓ Reusing existing session - ID: {existingSession.SessionId}");
                     sessionId = existingSession.SessionId;
                     instanceId = existingSession.InstanceId;
                     return existingSession.WebSocketUrl;
                 }
                 
                 // No valid existing session, create a new one
-                RhinoApp.WriteLine("Creating new session...");
+                Logger.Info("Creating new session...");
                 return await CreateNewSessionAsync(licenseInfo, currentFilePath, currentFileHash, fileSize);
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error creating/reusing session: {ex.Message}");
+                Logger.Error($"Error creating/reusing session: {ex.Message}");
                 throw;
             }
         }
@@ -418,7 +418,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 
                 if (potentialSession == null)
                 {
-                    RhinoApp.WriteLine("No existing session found for this file");
+                    Logger.Info("No existing session found for this file");
                     return null;
                 }
                 
@@ -428,7 +428,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 
                 if (!validationResult.IsValid)
                 {
-                    RhinoApp.WriteLine($"File validation failed: {validationResult.Message}");
+                    Logger.Error($"File validation failed: {validationResult.Message}");
                     // Clean up invalid session
                     await fileIntegrityManager.UnregisterLinkedFileAsync(potentialSession.SessionId);
                     return null;
@@ -447,7 +447,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error checking existing session: {ex.Message}");
+                Logger.Error($"Error checking existing session: {ex.Message}");
                 return null;
             }
         }
@@ -475,22 +475,22 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 {
                     if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                     {
-                        RhinoApp.WriteLine("Session no longer exists on server");
+                        Logger.Info("Session no longer exists on server");
                         return null;
                     }
                     else if (response.StatusCode == System.Net.HttpStatusCode.Gone) // 410 - Session expired
                     {
-                        RhinoApp.WriteLine("Session has expired on server (server manages 30-day expiration)");
+                        Logger.Info("Session has expired on server (server manages 30-day expiration)");
                         return null;
                     }
                     else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden) // 403 - License/User mismatch
                     {
-                        RhinoApp.WriteLine("License or user validation failed for session");
+                        Logger.Info("License or user validation failed for session");
                         return null;
                     }
                     
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    RhinoApp.WriteLine($"Session reconnection failed: {response.StatusCode} - {errorContent}");
+                    Logger.Error($"Session reconnection failed: {response.StatusCode} - {errorContent}");
                     return null;
                 }
 
@@ -506,7 +506,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error reconnecting to session: {ex.Message}");
+                Logger.Error($"Error reconnecting to session: {ex.Message}");
                 return null;
             }
         }
@@ -547,9 +547,9 @@ namespace ReerRhinoMCPPlugin.Core.Client
             // Register file with integrity manager
             await fileIntegrityManager.RegisterLinkedFileAsync(sessionId, filePath, fileHash);
 
-            RhinoApp.WriteLine($"✓ New session created - ID: {sessionId}");
-            RhinoApp.WriteLine($"  File: {Path.GetFileName(filePath)}");
-            RhinoApp.WriteLine($"  File size: {fileSize:N0} bytes");
+            Logger.Success($"✓ New session created - ID: {sessionId}");
+            Logger.Info($"  File: {Path.GetFileName(filePath)}");
+            Logger.Info($"  File size: {fileSize:N0} bytes");
             
             return websocketUrl;
         }
@@ -574,7 +574,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Warning: Could not get current file path: {ex.Message}");
+                Logger.Warning($"Warning: Could not get current file path: {ex.Message}");
                 return $"/rhino/unknown_document_{DateTime.Now:yyyyMMdd_HHmmss}.3dm";
             }
         }
@@ -609,7 +609,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                     }
                     else if (result.MessageType == WebSocketMessageType.Close)
                     {
-                        RhinoApp.WriteLine("WebSocket connection closed by server");
+                        Logger.Info("WebSocket connection closed by server");
                         break;
                     }
                 }
@@ -620,7 +620,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error receiving WebSocket messages: {ex.Message}");
+                Logger.Error($"Error receiving WebSocket messages: {ex.Message}");
             }
         }
 
@@ -634,7 +634,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 var data = JsonConvert.DeserializeObject<JObject>(message);
                 var messageType = data["type"]?.ToString();
 
-                RhinoApp.WriteLine($"Received message type: {messageType}");
+                Logger.Info($"Received message type: {messageType}");
 
                 switch (messageType)
                 {
@@ -651,13 +651,13 @@ namespace ReerRhinoMCPPlugin.Core.Client
                         break;
                         
                     default:
-                        RhinoApp.WriteLine($"Unknown message type: {messageType}");
+                        Logger.Info($"Unknown message type: {messageType}");
                         break;
                 }
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error processing incoming message: {ex.Message}");
+                Logger.Error($"Error processing incoming message: {ex.Message}");
             }
         }
 
@@ -670,10 +670,10 @@ namespace ReerRhinoMCPPlugin.Core.Client
             instanceId = data["instance_id"]?.ToString();
             var filePath = data["file_path"]?.ToString();
             
-            RhinoApp.WriteLine($"✓ Handshake completed");
-            RhinoApp.WriteLine($"  Session: {sessionId}");
-            RhinoApp.WriteLine($"  Instance: {instanceId}");
-            RhinoApp.WriteLine($"  File: {filePath}");
+            Logger.Success($"✓ Handshake completed");
+            Logger.Info($"  Session: {sessionId}");
+            Logger.Info($"  Instance: {instanceId}");
+            Logger.Info($"  File: {filePath}");
             
             await Task.CompletedTask;
         }
@@ -689,7 +689,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 var parameters = data["params"] as JObject ?? new JObject();
                 var correlationId = data["correlation_id"]?.ToString();
 
-                RhinoApp.WriteLine($"Processing command: {tool} with correlation ID: {correlationId}");
+                Logger.Info($"Processing command: {tool} with correlation ID: {correlationId}");
 
                 // Fire command received event
                 var commandArgs = new CommandReceivedEventArgs(data.ToString(), data, instanceId ?? "unknown");
@@ -714,16 +714,16 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 // For capture_rhino_viewport, do not log the whole result's image data
                 if (tool == "capture_rhino_viewport")
                 {
-                    RhinoApp.WriteLine($"Response sent: {response.ToString().Substring(0, 150)}...");
+                    Logger.Info($"Response sent: {response.ToString().Substring(0, 150)}...");
                 }
                 else
                 {
-                    RhinoApp.WriteLine($"Response sent: {response.ToString()}");
+                    Logger.Info($"Response sent: {response.ToString()}");
                 }
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error handling command: {ex.Message}");
+                Logger.Error($"Error handling command: {ex.Message}");
                 
                 // Send error response
                 var errorResponse = new JObject
@@ -751,7 +751,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             };
 
             await SendResponseAsync(heartbeatResponse.ToString());
-            // RhinoApp.WriteLine("Heartbeat response sent"); // Comment out to reduce noise
+            // Logger.Info("Heartbeat response sent"); // Comment out to reduce noise
         }
 
         /// <summary>
@@ -765,7 +765,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error in status changed handler: {ex.Message}");
+                Logger.Error($"Error in status changed handler: {ex.Message}");
             }
         }
 
@@ -798,7 +798,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error during cleanup: {ex.Message}");
+                Logger.Error($"Error during cleanup: {ex.Message}");
             }
         }
         

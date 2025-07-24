@@ -9,6 +9,7 @@ using Rhino.DocObjects;
 using Rhino.Geometry;
 using ReerRhinoMCPPlugin.Core.Functions;
 using ReerRhinoMCPPlugin.Serializers;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
@@ -115,7 +116,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error modifying objects: {ex.Message}");
+                Logger.Error($"Error modifying objects: {ex.Message}");
                 return new JObject
                 {
                     ["error"] = $"Error modifying objects: {ex.Message}"

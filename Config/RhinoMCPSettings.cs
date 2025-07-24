@@ -35,7 +35,7 @@ namespace ReerRhinoMCPPlugin.Config
         /// <summary>
         /// Whether to log debug information
         /// </summary>
-        public bool EnableDebugLogging { get; set; } = false;
+        public bool EnableDebugLogging { get; set; } = true;
         
         /// <summary>
         /// Last used connection mode for convenience
@@ -58,16 +58,16 @@ namespace ReerRhinoMCPPlugin.Config
                     if (plugin != null)
                     {
                         plugin.Settings.SetString(SETTINGS_KEY, json);
-                        RhinoApp.WriteLine("RhinoMCP settings saved successfully.");
+                        Logger.Info("RhinoMCP settings saved successfully.");
                     }
                     else
                     {
-                        RhinoApp.WriteLine("Plugin instance not available for saving settings.");
+                        Logger.Info("Plugin instance not available for saving settings.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    RhinoApp.WriteLine($"Failed to save RhinoMCP settings: {ex.Message}");
+                    Logger.Error($"Failed to save RhinoMCP settings: {ex.Message}");
                 }
             }
         }
@@ -102,15 +102,15 @@ namespace ReerRhinoMCPPlugin.Config
                     var pluginInstance = plugin ?? ReerRhinoMCPPlugin.Instance;
                     
                     if (pluginInstance == null)
-                    {
-                        RhinoApp.WriteLine("Plugin instance not available for loading settings, using defaults.");
+                    {   
+                        Logger.Error("Plugin instance not available for loading settings, using defaults.");
                         return new RhinoMCPSettings();
                     }
                     
                     // Check if Settings property is available
                     if (pluginInstance.Settings == null)
                     {
-                        RhinoApp.WriteLine("Plugin settings not yet initialized, using defaults.");
+                        Logger.Error("Plugin settings not yet initialized, using defaults.");
                         return new RhinoMCPSettings();
                     }
                     
@@ -120,17 +120,17 @@ namespace ReerRhinoMCPPlugin.Config
                     {
                         // Return default settings if none saved
                         var defaultSettings = new RhinoMCPSettings();
-                        RhinoApp.WriteLine("No saved RhinoMCP settings found, using defaults.");
+                        Logger.Error("No saved RhinoMCP settings found, using defaults.");
                         return defaultSettings;
                     }
                     
                     var settings = JsonConvert.DeserializeObject<RhinoMCPSettings>(json);
-                    RhinoApp.WriteLine("RhinoMCP settings loaded successfully.");
+                    Logger.Info("RhinoMCP settings loaded successfully.");
                     return settings;
                 }
                 catch (Exception ex)
                 {
-                    RhinoApp.WriteLine($"Failed to load RhinoMCP settings: {ex.Message}");
+                    Logger.Error($"Failed to load RhinoMCP settings: {ex.Message}");
                     return new RhinoMCPSettings(); // Return defaults on error
                 }
             }

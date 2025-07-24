@@ -1,6 +1,7 @@
 using System;
 using Rhino;
 using Rhino.Commands;
+using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Commands
 {
@@ -55,7 +56,7 @@ namespace ReerRhinoMCPPlugin.Commands
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error testing new UI: {ex.Message}");
+                Logger.Error($"Error testing new UI: {ex.Message}");
                 return Result.Failure;
             }
         }

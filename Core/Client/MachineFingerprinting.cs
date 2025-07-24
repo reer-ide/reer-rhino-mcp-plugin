@@ -4,6 +4,7 @@ using System.Text;
 using System.IO;
 using System.Diagnostics;
 using Rhino;
+using ReerRhinoMCPPlugin.Core.Common;
 
 #if WINDOWS
 using System.Management;
@@ -52,7 +53,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error generating machine fingerprint: {ex.Message}");
+                Logger.Error($"Error generating machine fingerprint: {ex.Message}");
                 
                 // Fallback to basic system info
                 var fallbackData = $"{Environment.MachineName}-{Environment.OSVersion}-{Environment.ProcessorCount}";
@@ -130,7 +131,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Warning: Could not get Windows hardware info: {ex.Message}");
+                Logger.Warning($"Warning: Could not get Windows hardware info: {ex.Message}");
                 hardwareInfo.Append("windows-fallback");
             }
 #else
@@ -162,7 +163,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Warning: Could not get Unix hardware info: {ex.Message}");
+                Logger.Warning($"Warning: Could not get Unix hardware info: {ex.Message}");
                 hardwareInfo.Append("unix-fallback");
             }
             
@@ -204,7 +205,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Warning: Could not get macOS hardware info: {ex.Message}");
+                Logger.Warning($"Warning: Could not get macOS hardware info: {ex.Message}");
                 hardwareInfo.Append("macos-fallback");
             }
             
@@ -254,7 +255,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Warning: Could not get Linux hardware info: {ex.Message}");
+                Logger.Warning($"Warning: Could not get Linux hardware info: {ex.Message}");
                 hardwareInfo.Append("linux-fallback");
             }
             

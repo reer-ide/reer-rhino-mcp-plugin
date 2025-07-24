@@ -48,13 +48,15 @@ namespace ReerRhinoMCPPlugin
             
             // Initialize settings
             if (settings == null)
-                settings = new RhinoMCPSettings();
+            {
+                settings = RhinoMCPSettings.Load(this);
+            }
             
             // Initialize connection manager
             if (connectionManager == null)
                 connectionManager = new RhinoMCPConnectionManager();
             
-            RhinoApp.WriteLine("ReerRhinoMCPPlugin loaded successfully");
+            Logger.Success("ReerRhinoMCPPlugin loaded successfully");
         }
 
         ///<summary>Gets the only instance of the ReerRhinoMCPPlugin plug-in.</summary>
@@ -81,7 +83,7 @@ namespace ReerRhinoMCPPlugin
                 // Initialize Avalonia if not already done
                 InitializeAvalonia();
                 
-                RhinoApp.WriteLine("ReerRhinoMCPPlugin: Avalonia UI initialized");
+                Logger.Success("ReerRhinoMCPPlugin: Avalonia UI initialized");
                 
                 // Load settings
                 settings.Load();
@@ -98,7 +100,7 @@ namespace ReerRhinoMCPPlugin
                 // Auto-start if enabled and settings are valid
                 if (settings.AutoStart && settings.IsValid())
                 {
-                    RhinoApp.WriteLine("ReerRhinoMCPPlugin: Auto-starting connection...");
+                    Logger.Info("ReerRhinoMCPPlugin: Auto-starting connection...");
                     
                     // Auto-start on a background task to not block plugin loading
                     Task.Run(async () =>
@@ -111,22 +113,22 @@ namespace ReerRhinoMCPPlugin
                             
                             if (success)
                             {
-                                RhinoApp.WriteLine($"✓ Auto-started {connectionSettings.Mode} connection successfully");
+                                Logger.Success($"✓ Auto-started {connectionSettings.Mode} connection successfully");
                             }
                             else
                             {
-                                RhinoApp.WriteLine($"⚠ Failed to auto-start {connectionSettings.Mode} connection");
+                                Logger.Warning($"⚠ Failed to auto-start {connectionSettings.Mode} connection");
                             }
                         }
                         catch (Exception ex)
                         {
-                            RhinoApp.WriteLine($"Error during auto-start: {ex.Message}");
+                            Logger.Error($"Error during auto-start: {ex.Message}");
                         }
                     });
                 }
                 else
                 {
-                    RhinoApp.WriteLine($"Auto-start disabled or invalid settings. AutoStart={settings.AutoStart}, IsValid={settings.IsValid()}");
+                    Logger.Debug($"Auto-start disabled or invalid settings. AutoStart={settings.AutoStart}, IsValid={settings.IsValid()}");
                 }
                 
                 return LoadReturnCode.Success;
@@ -134,20 +136,20 @@ namespace ReerRhinoMCPPlugin
             catch (System.IO.FileNotFoundException fileEx)
             {
                 errorMessage = $"Assembly loading error in REER Rhino MCP Plugin: {fileEx.Message}";
-                RhinoApp.WriteLine($"File not found: {fileEx.FileName}");
-                RhinoApp.WriteLine($"Full error: {errorMessage}");
+                Logger.Error($"File not found: {fileEx.FileName}");
+                Logger.Error($"Full error: {errorMessage}");
                 return LoadReturnCode.ErrorShowDialog;
             }
             catch (System.BadImageFormatException imageEx)
             {
                 errorMessage = $"Assembly format error in REER Rhino MCP Plugin: {imageEx.Message}";
-                RhinoApp.WriteLine($"Bad image format: {errorMessage}");
+                Logger.Error($"Bad image format: {errorMessage}");
                 return LoadReturnCode.ErrorShowDialog;
             }
             catch (Exception ex)
             {
                 errorMessage = $"Failed to load ReerRhinoMCPPlugin: {ex.Message}";
-                RhinoApp.WriteLine($"ERROR: {errorMessage}");
+                Logger.Error($"ERROR: {errorMessage}");
                 return LoadReturnCode.ErrorShowDialog;
             }
         }
@@ -157,37 +159,37 @@ namespace ReerRhinoMCPPlugin
         /// </summary>
         private void InitializeAvalonia()
         {
-            RhinoApp.WriteLine("[DEBUG] Enter InitializeAvalonia()");
+            Logger.Debug("Enter InitializeAvalonia()");
             if (_avaloniaInitialized)
             {
-                RhinoApp.WriteLine("[DEBUG] Avalonia already initialized, skipping.");
+                Logger.Debug("Avalonia already initialized, skipping.");
                 return;
             }
             try
             {
-                RhinoApp.WriteLine("[DEBUG] Calling AppBuilder.Configure...");
+                Logger.Debug("Calling AppBuilder.Configure...");
                 AppBuilder.Configure<UI.App>()
                     .UsePlatformDetect()
                     .SetupWithoutStarting();
                 _avaloniaInitialized = true;
-                RhinoApp.WriteLine("[DEBUG] Avalonia initialized successfully");
+                Logger.Debug("Avalonia initialized successfully");
             }
             catch (InvalidOperationException ex)
             {
                 if (ex.Message.Contains("Setup was already called"))
                 {
-                    RhinoApp.WriteLine("[DEBUG] Avalonia already initialized, skipping Setup.");
+                    Logger.Debug("Avalonia already initialized, skipping Setup.");
                     _avaloniaInitialized = true;
                 }
                 else
                 {
-                    RhinoApp.WriteLine($"[ERROR] Exception in InitializeAvalonia: {ex}");
+                    Logger.Error($"Exception in InitializeAvalonia: {ex}");
                     throw;
                 }
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"[ERROR] Exception in InitializeAvalonia: {ex}");
+                Logger.Error($"Exception in InitializeAvalonia: {ex}");
                 throw;
             }
         }
@@ -199,7 +201,7 @@ namespace ReerRhinoMCPPlugin
         {
             try
             {
-                RhinoApp.WriteLine("Shutting down REER Rhino MCP Plugin...");
+                Logger.Info("Shutting down REER Rhino MCP Plugin...");
                 
                 // Control panel cleanup is handled by the new UI system
                 
@@ -220,11 +222,11 @@ namespace ReerRhinoMCPPlugin
                 // Save current settings
                 settings?.Save();
                 
-                RhinoApp.WriteLine("REER Rhino MCP Plugin shut down successfully");
+                Logger.Success("REER Rhino MCP Plugin shut down successfully");
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error during plugin shutdown: {ex.Message}");
+                Logger.Error($"Error during plugin shutdown: {ex.Message}");
             }
             finally
             {
@@ -248,7 +250,7 @@ namespace ReerRhinoMCPPlugin
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"Error processing command in plugin: {ex.Message}");
+                Logger.Error($"Error processing command in plugin: {ex.Message}");
             }
         }
         
@@ -264,7 +266,7 @@ namespace ReerRhinoMCPPlugin
                 statusMessage += $" - {e.Message}";
             }
             
-            RhinoApp.WriteLine(statusMessage);
+            Logger.Info(statusMessage);
             
             // TODO: Update status bar if enabled in settings
             if (settings.ShowStatusBar)
@@ -280,10 +282,10 @@ namespace ReerRhinoMCPPlugin
         {
             try
             {
-                RhinoApp.WriteLine("[DEBUG] ShowNewControlPanel called");
+                Logger.Debug("ShowNewControlPanel called");
                 if (!_avaloniaInitialized)
                 {
-                    RhinoApp.WriteLine("[DEBUG] Avalonia not initialized, initializing now...");
+                    Logger.Debug("Avalonia not initialized, initializing now...");
                     InitializeAvalonia();
                 }
 
@@ -293,18 +295,18 @@ namespace ReerRhinoMCPPlugin
                     {
                         var newPanel = new UI.Windows.MCPControlPanelNew(this);
                         newPanel.Show();
-                        RhinoApp.WriteLine("[DEBUG] New control panel shown successfully");
+                        Logger.Success("New control panel shown successfully");
                     }
                     catch (Exception ex)
                     {
-                        RhinoApp.WriteLine($"[ERROR] Failed to show new control panel: {ex.Message}");
-                        RhinoApp.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+                        Logger.Error($"Failed to show new control panel: {ex.Message}");
+                        Logger.Error($"Stack trace: {ex.StackTrace}");
                     }
                 });
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"[ERROR] Error in ShowNewControlPanel: {ex.Message}");
+                Logger.Error($"Error in ShowNewControlPanel: {ex.Message}");
             }
         }
 
@@ -312,14 +314,14 @@ namespace ReerRhinoMCPPlugin
         {
             try
             {
-                RhinoApp.WriteLine("[DEBUG] ShowControlPanel called - using new UI");
+                Logger.Debug("ShowControlPanel called - using new UI");
                 // Redirect to new UI implementation
                 ShowNewControlPanel();
 
             }
             catch (Exception ex)
             {
-                RhinoApp.WriteLine($"[ERROR] Error showing control panel: {ex}");
+                Logger.Error($"Error showing control panel: {ex}");
             }
         }
 
