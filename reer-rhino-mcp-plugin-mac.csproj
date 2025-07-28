@@ -1,0 +1,88 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	
+  <PropertyGroup>
+    <!-- Select the framework(s) you wish to target.
+        Rhino 6: net45
+        Rhino 7: net48
+        Rhino 8 Windows: net48, net7.0, net7.0-windows, net7.0-windows10.0.22000.0, etc
+        Rhino 8 Mac: net7.0, net7.0-macos, net7.0-macos12.0, etc
+    -->
+    <TargetFrameworks>net7.0</TargetFrameworks>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <TargetExt>.rhp</TargetExt>
+    <NoWarn>NU1701</NoWarn>
+    <LangVersion>8.0</LangVersion>
+    
+    <!-- Disable auto-generated assembly attributes to avoid conflicts -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+  
+  <!-- Debug configuration -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug|AnyCPU'">
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  
+  <!-- Release configuration -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release|AnyCPU'">
+    <DebugType>pdbonly</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  
+  <!-- Platform-specific compilation symbols -->
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <DefineConstants>$(DefineConstants);MACOS</DefineConstants>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <!-- Specifies information for Assembly and Yak -->
+    <Version>1.0</Version>
+    <Title>rhino_mcp_plugin</Title>
+    <Company>reer, inc.</Company>
+    <Description>reer, inc. MCP Plugin for Rhino (Mac)</Description>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="RhinoCommon" Version="8.0.23304.9001" ExcludeAssets="runtime" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    
+    <!-- Avalonia UI for modern cross-platform UI -->
+    <PackageReference Include="Avalonia" Version="11.0.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.0.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.0" />
+    
+    <PackageReference Include="SkiaSharp" Version="3.119.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="3.119.0" />
+    <PackageReference Include="System.Net.WebSockets.Client" Version="4.3.2" />
+    <PackageReference Include="System.Net.Http" Version="4.3.4" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <!-- Exclude example/reference files -->
+    <Compile Remove="docs\**" />
+    <EmbeddedResource Remove="docs\**" />
+    <None Remove="docs\**" />
+    
+    <!-- AssemblyInfo.cs is now included since GenerateAssemblyInfo is false -->
+  </ItemGroup>
+  
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\plugin-utility.ico" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Compile Update="UI\Windows\MCPControlPanel.axaml.cs">
+      <DependentUpon>MCPControlPanel.axaml</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  
+  <Target Name="CopyNativeDeps" AfterTargets="Build">
+    <Copy SourceFiles="$(OutDir)runtimes/osx/native/libSkiaSharp.dylib" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutDir)runtimes/osx/native/libSkiaSharp.dylib')" />
+    <Copy SourceFiles="$(OutDir)runtimes/osx/native/libHarfBuzzSharp.dylib" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutDir)runtimes/osx/native/libHarfBuzzSharp.dylib')" />
+  </Target>
+  
+</Project>

@@ -1,0 +1,97 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:controls="using:ReerRhinoMCPPlugin.UI.Controls"
+        x:Class="ReerRhinoMCPPlugin.UI.Windows.MCPControlPanel"
+        Title="Rhino MCP Control Panel"
+        Width="500"
+        Height="600"
+        MinWidth="450"
+        MinHeight="500"
+        WindowStartupLocation="CenterScreen"
+        Icon="/Assets/plugin-utility.ico"
+        ShowInTaskbar="True"
+        CanResize="True"
+        Topmost="False">
+
+  <Window.Styles>
+    <StyleInclude Source="/UI/Styles/CommonStyles.axaml" />
+  </Window.Styles>
+
+  <ScrollViewer Padding="16">
+    <StackPanel Spacing="16">
+      
+      <!-- Header -->
+      <Border Classes="Card">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          
+          <StackPanel Grid.Column="0" VerticalAlignment="Center">
+            <TextBlock Text="Rhino MCP Plugin" 
+                       FontSize="20" 
+                       FontWeight="Bold" />
+            <TextBlock Text="Model Context Protocol Bridge for Rhino 3D" 
+                       FontSize="13" 
+                       Foreground="{DynamicResource SystemBaseMediumColorBrush}" />
+          </StackPanel>
+          
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <CheckBox IsChecked="{Binding KeepOnTop}"
+                      Content="Sticky"
+                      VerticalAlignment="Center" />
+            <Button Classes="Secondary"
+                    Command="{Binding OpenSettingsCommand}"
+                    Content="Settings" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <!-- Connection Status Card -->
+      <controls:ConnectionStatusCard DataContext="{Binding ConnectionStatus}" />
+
+      <!-- Server Control Card -->
+      <controls:ServerControlCard DataContext="{Binding ServerControl}" />
+
+      <!-- Log Viewer Card -->
+      <controls:LogViewerCard DataContext="{Binding LogViewer}" />
+
+      <!-- Quick Actions -->
+      <Border Classes="Card">
+        <StackPanel>
+          <TextBlock Text="Quick Actions" Classes="Title" />
+          <StackPanel Orientation="Horizontal" 
+                      HorizontalAlignment="Center" 
+                      Spacing="12">
+            <Button Classes="Secondary"
+                    Command="{Binding OpenDocumentationCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="📖" FontSize="14" />
+                <TextBlock Text="Documentation" />
+              </StackPanel>
+            </Button>
+            <Button Classes="Secondary"
+                    Command="{Binding OpenGitHubCommand}">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="🔗" FontSize="14" />
+                <TextBlock Text="GitHub" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- Footer -->
+      <Border Classes="Card">
+        <TextBlock Text="© 2025 reer, inc. - Rhino MCP Plugin v1.0"
+                   FontSize="11"
+                   Foreground="{DynamicResource SystemBaseMediumColorBrush}"
+                   HorizontalAlignment="Center" />
+      </Border>
+
+    </StackPanel>
+  </ScrollViewer>
+</Window>
