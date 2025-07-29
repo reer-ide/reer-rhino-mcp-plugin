@@ -38,6 +38,10 @@
     <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
   </PropertyGroup>
   
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <DefineConstants>$(DefineConstants);MACOS</DefineConstants>
+  </PropertyGroup>
+  
   <PropertyGroup>
     <!-- Specifies information for Assembly and Yak -->
     <Version>1.0</Version>
@@ -56,7 +60,8 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.0" />
     
     <PackageReference Include="SkiaSharp" Version="3.119.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.119.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.119.0" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="3.119.0" Condition="$([MSBuild]::IsOSPlatform('OSX'))" />
     <PackageReference Include="System.Net.WebSockets.Client" Version="4.3.2" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <!-- Windows-specific packages for hardware detection and encryption -->
@@ -84,8 +89,13 @@
   </ItemGroup>
 
   <Target Name="CopyNativeDeps" AfterTargets="Build">
+    <!-- Windows native dependencies -->
     <Copy SourceFiles="$(OutDir)runtimes\\win-x64\\native\\libSkiaSharp.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutDir)runtimes\\win-x64\\native\\libSkiaSharp.dll')" />
     <Copy SourceFiles="$(OutDir)runtimes\\win-x64\\native\\libHarfBuzzSharp.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutDir)runtimes\\win-x64\\native\\libHarfBuzzSharp.dll')" />
+    
+    <!-- macOS native dependencies -->
+    <Copy SourceFiles="$(OutDir)runtimes/osx/native/libSkiaSharp.dylib" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutDir)runtimes/osx/native/libSkiaSharp.dylib')" />
+    <Copy SourceFiles="$(OutDir)runtimes/osx/native/libHarfBuzzSharp.dylib" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutDir)runtimes/osx/native/libHarfBuzzSharp.dylib')" />
   </Target>
   
 </Project>
