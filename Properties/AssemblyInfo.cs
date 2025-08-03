@@ -6,12 +6,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("rhino_mcp_plugin")]
-[assembly: AssemblyDescription("REER Rhino MCP Plugin - Model Context Protocol integration for Rhino")]
+[assembly: AssemblyTitle("ReerConnector")]
+[assembly: AssemblyDescription("REER Rhino MCP Plugin - Connecting to the smartest AI CAD assistant")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("rhino_mcp_plugin Authors")]
-[assembly: AssemblyProduct("rhino_mcp_plugin")]
-[assembly: AssemblyCopyright("Copyright © 2024")]
+[assembly: AssemblyCompany("Reer, Inc.")]
+[assembly: AssemblyProduct("ReerConnector")]
+[assembly: AssemblyCopyright("Copyright © 2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -44,7 +44,7 @@ using System.Runtime.InteropServices;
 [assembly: PlugInDescription(DescriptionType.WebSite, "")]
 
 // Icons should be Windows .ico files and contain 32-bit images in the following sizes: 16, 24, 32, 48, and 256.
-[assembly: PlugInDescription(DescriptionType.Icon, "rhino_mcp_plugin.EmbeddedResources.plugin-utility.ico")]
+[assembly: PlugInDescription(DescriptionType.Icon, "ReerConnector.EmbeddedResources.plugin-utility.ico")]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
 // This will also be the Guid of the Rhino plug-in

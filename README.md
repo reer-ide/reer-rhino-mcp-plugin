@@ -158,13 +158,13 @@ dotnet build --configuration Release
 ```
 
 Output files:
-- `bin/Debug/net48/rhino_mcp_plugin.rhp` (Rhino 7/8 .NET Framework)
-- `bin/Debug/net7.0/rhino_mcp_plugin.rhp` (Rhino 8 .NET Core)
+- `bin/Debug/net48/ReerConnector.rhp` (Rhino 7/8 .NET Framework)
+- `bin/Debug/net7.0/ReerConnector.rhp` (Rhino 8 .NET Core)
 
 ### Debugging
 
 #### Visual Studio / Rider
-1. Open `rhino_mcp_plugin.csproj`
+1. Open `ReerConnector.csproj`
 2. Use configured launch profiles:
    - `Rhino 8 - netcore`: Debug with .NET Core runtime
    - `Rhino 8 - netfx`: Debug with .NET Framework runtime

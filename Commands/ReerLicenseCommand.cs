@@ -94,18 +94,13 @@ namespace ReerRhinoMCPPlugin.Commands
                     return Result.Cancel;
                 }
 
-                var serverUrl = GetUserInput("Enter remote MCP server URL:", "http://127.0.0.1:8080");
-                if (string.IsNullOrEmpty(serverUrl)) 
-                {
-                    RhinoApp.WriteLine("License registration cancelled.");
-                    return Result.Cancel;
-                }
-                
                 // Confirm all inputs before proceeding
                 RhinoApp.WriteLine("\n=== Registration Details ===");
                 RhinoApp.WriteLine($"License Key: {licenseKey.Substring(0, Math.Min(8, licenseKey.Length))}...");
                 RhinoApp.WriteLine($"User ID: {userId}");
-                RhinoApp.WriteLine($"Server URL: {serverUrl}");
+                var serverUrl = ConnectionSettings.GetServerUrl();
+                var mode = ReerRhinoMCPPlugin.Instance.MCPSettings.DevelopmentMode ? "development" : "production";
+                RhinoApp.WriteLine($"Server URL: {serverUrl} ({mode} server)");
                 
                 var confirm = GetUserInput("Proceed with registration? (yes/no):", "yes");
                 if (confirm?.ToLower() != "yes")
@@ -121,10 +116,9 @@ namespace ReerRhinoMCPPlugin.Commands
                 {
                     try
                     {
-                        var remoteClient = new RhinoMCPClient();
-                        var success = await remoteClient.RegisterLicenseAsync(licenseKey, userId, serverUrl);
+                        var result = await ReerRhinoMCPPlugin.Instance.LicenseManager.RegisterLicenseAsync(licenseKey, userId);
 
-                        if (success)
+                        if (result.Success)
                         {
                             RhinoApp.WriteLine("\n[OK] License registration completed successfully!");
                             RhinoApp.WriteLine("You can now use 'ReerStart' to connect.");
@@ -159,8 +153,7 @@ namespace ReerRhinoMCPPlugin.Commands
                 {
                     try
                     {
-                        var remoteClient = new RhinoMCPClient();
-                        var licenseResult = await remoteClient.GetLicenseStatusAsync();
+                        var licenseResult = await ReerRhinoMCPPlugin.Instance.LicenseManager.GetLicenseStatusAsync();
 
                         if (licenseResult.IsValid)
                         {
@@ -202,8 +195,7 @@ namespace ReerRhinoMCPPlugin.Commands
                     return;
                 }
                 
-                var remoteClient = new RhinoMCPClient();
-                remoteClient.ClearStoredLicense();
+                ReerRhinoMCPPlugin.Instance.LicenseManager.ClearStoredLicense();
                 RhinoApp.WriteLine("[OK] Stored license cleared successfully.");
             }
             catch (Exception ex)

@@ -9,6 +9,7 @@ using ReerRhinoMCPPlugin.Core.Common;
 using ReerRhinoMCPPlugin.Config;
 
 using ReerRhinoMCPPlugin.Commands;
+using ReerRhinoMCPPlugin.Core.Client;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
@@ -29,6 +30,8 @@ namespace ReerRhinoMCPPlugin
     public class ReerRhinoMCPPlugin : PlugIn
     {
         private static IConnectionManager connectionManager;
+        private static LicenseManager licenseManager;
+        private static FileIntegrityManager fileIntegrityManager;
         private static RhinoMCPSettings settings;
         private static bool _avaloniaInitialized = false;
         private ToolExecutor toolExecutor;
@@ -56,6 +59,14 @@ namespace ReerRhinoMCPPlugin
             if (connectionManager == null)
                 connectionManager = new RhinoMCPConnectionManager();
             
+            // Initialize license manager
+            if (licenseManager == null)
+                licenseManager = new LicenseManager();
+            
+            // Initialize file integrity manager
+            if (fileIntegrityManager == null)
+                fileIntegrityManager = new FileIntegrityManager();
+            
             Logger.Success("ReerRhinoMCPPlugin loaded successfully");
         }
 
@@ -66,6 +77,16 @@ namespace ReerRhinoMCPPlugin
         /// Gets the connection manager for this plugin instance
         /// </summary>
         public RhinoMCPConnectionManager ConnectionManager => connectionManager as RhinoMCPConnectionManager;
+        
+        /// <summary>
+        /// Gets the license manager for this plugin instance
+        /// </summary>
+        public LicenseManager LicenseManager => licenseManager;
+        
+        /// <summary>
+        /// Gets the file integrity manager for this plugin instance
+        /// </summary>
+        public FileIntegrityManager FileIntegrityManager => fileIntegrityManager;
         
         /// <summary>
         /// Gets the current plugin settings

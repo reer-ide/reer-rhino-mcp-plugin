@@ -8,6 +8,26 @@ namespace ReerRhinoMCPPlugin.Core.Common
     public class ConnectionSettings
     {
         /// <summary>
+        /// Default production server URL for remote connections
+        /// </summary>
+        public const string PRODUCTION_SERVER_URL = "wss://api.reer.ai/mcp";
+        
+        /// <summary>
+        /// Default development server URL for testing
+        /// </summary>
+        public const string DEVELOPMENT_SERVER_URL = "ws://127.0.0.1:8080";
+        
+        /// <summary>
+        /// Gets the appropriate server URL based on development mode setting
+        /// </summary>
+        /// <returns>Production or development server URL</returns>
+        public static string GetServerUrl()
+        {
+            var settings = ReerRhinoMCPPlugin.Instance?.MCPSettings;
+            return settings?.DevelopmentMode == true ? DEVELOPMENT_SERVER_URL : PRODUCTION_SERVER_URL;
+        }
+        
+        /// <summary>
         /// The connection mode to use
         /// </summary>
         public ConnectionMode Mode { get; set; }

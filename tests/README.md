@@ -64,7 +64,6 @@ The test client simulates the complete host application behavior and tests:
 
 ### Phase 2: File Linking
 - ✅ File selection and validation
-- ✅ Local file hash calculation
 - ✅ File size determination
 - ✅ Session creation with remote server
 - ✅ Session metadata storage
@@ -86,6 +85,9 @@ The test client simulates the complete host application behavior and tests:
 - ✅ File status checking
 - ✅ File validation and change detection
 - ✅ Integrity monitoring
+- ✅ Document GUID tracking
+- ✅ File path change detection
+- ✅ File replacement detection
 
 ### Phase 6: Project Card Opening (Reconnection)
 - ✅ File integrity validation
@@ -128,6 +130,56 @@ This test suite validates the enhanced architecture documented in `/docs/archite
 - **Persistent Sessions**: Session creation and restoration
 - **Auto-reconnection**: Project card opening and connection re-establishment
 
+## File Integrity Edge Cases
+
+### Testing Document GUID System
+
+The plugin uses document GUIDs to track files reliably even when renamed or moved.
+
+#### Test Case 1: File Rename/Move
+1. Create session for `test.3dm`
+2. Connect with `ReerStart`
+3. Close Rhino and rename file to `test_renamed.3dm`
+4. Open renamed file and run `ReerStart`
+5. **Expected**: Plugin detects path change but recognizes same file by GUID
+
+#### Test Case 2: File Copy
+1. Create session for a file
+2. Copy the file (GUID gets copied too)
+3. Open the copy
+4. **Expected**: Plugin uses existing session (same GUID)
+
+#### Test Case 3: File Replacement (No GUID)
+1. Create session for `project.3dm`
+2. Delete the file
+3. Create new file with same name (no GUID yet)
+4. Run `ReerStart`
+5. **Expected**: Plugin prompts user:
+   - YES: Continue with existing session (adds new GUID)
+   - NO: Requires new session via host app
+
+#### Test Case 4: File Replacement (Different GUID)
+1. Create session for `project.3dm`
+2. Replace with a different Rhino file (has its own GUID)
+3. Run `ReerStart`
+4. **Expected**: Plugin detects different GUID, requires new session
+
+#### Test Case 5: Legacy Files
+1. Files linked before GUID implementation
+2. Open legacy file
+3. **Expected**: Plugin adds GUID and continues with existing session
+
+### Validation Scenarios
+
+| Scenario | File Path | Document GUID | Result |
+|----------|-----------|---------------|--------|
+| Perfect Match | Same | Same | Direct reconnection |
+| File Moved | Different | Same | Update path & reconnect |
+| File Copied | Any | Same | Use existing session |
+| File Replaced (No GUID) | Same | None (was linked) | User prompt → continue or new |
+| File Replaced (Diff GUID) | Same | Different | Require new session |
+| Legacy File | Same | None (never had) | Add GUID & reconnect |
+
 ## Next Steps
 
 After successful testing:
@@ -135,4 +187,5 @@ After successful testing:
 1. Verify all created objects in Rhino
 2. Check the remote server logs for proper message handling
 3. Test edge cases (file modification, connection loss, etc.)
-4. Validate file integrity management in real scenarios 
+4. Validate file integrity management in real scenarios
+5. Test document GUID persistence across sessions 

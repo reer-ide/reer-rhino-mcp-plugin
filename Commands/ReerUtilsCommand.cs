@@ -18,35 +18,43 @@ namespace ReerRhinoMCPPlugin.Commands
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
         {
-            var connectionManager = ReerRhinoMCPPlugin.Instance.ConnectionManager;
-
-            Task.Run(async () =>
+            try
             {
-                try
+                var connectionManager = ReerRhinoMCPPlugin.Instance.ConnectionManager;
+                
+                // Show menu and get user selection synchronously
+                var option = ShowToolsMenu();
+                if (option == ToolsMenuOption.Cancel)
+                    return Result.Cancel;
+                
+                // Execute the selected function synchronously
+                // Using .GetAwaiter().GetResult() for cross-platform compatibility
+                switch (option)
                 {
-                    var option = ShowToolsMenu();
-                    switch (option)
-                    {
-                        case ToolsMenuOption.Status:
-                            await RunStatus(connectionManager);
-                            break;
-                        case ToolsMenuOption.CheckFiles:
-                            await RunCheckFiles(connectionManager);
-                            break;
-                        case ToolsMenuOption.ClearFiles:
-                            await RunClearFiles(connectionManager);
-                            break;
-                        default:
-                            break;
-                    }
+                    case ToolsMenuOption.Status:
+                        var statusResult = RunStatus(connectionManager).ConfigureAwait(false).GetAwaiter().GetResult();
+                        break;
+                    case ToolsMenuOption.CheckFiles:
+                        var checkResult = RunCheckFiles(connectionManager).ConfigureAwait(false).GetAwaiter().GetResult();
+                        break;
+                    case ToolsMenuOption.ClearFiles:
+                        var clearResult = RunClearFiles(connectionManager).ConfigureAwait(false).GetAwaiter().GetResult();
+                        break;
+                    case ToolsMenuOption.ToggleDev:
+                        var toggleResult = RunToggleDevelopmentMode().ConfigureAwait(false).GetAwaiter().GetResult();
+                        break;
+                    default:
+                        return Result.Cancel;
                 }
-                catch (Exception ex)
-                {
-                    Logger.Error($"An error occurred: {ex.Message}");
-                }
-            });
-            
-            return Result.Success;
+                
+                return Result.Success;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"An error occurred: {ex.Message}");
+                RhinoApp.WriteLine($"Error: {ex.Message}");
+                return Result.Failure;
+            }
         }
 
         private ToolsMenuOption ShowToolsMenu()
@@ -56,6 +64,7 @@ namespace ReerRhinoMCPPlugin.Commands
             getter.AddOption("Status", "Show connection and license status");
             getter.AddOption("CheckFiles", "Check status of linked files");
             getter.AddOption("ClearFiles", "Clear all linked files (troubleshooting)");
+            getter.AddOption("ToggleDev", "Toggle development/production mode");
             getter.AddOption("Cancel", "Return to main menu");
             
             var result = getter.Get();
@@ -69,6 +78,7 @@ namespace ReerRhinoMCPPlugin.Commands
                 case "Status": return ToolsMenuOption.Status;
                 case "CheckFiles": return ToolsMenuOption.CheckFiles;
                 case "ClearFiles": return ToolsMenuOption.ClearFiles;
+                case "ToggleDev": return ToolsMenuOption.ToggleDev;
                 default: return ToolsMenuOption.Cancel;
             }
         }
@@ -80,8 +90,7 @@ namespace ReerRhinoMCPPlugin.Commands
                 RhinoApp.WriteLine("=== RhinoMCP Status ===");
                 RhinoApp.WriteLine($"Connection Status: {connectionManager.Status}");
                 
-                var remoteClient = new RhinoMCPClient();
-                var licenseResult = await remoteClient.GetLicenseStatusAsync();
+                var licenseResult = await ReerRhinoMCPPlugin.Instance.LicenseManager.GetLicenseStatusAsync();
 
                 RhinoApp.WriteLine($"License Status: {(licenseResult.IsValid ? "Valid" : "Invalid")}");
                 if (licenseResult.IsValid)
@@ -102,8 +111,7 @@ namespace ReerRhinoMCPPlugin.Commands
             try
             {
                 RhinoApp.WriteLine("=== Checking Linked Files ===");
-                var remoteClient = new RhinoMCPClient();
-                var changes = await remoteClient.ValidateLinkedFilesAsync();
+                var changes = await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.CheckLinkedFilesAsync();
                 
                 if (changes.Count == 0)
                 {
@@ -138,8 +146,7 @@ namespace ReerRhinoMCPPlugin.Commands
                     return true;
                 }
 
-                var remoteClient = new RhinoMCPClient();
-                await remoteClient.ClearLinkedFilesAsync();
+                await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.ClearAllLinkedFilesAsync();
                 RhinoApp.WriteLine("✓ All linked files cleared successfully.");
                 return true;
             }
@@ -161,6 +168,45 @@ namespace ReerRhinoMCPPlugin.Commands
             return getter.Get() == GetResult.String ? getter.StringResult() : null;
         }
 
-        private enum ToolsMenuOption { Status, CheckFiles, ClearFiles, Cancel }
+        private Task<bool> RunToggleDevelopmentMode()
+        {
+            try
+            {
+                var settings = ReerRhinoMCPPlugin.Instance.MCPSettings;
+                var currentMode = settings.DevelopmentMode ? "Development" : "Production";
+                var newMode = settings.DevelopmentMode ? "Production" : "Development";
+                
+                RhinoApp.WriteLine($"=== Toggle Development Mode ===");
+                RhinoApp.WriteLine($"Current mode: {currentMode}");
+                RhinoApp.WriteLine($"Current server: {ConnectionSettings.GetServerUrl()}");
+                RhinoApp.WriteLine($"");
+                RhinoApp.WriteLine($"Switch to {newMode} mode?");
+                RhinoApp.WriteLine($"New server would be: {(settings.DevelopmentMode ? ConnectionSettings.PRODUCTION_SERVER_URL : ConnectionSettings.DEVELOPMENT_SERVER_URL)}");
+                
+                var confirm = GetUserInput("Proceed with mode change? (yes/no):", "no");
+                if (confirm?.ToLower() == "yes")
+                {
+                    settings.DevelopmentMode = !settings.DevelopmentMode;
+                    settings.Save();
+                    
+                    RhinoApp.WriteLine($"✓ Switched to {newMode} mode");
+                    RhinoApp.WriteLine($"✓ Server URL: {ConnectionSettings.GetServerUrl()}");
+                    RhinoApp.WriteLine("Note: You may need to restart any active connections for this change to take effect.");
+                    return Task.FromResult(true);
+                }
+                else
+                {
+                    RhinoApp.WriteLine("Mode change cancelled.");
+                    return Task.FromResult(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error toggling development mode: {ex.Message}");
+                return Task.FromResult(false);
+            }
+        }
+
+        private enum ToolsMenuOption { Status, CheckFiles, ClearFiles, ToggleDev, Cancel }
     }
 } 

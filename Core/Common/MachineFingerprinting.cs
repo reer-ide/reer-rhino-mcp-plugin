@@ -4,14 +4,13 @@ using System.Text;
 using System.IO;
 using System.Diagnostics;
 using Rhino;
-using ReerRhinoMCPPlugin.Core.Common;
 
 #if WINDOWS
 using System.Management;
 using Microsoft.Win32;
 #endif
 
-namespace ReerRhinoMCPPlugin.Core.Client
+namespace ReerRhinoMCPPlugin.Core.Common
 {
     /// <summary>
     /// Handles machine fingerprinting for hardware-bound licensing

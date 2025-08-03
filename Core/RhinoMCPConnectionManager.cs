@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Rhino;
@@ -89,7 +90,7 @@ namespace ReerRhinoMCPPlugin.Core
         
         /// <summary>
         /// Starts a connection with the specified settings
-        /// Will stop any existing connection first
+        /// Will reuse existing connection if it's compatible with the requested settings
         /// </summary>
         /// <param name="settings">Connection settings to use</param>
         /// <returns>True if connection started successfully, false otherwise</returns>
@@ -103,10 +104,21 @@ namespace ReerRhinoMCPPlugin.Core
                 Logger.Error("Invalid connection settings provided");
                 return false;
             }
-            
+
             try
             {
-                // Stop any existing connection first
+                // Check if current connection is already compatible
+                lock (lockObject)
+                {
+                    if (activeConnection != null && activeConnection.IsConnected && 
+                        IsConnectedToSameFile(activeConnection, settings))
+                    {
+                        Logger.Info($"Reusing existing compatible {settings.Mode} connection");
+                        return true;
+                    }
+                }
+
+                // Stop existing connection if it's not compatible
                 await StopConnectionAsync();
                 
                 // Create new connection based on mode
@@ -253,6 +265,148 @@ namespace ReerRhinoMCPPlugin.Core
                 default:
                     Logger.Error($"Unsupported connection mode: {mode}");
                     return null;
+            }
+        }
+
+        /// <summary>
+        /// Check if the existing connection is established for the same file
+        /// For remote connections, also validates the server-side session status
+        /// </summary>
+        /// <param name="connection">Current active connection</param>
+        /// <param name="settings">Requested connection settings</param>
+        /// <returns>True if compatible, false otherwise</returns>
+        private bool IsConnectedToSameFile(IRhinoMCPConnection connection, ConnectionSettings settings)
+        {
+            if (connection?.Settings == null)
+                return false;
+
+            var currentSettings = connection.Settings;
+
+            // Mode must match
+            if (currentSettings.Mode != settings.Mode)
+            {
+                Logger.Info($"Current connection mode {currentSettings.Mode} does not match requested mode {settings.Mode}");
+                return false;
+            }
+            else
+            {
+                switch (settings.Mode)
+                {
+                    case ConnectionMode.Local:
+                        // For local connections, host and port must match
+                        return string.Equals(currentSettings.LocalHost, settings.LocalHost, StringComparison.OrdinalIgnoreCase) &&
+                               currentSettings.LocalPort == settings.LocalPort;
+
+                    case ConnectionMode.Remote:
+                        // For remote connections, URL must match and session should be valid
+                        if (!string.Equals(currentSettings.RemoteUrl, settings.RemoteUrl, StringComparison.OrdinalIgnoreCase))
+                            return false;
+
+                        // For remote connections, we need to check if current session can handle the current file
+                        // Use ConfigureAwait(false) to prevent deadlocks on any platform
+                        return IsRemoteConnectionCompatibleAsync((RhinoMCPClient)connection).ConfigureAwait(false).GetAwaiter().GetResult();
+
+                    default:
+                        return false;
+                }
+            }
+        }
+
+        
+        /// <summary>
+        /// Check if the remote connection is compatible with the current Rhino file
+        /// </summary>
+        /// <param name="client">Remote MCP client</param>
+        /// <returns>True if the connection can be reused, false otherwise</returns>
+        private async Task<bool> IsRemoteConnectionCompatibleAsync(RhinoMCPClient client)
+        {
+            try
+            {
+                // Check if current session is still valid on server
+                if (!await client.IsCurrentSessionValidAsync())
+                {
+                    Logger.Info("Current session is no longer valid on server");
+                    return false;
+                }
+                
+                // Get current file path in Rhino
+                var currentFilePath = GetCurrentRhinoFilePath();
+                var clientFilePath = client.CurrentFilePath;
+                
+                // If file paths match, we can definitely reuse the connection
+                if (string.Equals(currentFilePath, clientFilePath, StringComparison.Ordinal))
+                {
+                    Logger.Info("File path matches existing session - reusing connection");
+                    return true;
+                }
+                
+                // Different file - check if we can connect to a session for the new file
+                // This is a quick check to see if a session exists for the current file
+                return await CanConnectToSessionForFileAsync(client, currentFilePath);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Error checking remote connection compatibility: {ex.Message}");
+                return false; // Default to creating new connection if check fails
+            }
+        }
+        
+        /// <summary>
+        /// Check if a session exists for the given file that the client can connect to
+        /// </summary>
+        /// <param name="client">Remote MCP client</param>
+        /// <param name="filePath">File path to check</param>
+        /// <returns>True if a compatible session exists, false otherwise</returns>
+        private Task<bool> CanConnectToSessionForFileAsync(RhinoMCPClient client, string filePath)
+        {
+            try
+            {
+                // This is a lightweight check - we look at local cache first
+                var linkedFiles = ReerRhinoMCPPlugin.Instance.FileIntegrityManager.GetAllLinkedFiles();
+                var matchingFile = linkedFiles.FirstOrDefault(f => 
+                    string.Equals(f.FilePath, filePath, StringComparison.Ordinal) &&
+                    f.Status == Client.FileStatus.Available);
+                
+                if (matchingFile != null)
+                {
+                    Logger.Info($"Found cached session for file: {System.IO.Path.GetFileName(filePath)}");
+                    return Task.FromResult(true);
+                }
+                
+                // If no cached session, we'll need a new connection to attempt connecting
+                // Return false to trigger new connection process
+                return Task.FromResult(false);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Error checking session availability for file: {ex.Message}");
+                return Task.FromResult(false);
+            }
+        }
+        
+        /// <summary>
+        /// Get the current Rhino file path
+        /// </summary>
+        /// <returns>Current file path or placeholder for unsaved documents</returns>
+        private string GetCurrentRhinoFilePath()
+        {
+            try
+            {
+                var doc = RhinoDoc.ActiveDoc;
+                if (doc != null && !string.IsNullOrEmpty(doc.Path))
+                {
+                    return doc.Path;
+                }
+                else
+                {
+                    // Return a placeholder for unsaved documents
+                    return $"/rhino/unsaved_document_{DateTime.Now:yyyyMMdd_HHmmss}.3dm";
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Warning: Could not get current file path: {ex.Message}");
+                return $"/rhino/unknown_document_{DateTime.Now:yyyyMMdd_HHmmss}.3dm";
             }
         }
         

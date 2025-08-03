@@ -6,12 +6,12 @@ Both Debug and Release builds completed successfully for both target frameworks.
 ## 📦 Build Outputs
 
 ### Debug Builds
-- **net48**: `bin/Debug/net48/rhino_mcp_plugin.rhp` (309 KB)
-- **net7.0**: `bin/Debug/net7.0/rhino_mcp_plugin.rhp` (314 KB)
+- **net48**: `bin/Debug/net48/ReerConnector.rhp` (309 KB)
+- **net7.0**: `bin/Debug/net7.0/ReerConnector.rhp` (314 KB)
 
 ### Release Builds (Optimized)
-- **net48**: `bin/Release/net48/rhino_mcp_plugin.rhp` (290 KB)
-- **net7.0**: `bin/Release/net7.0/rhino_mcp_plugin.rhp` (294 KB)
+- **net48**: `bin/Release/net48/ReerConnector.rhp` (290 KB)
+- **net7.0**: `bin/Release/net7.0/ReerConnector.rhp` (294 KB)
 
 ## 🎯 Target Frameworks
 - **net48**: For Rhino 7 and Rhino 8 on .NET Framework 4.8
@@ -51,10 +51,10 @@ These warnings don't affect functionality and are expected for a Windows-targete
 ## 🎮 Usage Instructions
 
 ### For Rhino 7/8 on Windows (.NET Framework)
-Use: `bin/Release/net48/rhino_mcp_plugin.rhp`
+Use: `bin/Release/net48/ReerConnector.rhp`
 
 ### For Rhino 8 on Windows (.NET 7.0)
-Use: `bin/Release/net7.0/rhino_mcp_plugin.rhp`
+Use: `bin/Release/net7.0/ReerConnector.rhp`
 
 ### Installation
 1. Copy the appropriate .rhp file to your desired location

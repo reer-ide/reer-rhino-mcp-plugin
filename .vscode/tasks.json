@@ -8,7 +8,7 @@
       "args": [
         "build",
         "-clp:NoSummary",
-        "${workspaceFolder}/rhino_mcp_plugin.csproj"
+        "${workspaceFolder}/ReerConnector.csproj"
       ],
       "problemMatcher": "$msCompile",
       "presentation": {
@@ -25,7 +25,7 @@
         "build",
         "-c:Debug",
         "-clp:NoSummary",
-        "${workspaceFolder}/rhino_mcp_plugin.csproj"
+        "${workspaceFolder}/ReerConnector.csproj"
       ],
       "problemMatcher": "$msCompile",
       "presentation": {
@@ -42,7 +42,7 @@
         "build",
         "-c:Release",
         "-clp:NoSummary",
-        "${workspaceFolder}/rhino_mcp_plugin.csproj"
+        "${workspaceFolder}/ReerConnector.csproj"
       ],
       "problemMatcher": "$msCompile",
       "presentation": {

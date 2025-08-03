@@ -5,6 +5,9 @@ docs/example/
 .claude/
 CLAUDE.md
 
+#serena
+.serena/
+
 # Visual Studio
 .vs/
 *.user

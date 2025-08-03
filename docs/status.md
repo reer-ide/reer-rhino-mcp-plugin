@@ -8,7 +8,7 @@
 - **Session Persistence**: Remote connections preserve session context across restarts
 - **Smart Stop Behavior**: `ReerStop` preserves sessions for remote, `ReerRestart` forces cleanup
 - **Settings Persistence**: Successful connections automatically save as default configuration
-- **File Integrity Management**: Secure session linking with file hash validation
+- **File Integrity Management**: Secure session linking with file path validation
 
 ### Core Infrastructure ✅
 - **Plugin Infrastructure**: Complete plugin structure with auto-start and lifecycle management

@@ -30,9 +30,8 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// </summary>
         /// <param name="licenseKey">The license key provided by the user</param>
         /// <param name="userId">User identifier</param>
-        /// <param name="serverUrl">URL of the remote MCP server</param>
         /// <returns>License registration result</returns>
-        public async Task<LicenseRegistrationResult> RegisterLicenseAsync(string licenseKey, string userId, string serverUrl)
+        public async Task<LicenseRegistrationResult> RegisterLicenseAsync(string licenseKey, string userId)
         {
             try
             {
@@ -54,7 +53,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                 
                 // Send registration request to server
-                var response = await httpClient.PostAsync($"{serverUrl}/license/register", content);
+                var response = await httpClient.PostAsync($"{ConnectionSettings.GetServerUrl()}/license/register", content);
                 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -79,8 +78,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                     MachineFingerprint = machineFingerprint,
                     Tier = tier,
                     MaxConcurrentFiles = maxConcurrentFiles,
-                    RegisteredAt = DateTime.Now,
-                    ServerUrl = serverUrl
+                    RegisteredAt = DateTime.Now
                 };
                 
                 await CrossPlatformStorage.StoreDataAsync(LICENSE_STORAGE_KEY, licenseInfo);
@@ -112,6 +110,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
         
         /// <summary>
         /// Validate the stored license with the remote server
+        /// This method automatically syncs with server state and clears local cache if server says invalid
         /// </summary>
         /// <returns>License validation result</returns>
         public async Task<LicenseValidationResult> ValidateLicenseAsync()
@@ -132,6 +131,8 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 var currentFingerprint = MachineFingerprinting.GenerateMachineFingerprint();
                 if (currentFingerprint != storedLicense.MachineFingerprint)
                 {
+                    Logger.Warning("Machine fingerprint mismatch detected - clearing local license");
+                    ClearStoredLicense(); // Clear invalid local cache
                     return new LicenseValidationResult
                     {
                         IsValid = false,
@@ -139,7 +140,9 @@ namespace ReerRhinoMCPPlugin.Core.Client
                     };
                 }
                 
-                // Validate with server
+                Logger.Debug($"Validating license {storedLicense.LicenseId} with server...");
+                
+                // Validate with server (this naturally syncs server state)
                 var validationRequest = new
                 {   
                     license_id = storedLicense.LicenseId,
@@ -150,15 +153,25 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 var jsonContent = JsonConvert.SerializeObject(validationRequest);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                 
-                var response = await httpClient.PostAsync($"{storedLicense.ServerUrl}/license/validate", content);
+                var response = await httpClient.PostAsync($"{ConnectionSettings.GetServerUrl()}/license/validate", content);
                 
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
+                    var errorMessage = $"Server validation failed: {response.StatusCode} - {errorContent}";
+                    
+                    // If server says license not found or forbidden, clear local cache
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound || 
+                        response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                    {
+                        Logger.Warning("Server indicates license is invalid - clearing local cache");
+                        ClearStoredLicense();
+                    }
+                    
                     return new LicenseValidationResult
                     {
                         IsValid = false,
-                        Message = $"Server validation failed: {response.StatusCode} - {errorContent}"
+                        Message = errorMessage
                     };
                 }
                 
@@ -168,18 +181,37 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 var status = validationData["status"]?.ToString();
                 var isValid = status == "valid";
                 
+                // If server says license is invalid, clear local cache to sync state
+                if (!isValid)
+                {
+                    var invalidMessage = validationData["message"]?.ToString() ?? "Invalid license";
+                    Logger.Warning($"Server indicates license is invalid: {invalidMessage}");
+                    Logger.Info("Clearing local license cache to sync with server state");
+                    ClearStoredLicense();
+                    
+                    return new LicenseValidationResult
+                    {
+                        IsValid = false,
+                        Message = invalidMessage
+                    };
+                }
+                
+                // License is valid - server is the source of truth
+                Logger.Debug($"License {storedLicense.LicenseId} validated successfully with server");
+                
                 return new LicenseValidationResult
                 {
-                    IsValid = isValid,
+                    IsValid = true,
                     LicenseId = storedLicense.LicenseId,
                     UserId = storedLicense.UserId,
                     Tier = storedLicense.Tier,
                     MaxConcurrentFiles = storedLicense.MaxConcurrentFiles,
-                    Message = isValid ? "License is valid" : validationData["message"]?.ToString() ?? "Invalid license"
+                    Message = "License is valid"
                 };
             }
             catch (Exception ex)
             {
+                Logger.Error($"License validation error: {ex.Message}");
                 return new LicenseValidationResult
                 {
                     IsValid = false,
@@ -215,21 +247,11 @@ namespace ReerRhinoMCPPlugin.Core.Client
         }
         
         /// <summary>
-        /// Get the license status (convenience method for UI)
+        /// Get the license status (validates with server each time)
         /// </summary>
         /// <returns>License validation result</returns>
         public async Task<LicenseValidationResult> GetLicenseStatusAsync()
         {
-            var storedLicense = await GetStoredLicenseInfoAsync();
-            if (storedLicense == null)
-            {
-                return new LicenseValidationResult
-                {
-                    IsValid = false,
-                    Message = "No license registered"
-                };
-            }
-            
             return await ValidateLicenseAsync();
         }
         
@@ -276,6 +298,5 @@ namespace ReerRhinoMCPPlugin.Core.Client
         public string Tier { get; set; }
         public int MaxConcurrentFiles { get; set; }
         public DateTime RegisteredAt { get; set; }
-        public string ServerUrl { get; set; }
     }
 } 

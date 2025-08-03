@@ -45,7 +45,7 @@
   <PropertyGroup>
     <!-- Specifies information for Assembly and Yak -->
     <Version>1.0</Version>
-    <Title>rhino_mcp_plugin</Title>
+    <Title>ReerConnector</Title>
     <Company>reer, inc.</Company>
     <Description>reer, inc. MCP Plugin for Rhino</Description>
   </PropertyGroup>

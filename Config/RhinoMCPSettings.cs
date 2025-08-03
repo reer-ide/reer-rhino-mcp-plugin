@@ -38,6 +38,11 @@ namespace ReerRhinoMCPPlugin.Config
         public bool EnableDebugLogging { get; set; } = true;
         
         /// <summary>
+        /// Whether to use development server URLs (for testing/development)
+        /// </summary>
+        public bool DevelopmentMode { get; set; } = false;
+        
+        /// <summary>
         /// Last used connection mode for convenience
         /// </summary>
         public ConnectionMode LastUsedMode { get; set; } = ConnectionMode.Local;
