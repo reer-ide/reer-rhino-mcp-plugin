@@ -91,38 +91,8 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 // Use async file writing (compatible with .NET Framework)
                 await Task.Run(() => File.WriteAllText(filePath, encryptedData)).ConfigureAwait(false);
                 
-                // Set file permissions to be user-readable only on Unix-like systems
-                if (Environment.OSVersion.Platform == PlatformID.Unix || 
-                    Environment.OSVersion.Platform == PlatformID.MacOSX)
-                {
-                    try
-                    {
-                        // Wrap synchronous file operations in Task.Run for async execution
-                        await Task.Run(() =>
-                        {
-                            // Use Mono.Posix if available for proper Unix permissions
-                            // For now, we'll use File.SetAttributes to at least make it less accessible
-                            var fileInfo = new FileInfo(filePath);
-                            if (fileInfo.Exists)
-                            {
-                                // Make file hidden on Unix systems (starts with .)
-                                var directory = Path.GetDirectoryName(filePath);
-                                var filename = Path.GetFileName(filePath);
-                                if (!filename.StartsWith("."))
-                                {
-                                    var hiddenPath = Path.Combine(directory, "." + filename);
-                                    if (File.Exists(hiddenPath))
-                                        File.Delete(hiddenPath);
-                                    File.Move(filePath, hiddenPath);
-                                }
-                            }
-                        }).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Warning($"Warning: Could not set file permissions: {ex.Message}");
-                    }
-                }
+                // Note: We no longer make files hidden on Unix/macOS to improve visibility and troubleshooting
+                // Security is provided through encryption, not obscurity
                 
                 Logger.Info($"Data stored securely: {key}");
             }
@@ -143,14 +113,39 @@ namespace ReerRhinoMCPPlugin.Core.Client
         {
             try
             {
-                var filePath = Path.Combine(GetStorageDirectory(), $"{key}.dat");
+                var storageDir = GetStorageDirectory();
+                var filePath = Path.Combine(storageDir, $"{key}.dat");
+                var hiddenFilePath = Path.Combine(storageDir, $".{key}.dat");
                 
-                if (!File.Exists(filePath))
+                // On Unix/macOS, check for hidden file first
+                string actualFilePath = null;
+                if (Environment.OSVersion.Platform == PlatformID.Unix || 
+                    Environment.OSVersion.Platform == PlatformID.MacOSX)
+                {
+                    if (File.Exists(hiddenFilePath))
+                    {
+                        actualFilePath = hiddenFilePath;
+                    }
+                    else if (File.Exists(filePath))
+                    {
+                        actualFilePath = filePath;
+                    }
+                }
+                else
+                {
+                    // On Windows, just check regular file
+                    if (File.Exists(filePath))
+                    {
+                        actualFilePath = filePath;
+                    }
+                }
+                
+                if (actualFilePath == null)
                 {
                     return Task.FromResult<T>(null);
                 }
                 
-                var encryptedData = File.ReadAllText(filePath);
+                var encryptedData = File.ReadAllText(actualFilePath);
                 var decryptedJson = DecryptData(encryptedData);
                 var data = JsonConvert.DeserializeObject<T>(decryptedJson);
                 return Task.FromResult(data);
@@ -170,11 +165,39 @@ namespace ReerRhinoMCPPlugin.Core.Client
         {
             try
             {
-                var filePath = Path.Combine(GetStorageDirectory(), $"{key}.dat");
+                var storageDir = GetStorageDirectory();
+                var filePath = Path.Combine(storageDir, $"{key}.dat");
+                var hiddenFilePath = Path.Combine(storageDir, $".{key}.dat");
                 
-                if (File.Exists(filePath))
+                bool deleted = false;
+                
+                // On Unix/macOS, check and delete both hidden and regular files
+                if (Environment.OSVersion.Platform == PlatformID.Unix || 
+                    Environment.OSVersion.Platform == PlatformID.MacOSX)
                 {
-                    File.Delete(filePath);
+                    if (File.Exists(hiddenFilePath))
+                    {
+                        File.Delete(hiddenFilePath);
+                        deleted = true;
+                    }
+                    if (File.Exists(filePath))
+                    {
+                        File.Delete(filePath);
+                        deleted = true;
+                    }
+                }
+                else
+                {
+                    // On Windows, just delete regular file
+                    if (File.Exists(filePath))
+                    {
+                        File.Delete(filePath);
+                        deleted = true;
+                    }
+                }
+                
+                if (deleted)
+                {
                     Logger.Info($"Data deleted: {key}");
                 }
             }
@@ -191,8 +214,21 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// <returns>True if data exists</returns>
         public static bool DataExists(string key)
         {
-            var filePath = Path.Combine(GetStorageDirectory(), $"{key}.dat");
-            return File.Exists(filePath);
+            var storageDir = GetStorageDirectory();
+            var filePath = Path.Combine(storageDir, $"{key}.dat");
+            var hiddenFilePath = Path.Combine(storageDir, $".{key}.dat");
+            
+            // On Unix/macOS, check both hidden and regular files
+            if (Environment.OSVersion.Platform == PlatformID.Unix || 
+                Environment.OSVersion.Platform == PlatformID.MacOSX)
+            {
+                return File.Exists(hiddenFilePath) || File.Exists(filePath);
+            }
+            else
+            {
+                // On Windows, just check regular file
+                return File.Exists(filePath);
+            }
         }
         
         /// <summary>
@@ -254,7 +290,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
         }
         
         /// <summary>
-        /// Encrypt using Windows DPAPI
+        /// Encrypt using Windows DPAPI or fallback encryption
         /// </summary>
         private static string EncryptWithDPAPI(string plainText)
         {
@@ -265,19 +301,25 @@ namespace ReerRhinoMCPPlugin.Core.Client
 #else
             if (OperatingSystem.IsWindows())
             {
+#if WINDOWS
                 var data = Encoding.UTF8.GetBytes(plainText);
                 var encryptedData = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
                 return Convert.ToBase64String(encryptedData);
+#else
+                // Fallback for Windows when ProtectedData is not available
+                return FallbackEncrypt(plainText);
+#endif
             }
             else
             {
-                throw new PlatformNotSupportedException("DPAPI is only available on Windows");
+                // Use fallback encryption for macOS and Linux
+                return FallbackEncrypt(plainText);
             }
 #endif
         }
         
         /// <summary>
-        /// Decrypt using Windows DPAPI
+        /// Decrypt using Windows DPAPI or fallback decryption
         /// </summary>
         private static string DecryptWithDPAPI(string encryptedText)
         {
@@ -288,15 +330,37 @@ namespace ReerRhinoMCPPlugin.Core.Client
 #else
             if (OperatingSystem.IsWindows())
             {
+#if WINDOWS
                 var encryptedData = Convert.FromBase64String(encryptedText);
                 var decryptedData = ProtectedData.Unprotect(encryptedData, null, DataProtectionScope.CurrentUser);
                 return Encoding.UTF8.GetString(decryptedData);
+#else
+                // Fallback for Windows when ProtectedData is not available
+                return FallbackDecrypt(encryptedText);
+#endif
             }
             else
             {
-                throw new PlatformNotSupportedException("DPAPI is only available on Windows");
+                // Use fallback decryption for macOS and Linux
+                return FallbackDecrypt(encryptedText);
             }
 #endif
+        }
+        
+        /// <summary>
+        /// Fallback encryption method for non-Windows platforms
+        /// </summary>
+        private static string FallbackEncrypt(string plainText)
+        {
+            return EncryptWithAES(plainText);
+        }
+        
+        /// <summary>
+        /// Fallback decryption method for non-Windows platforms
+        /// </summary>
+        private static string FallbackDecrypt(string encryptedText)
+        {
+            return DecryptWithAES(encryptedText);
         }
         
         /// <summary>
