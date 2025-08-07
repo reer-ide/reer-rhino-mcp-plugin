@@ -113,7 +113,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                         ["results"] = results
                     };
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     // End undo record and undo changes
                     doc.EndUndoRecord(undoRecordSerialNumber);

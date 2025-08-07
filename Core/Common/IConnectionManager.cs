@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using ReerRhinoMCPPlugin.Core.Client;
 
 namespace ReerRhinoMCPPlugin.Core.Common
 {
@@ -28,8 +29,9 @@ namespace ReerRhinoMCPPlugin.Core.Common
         /// Will stop any existing connection first
         /// </summary>
         /// <param name="settings">Connection settings to use</param>
+        /// <param name="fileValidation">Optional pre-computed file validation result (for remote connections)</param>
         /// <returns>True if connection started successfully, false otherwise</returns>
-        Task<bool> StartConnectionAsync(ConnectionSettings settings);
+        Task<bool> StartConnectionAsync(ConnectionSettings settings, FileConnectionValidation fileValidation = null);
         
         /// <summary>
         /// Stops the current connection if one is active
@@ -55,5 +57,15 @@ namespace ReerRhinoMCPPlugin.Core.Common
         /// Event fired when the connection status changes
         /// </summary>
         event EventHandler<ConnectionStatusChangedEventArgs> StatusChanged;
+        
+        /// <summary>
+        /// Notifies the server of a file path change (for remote connections)
+        /// </summary>
+        /// <param name="sessionId">The session ID</param>
+        /// <param name="oldPath">The old file path</param>
+        /// <param name="newPath">The new file path</param>
+        /// <param name="documentGuid">The document GUID</param>
+        /// <returns>True if notification was successful, false otherwise</returns>
+        Task<bool> NotifyServerOfFilePathChangeAsync(string sessionId, string oldPath, string newPath, string documentGuid);
     }
 } 

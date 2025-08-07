@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.IO;
 using System.Diagnostics;
+using System.Runtime.Versioning;
 using Rhino;
 
 #if WINDOWS
@@ -95,47 +96,63 @@ namespace ReerRhinoMCPPlugin.Core.Common
         {
             var hardwareInfo = new StringBuilder();
             
-#if WINDOWS
-            try
-            {
-                // CPU Information
-                using (var searcher = new ManagementObjectSearcher("SELECT ProcessorId FROM Win32_Processor"))
-                {
-                    foreach (ManagementObject obj in searcher.Get())
-                    {
-                        hardwareInfo.Append(obj["ProcessorId"]?.ToString() ?? "unknown");
-                        break; // Just get the first one
-                    }
-                }
-                
-                // Motherboard Information
-                using (var searcher = new ManagementObjectSearcher("SELECT SerialNumber FROM Win32_BaseBoard"))
-                {
-                    foreach (ManagementObject obj in searcher.Get())
-                    {
-                        hardwareInfo.Append(obj["SerialNumber"]?.ToString() ?? "unknown");
-                        break;
-                    }
-                }
-                
-                // System UUID
-                using (var searcher = new ManagementObjectSearcher("SELECT UUID FROM Win32_ComputerSystemProduct"))
-                {
-                    foreach (ManagementObject obj in searcher.Get())
-                    {
-                        hardwareInfo.Append(obj["UUID"]?.ToString() ?? "unknown");
-                        break;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"Warning: Could not get Windows hardware info: {ex.Message}");
-                hardwareInfo.Append("windows-fallback");
-            }
-#else
-            hardwareInfo.Append("windows-not-available");
+            // Use runtime platform check for .NET Framework compatibility
+            bool isWindows = Environment.OSVersion.Platform == PlatformID.Win32NT;
+#if NET5_0_OR_GREATER
+            isWindows = OperatingSystem.IsWindows();
 #endif
+            
+            if (isWindows)
+            {
+                try
+                {
+#if WINDOWS
+#pragma warning disable CA1416 // Validate platform compatibility
+                    // CPU Information
+                    using (var searcher = new ManagementObjectSearcher("SELECT ProcessorId FROM Win32_Processor"))
+                    {
+                        foreach (ManagementObject obj in searcher.Get())
+                        {
+                            hardwareInfo.Append(obj["ProcessorId"]?.ToString() ?? "unknown");
+                            break; // Just get the first one
+                        }
+                    }
+                    
+                    // Motherboard Information
+                    using (var searcher = new ManagementObjectSearcher("SELECT SerialNumber FROM Win32_BaseBoard"))
+                    {
+                        foreach (ManagementObject obj in searcher.Get())
+                        {
+                            hardwareInfo.Append(obj["SerialNumber"]?.ToString() ?? "unknown");
+                            break;
+                        }
+                    }
+                    
+                    // System UUID
+                    using (var searcher = new ManagementObjectSearcher("SELECT UUID FROM Win32_ComputerSystemProduct"))
+                    {
+                        foreach (ManagementObject obj in searcher.Get())
+                        {
+                            hardwareInfo.Append(obj["UUID"]?.ToString() ?? "unknown");
+                            break;
+                        }
+                    }
+#pragma warning restore CA1416 // Validate platform compatibility
+#else
+                    hardwareInfo.Append("windows-not-compiled");
+#endif
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning($"Warning: Could not get Windows hardware info: {ex.Message}");
+                    hardwareInfo.Append("windows-fallback");
+                }
+            }
+            else
+            {
+                hardwareInfo.Append("not-windows");
+            }
+            
             return hardwareInfo.ToString();
         }
         

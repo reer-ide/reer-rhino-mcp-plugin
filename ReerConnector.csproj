@@ -22,7 +22,7 @@
     <DebugType>full</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <Optimize>false</Optimize>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>DEBUG;TRACE;DEV_MODE</DefineConstants>
   </PropertyGroup>
   
   <!-- Release configuration -->
@@ -30,7 +30,7 @@
     <DebugType>pdbonly</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <Optimize>true</Optimize>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;RELEASE</DefineConstants>
   </PropertyGroup>
   
   <!-- Platform-specific compilation symbols -->
@@ -70,14 +70,16 @@
   </ItemGroup>
   
   <ItemGroup>
-
-    
     <!-- Exclude example/reference files -->
     <Compile Remove="docs\**" />
     <EmbeddedResource Remove="docs\**" />
     <None Remove="docs\**" />
     
     <!-- AssemblyInfo.cs is now included since GenerateAssemblyInfo is false -->
+    
+    <!-- Conditional compilation of commands based on configuration -->
+    <Compile Remove="Commands\ReerUtilsCommand.cs" Condition="'$(Configuration)' == 'Release'" />
+    <Compile Remove="Commands\ReerToggleDebugLoggingCommand.cs" Condition="'$(Configuration)' == 'Release'" />
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Assets\plugin-utility.ico" />

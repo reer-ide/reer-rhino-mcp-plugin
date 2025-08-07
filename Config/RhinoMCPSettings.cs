@@ -35,12 +35,20 @@ namespace ReerRhinoMCPPlugin.Config
         /// <summary>
         /// Whether to log debug information
         /// </summary>
+#if DEV_MODE
         public bool EnableDebugLogging { get; set; } = true;
+#else
+        public bool EnableDebugLogging { get; set; } = false;
+#endif
         
         /// <summary>
         /// Whether to use development server URLs (for testing/development)
         /// </summary>
+#if DEV_MODE
+        public bool DevelopmentMode { get; set; } = true;
+#else
         public bool DevelopmentMode { get; set; } = false;
+#endif
         
         /// <summary>
         /// Last used connection mode for convenience
@@ -149,7 +157,13 @@ namespace ReerRhinoMCPPlugin.Config
             DefaultConnection = new ConnectionSettings { Mode = ConnectionMode.Remote };
             AutoStart = true;
             ShowStatusBar = true;
+#if DEV_MODE
+            EnableDebugLogging = true;
+            DevelopmentMode = true;
+#else
             EnableDebugLogging = false;
+            DevelopmentMode = false;
+#endif
             LastUsedMode = ConnectionMode.Remote;
         }
         

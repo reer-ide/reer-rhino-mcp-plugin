@@ -32,7 +32,8 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 // Windows: Use AppData\Roaming
                 baseDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             }
-            else if (Environment.OSVersion.Platform == PlatformID.Unix)
+            else if (Environment.OSVersion.Platform == PlatformID.Unix || 
+                     Environment.OSVersion.Platform == PlatformID.MacOSX)
             {
                 // Check if it's macOS or Linux
                 if (Directory.Exists("/Applications") && Directory.Exists("/System"))
@@ -43,9 +44,17 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 }
                 else
                 {
-                    // Linux: Use ~/.config
-                    baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), 
-                                         ".config");
+                    // Linux: Use ~/.config (XDG Base Directory Specification)
+                    var xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+                    if (!string.IsNullOrEmpty(xdgConfigHome))
+                    {
+                        baseDir = xdgConfigHome;
+                    }
+                    else
+                    {
+                        baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), 
+                                             ".config");
+                    }
                 }
             }
             else
@@ -78,20 +87,36 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 var encryptedData = EncryptData(json);
                 
                 var filePath = Path.Combine(GetStorageDirectory(), $"{key}.dat");
-                File.WriteAllText(filePath, encryptedData);
                 
-                // Set file permissions to be user-readable only on Unix systems
-                if (Environment.OSVersion.Platform == PlatformID.Unix)
+                // Use async file writing (compatible with .NET Framework)
+                await Task.Run(() => File.WriteAllText(filePath, encryptedData)).ConfigureAwait(false);
+                
+                // Set file permissions to be user-readable only on Unix-like systems
+                if (Environment.OSVersion.Platform == PlatformID.Unix || 
+                    Environment.OSVersion.Platform == PlatformID.MacOSX)
                 {
                     try
                     {
-                        // Set file permissions to 600 (user read/write only)
-                        var fileInfo = new FileInfo(filePath);
-                        if (fileInfo.Exists)
+                        // Wrap synchronous file operations in Task.Run for async execution
+                        await Task.Run(() =>
                         {
-                            // This requires additional platform-specific code for Unix permissions
-                            // For now, rely on the OS defaults
-                        }
+                            // Use Mono.Posix if available for proper Unix permissions
+                            // For now, we'll use File.SetAttributes to at least make it less accessible
+                            var fileInfo = new FileInfo(filePath);
+                            if (fileInfo.Exists)
+                            {
+                                // Make file hidden on Unix systems (starts with .)
+                                var directory = Path.GetDirectoryName(filePath);
+                                var filename = Path.GetFileName(filePath);
+                                if (!filename.StartsWith("."))
+                                {
+                                    var hiddenPath = Path.Combine(directory, "." + filename);
+                                    if (File.Exists(hiddenPath))
+                                        File.Delete(hiddenPath);
+                                    File.Move(filePath, hiddenPath);
+                                }
+                            }
+                        }).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
@@ -114,7 +139,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// <typeparam name="T">Type to deserialize to</typeparam>
         /// <param name="key">Storage key</param>
         /// <returns>Stored data or default(T) if not found</returns>
-        public static async Task<T> RetrieveDataAsync<T>(string key) where T : class
+        public static Task<T> RetrieveDataAsync<T>(string key) where T : class
         {
             try
             {
@@ -122,18 +147,18 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 
                 if (!File.Exists(filePath))
                 {
-                    return default(T);
+                    return Task.FromResult<T>(null);
                 }
                 
                 var encryptedData = File.ReadAllText(filePath);
                 var decryptedJson = DecryptData(encryptedData);
-                
-                return JsonConvert.DeserializeObject<T>(decryptedJson);
+                var data = JsonConvert.DeserializeObject<T>(decryptedJson);
+                return Task.FromResult(data);
             }
             catch (Exception ex)
             {
                 Logger.Error($"Error retrieving data {key}: {ex.Message}");
-                return default(T);
+                return Task.FromResult<T>(null);
             }
         }
         
@@ -228,15 +253,27 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
         }
         
-#if WINDOWS
         /// <summary>
         /// Encrypt using Windows DPAPI
         /// </summary>
         private static string EncryptWithDPAPI(string plainText)
         {
+#if NET48
             var data = Encoding.UTF8.GetBytes(plainText);
             var encryptedData = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
             return Convert.ToBase64String(encryptedData);
+#else
+            if (OperatingSystem.IsWindows())
+            {
+                var data = Encoding.UTF8.GetBytes(plainText);
+                var encryptedData = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
+                return Convert.ToBase64String(encryptedData);
+            }
+            else
+            {
+                throw new PlatformNotSupportedException("DPAPI is only available on Windows");
+            }
+#endif
         }
         
         /// <summary>
@@ -244,11 +281,23 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// </summary>
         private static string DecryptWithDPAPI(string encryptedText)
         {
+#if NET48
             var encryptedData = Convert.FromBase64String(encryptedText);
             var decryptedData = ProtectedData.Unprotect(encryptedData, null, DataProtectionScope.CurrentUser);
             return Encoding.UTF8.GetString(decryptedData);
-        }
+#else
+            if (OperatingSystem.IsWindows())
+            {
+                var encryptedData = Convert.FromBase64String(encryptedText);
+                var decryptedData = ProtectedData.Unprotect(encryptedData, null, DataProtectionScope.CurrentUser);
+                return Encoding.UTF8.GetString(decryptedData);
+            }
+            else
+            {
+                throw new PlatformNotSupportedException("DPAPI is only available on Windows");
+            }
 #endif
+        }
         
         /// <summary>
         /// Encrypt using AES with machine-specific key (for Unix systems)

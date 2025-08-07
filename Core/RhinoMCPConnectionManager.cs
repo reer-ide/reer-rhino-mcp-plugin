@@ -93,8 +93,9 @@ namespace ReerRhinoMCPPlugin.Core
         /// Will reuse existing connection if it's compatible with the requested settings
         /// </summary>
         /// <param name="settings">Connection settings to use</param>
+        /// <param name="fileValidation">Optional pre-computed file validation result (for remote connections)</param>
         /// <returns>True if connection started successfully, false otherwise</returns>
-        public async Task<bool> StartConnectionAsync(ConnectionSettings settings)
+        public async Task<bool> StartConnectionAsync(ConnectionSettings settings, FileConnectionValidation fileValidation = null)
         {
             if (settings == null)
                 throw new ArgumentNullException(nameof(settings));
@@ -135,7 +136,7 @@ namespace ReerRhinoMCPPlugin.Core
                 newConnection.StatusChanged += OnConnectionStatusChanged;
                 
                 // Start the connection
-                bool success = await newConnection.StartAsync(settings);
+                bool success = await newConnection.StartAsync(settings, fileValidation);
                 
                 if (success)
                 {
@@ -365,7 +366,7 @@ namespace ReerRhinoMCPPlugin.Core
                 var linkedFiles = ReerRhinoMCPPlugin.Instance.FileIntegrityManager.GetAllLinkedFiles();
                 var matchingFile = linkedFiles.FirstOrDefault(f => 
                     string.Equals(f.FilePath, filePath, StringComparison.Ordinal) &&
-                    f.Status == Client.FileStatus.Available);
+                    f.Status == FileStatus.Available);
                 
                 if (matchingFile != null)
                 {
@@ -424,6 +425,46 @@ namespace ReerRhinoMCPPlugin.Core
         private void OnConnectionStatusChanged(object sender, ConnectionStatusChangedEventArgs e)
         {
             StatusChanged?.Invoke(this, e);
+        }
+
+        /// <summary>
+        /// Notify server about file path change (for SaveAs operations)
+        /// </summary>
+        /// <param name="sessionId">Session ID</param>
+        /// <param name="oldPath">Previous file path</param>
+        /// <param name="newPath">New file path</param>
+        /// <param name="documentGuid">Document GUID for verification</param>
+        /// <returns>True if notification was successful</returns>
+        public async Task<bool> NotifyServerOfFilePathChangeAsync(string sessionId, string oldPath, string newPath, string documentGuid)
+        {
+            try
+            {
+                lock (lockObject)
+                {
+                    if (activeConnection == null)
+                    {
+                        Logger.Debug("No active connection for server notification");
+                        return false;
+                    }
+                }
+
+                // Only remote connections need server notification
+                var remoteConnection = activeConnection as RhinoMCPClient;
+                if (remoteConnection == null)
+                {
+                    Logger.Debug("Active connection is not remote, skipping server notification");
+                    return false;
+                }
+
+                // Use the remote client to notify server
+                var success = await remoteConnection.NotifyServerOfFilePathChangeAsync(sessionId, oldPath, newPath, documentGuid);
+                return success;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error notifying server of file path change: {ex.Message}");
+                return false;
+            }
         }
         
         /// <summary>

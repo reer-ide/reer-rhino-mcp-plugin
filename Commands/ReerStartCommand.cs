@@ -13,6 +13,7 @@ namespace ReerRhinoMCPPlugin.Commands
 {
     public class ReerStartCommand : Command
     {
+        private enum StartMenuOption { Local, Remote, Cancel }
         public ReerStartCommand() { Instance = this; }
         public static ReerStartCommand Instance { get; private set; }
         public override string EnglishName => "ReerStart";
@@ -179,94 +180,28 @@ namespace ReerRhinoMCPPlugin.Commands
             {
                 // Pre-validate file before attempting connection
                 var filePath = GetCurrentRhinoFilePath();
-                var documentGuid = DocumentGUIDHelper.GetOrCreateDocumentGUID();
+                var existingDocumentGuid = FileIntegrityManager.GetExistingDocumentGUID();
                 
-                if (!string.IsNullOrEmpty(documentGuid))
+                if (!string.IsNullOrEmpty(existingDocumentGuid))
                 {
-                    Logger.Info($"Document GUID: {documentGuid}");
+                    Logger.Info($"Found existing document GUID: {existingDocumentGuid}");
                 }
                 
-                // Perform file validation
-                var validation = await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.ValidateFileForConnectionAsync(filePath, documentGuid);
+                // Perform file validation (server will generate GUID for new files)
+                var validation = await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.ValidateFileForConnectionAsync(filePath, existingDocumentGuid);
+                
+                // Handle validation errors first
+                if (validation.ValidationError)
+                {
+                    RhinoApp.WriteLine($"File validation error: {validation.Message}");
+                    return false;
+                }
                 
                 // Handle validation scenarios that require user input
-                if (validation.RequiresUserDecision)
+                bool shouldProceedWithConnection = await HandleValidationScenarioAsync(validation, filePath, existingDocumentGuid);
+                if (!shouldProceedWithConnection)
                 {
-                    switch (validation.ValidationScenario)
-                    {
-                        case FileValidationScenario.FileReplacedNoGUID:
-                            Logger.Warning("═══════════════════════════════════════════════════");
-                            Logger.Warning("FILE CHANGE DETECTED");
-                            Logger.Warning($"File at: {filePath}");
-                            Logger.Warning($"This file has no document GUID, but a previous file with GUID was linked at this path.");
-                            Logger.Warning($"Previous file GUID: {validation.LinkedFileInfo?.DocumentGUID}");
-                            Logger.Warning("═══════════════════════════════════════════════════");
-                            
-                            // Get user confirmation on main thread (thread-safe)
-                            var tcs = new TaskCompletionSource<bool>();
-                            RhinoApp.InvokeOnUiThread(new Action(() => 
-                            {
-                                try
-                                {
-                                    var result = Rhino.UI.Dialogs.ShowMessage(
-                                        $"The file '{Path.GetFileName(filePath)}' appears to have been replaced.\n\n" +
-                                        "Do you want to continue using the existing session with this file?\n\n" +
-                                        "YES - Use this file with the existing session\n" +
-                                        "NO - Create a new session through the host application",
-                                        "File Replacement Detected",
-                                        Rhino.UI.ShowMessageButton.YesNo,
-                                        Rhino.UI.ShowMessageIcon.Question);
-                                    tcs.SetResult(result == Rhino.UI.ShowMessageResult.Yes);
-                                }
-                                catch (Exception ex)
-                                {
-                                    Logger.Error($"Error showing confirmation dialog: {ex.Message}");
-                                    tcs.SetResult(false); // Default to safe option
-                                }
-                            }));
-                            
-                            bool shouldContinue = await tcs.Task;
-                            
-                            if (shouldContinue)
-                            {
-                                Logger.Info("User confirmed to continue with existing session");
-                                // Update the linked file with new GUID
-                                var newGuid = DocumentGUIDHelper.GetOrCreateDocumentGUID();
-                                await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.RegisterLinkedFileAsync(
-                                    validation.LinkedFileInfo.SessionId, filePath, newGuid);
-                                Logger.Info($"Updated file with new GUID: {newGuid}");
-                                // Continue with connection
-                            }
-                            else
-                            {
-                                Logger.Info("User chose to create new session");
-                                Logger.Info("Please link this file through the host application");
-                                // Clean up the old linked file info
-                                await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.UnregisterLinkedFileAsync(validation.LinkedFileInfo.SessionId);
-                                return false;
-                            }
-                            break;
-                            
-                        case FileValidationScenario.FileReplaced:
-                            Logger.Warning("═══════════════════════════════════════════════════");
-                            Logger.Warning("FILE REPLACEMENT DETECTED");
-                            Logger.Warning($"A different file exists at: {filePath}");
-                            Logger.Warning($"Original session was linked to a file with GUID: {validation.LinkedFileInfo?.DocumentGUID}");
-                            Logger.Warning($"Current file has GUID: {documentGuid}");
-                            Logger.Warning("═══════════════════════════════════════════════════");
-                            Logger.Warning("This usually happens when:");
-                            Logger.Warning("- The original file was deleted and replaced with a new one");
-                            Logger.Warning("- You opened a different file with the same name");
-                            Logger.Warning("");
-                            Logger.Warning("You need to create a new session through the host application.");
-                            
-                            // Clean up the old linked file info
-                            if (validation.LinkedFileInfo != null)
-                            {
-                                await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.UnregisterLinkedFileAsync(validation.LinkedFileInfo.SessionId);
-                            }
-                            return false;
-                    }
+                    return false;
                 }
                 
                 // Use server URL based on development mode setting
@@ -281,7 +216,7 @@ namespace ReerRhinoMCPPlugin.Commands
                 };
 
                 Logger.Info($"Starting remote connection to: {serverUrl}");
-                var success = await connectionManager.StartConnectionAsync(settings);
+                var success = await connectionManager.StartConnectionAsync(settings, validation);
 
                 if (success)
                 {
@@ -296,18 +231,25 @@ namespace ReerRhinoMCPPlugin.Commands
                 }
                 else
                 {
-                    Logger.Error("✗ Failed to establish remote connection.");
-                    Logger.Error("Possible reasons:");
-                    Logger.Error("- No session exists for this file (host app must create session first)");
-                    Logger.Error("- Session has expired or been deactivated");
-                    Logger.Error("- File has been modified since session creation");
-                    Logger.Error("- License validation failed");
+                    // Error already logged by connection manager - just show user-friendly message
+                    RhinoApp.WriteLine("✗ Failed to establish remote connection.");
+                    RhinoApp.WriteLine("Check the console for details.");
                 }
                 return success;
             }
             catch (Exception ex)
             {
-                Logger.Error($"Error starting remote connection: {ex.Message}");
+                // Log only if it's not a "No session found" error (already logged)
+                if (!ex.Message.StartsWith("No session found"))
+                {
+                    Logger.Error($"Error starting remote connection: {ex.Message}");
+                }
+                else
+                {
+                    // For session not found, provide helpful guidance
+                    RhinoApp.WriteLine("✗ No session found for this file.");
+                    RhinoApp.WriteLine("Please ensure the host application has created a session first.");
+                }
                 return false;
             }
         }
@@ -345,6 +287,101 @@ namespace ReerRhinoMCPPlugin.Commands
             return getter.Get() == GetResult.String ? getter.StringResult() : null;
         }
 
-        private enum StartMenuOption { Local, Remote, Cancel }
+        /// <summary>
+        /// Handle validation scenarios that require user input
+        /// </summary>
+        /// <param name="validation">Validation result</param>
+        /// <param name="filePath">Current file path</param>
+        /// <param name="existingDocumentGuid">Existing document GUID</param>
+        /// <returns>True if connection should proceed, false otherwise</returns>
+        private async Task<bool> HandleValidationScenarioAsync(FileConnectionValidation validation, string filePath, string existingDocumentGuid)
+        {
+            switch (validation.ValidationScenario)
+            {
+                case FileValidationScenario.PerfectMatch:
+                case FileValidationScenario.NoLinkFound:
+                    // These scenarios don't require user input - let the connection logic handle them
+                    return true;
+                    
+                case FileValidationScenario.FilePathChanged:
+                    return await HandleFilePathChangedAsync(validation, filePath);
+                    
+                case FileValidationScenario.FileReplaced:
+                    return await HandleFileReplacedAsync(validation, filePath, existingDocumentGuid);
+                    
+                default:
+                    Logger.Warning($"Unknown validation scenario: {validation.ValidationScenario}");
+                    return false;
+            }
+        }
+        
+        /// <summary>
+        /// Handle file path changed scenario
+        /// </summary>
+        private async Task<bool> HandleFilePathChangedAsync(FileConnectionValidation validation, string filePath)
+        {
+            Logger.Warning("═══════════════════════════════════════════════════");
+            Logger.Warning("FILE PATH CHANGED");
+            Logger.Warning($"Original file path: {validation.LinkedFileInfo?.FilePath}");
+            Logger.Warning($"Current file path: {filePath}");
+            Logger.Warning("This usually happens when the file was moved or renamed.");
+            Logger.Warning("═══════════════════════════════════════════════════");
+            
+            var tcs = new TaskCompletionSource<bool>();
+            RhinoApp.InvokeOnUiThread(new Action(() =>
+            {
+                try
+                {
+                    var result = Rhino.UI.Dialogs.ShowMessage(
+                        $"The file path has changed. " +
+                        "Do you want to continue using the existing session with this file?\n" +
+                        "YES - Use this file with the existing session\n" +
+                        "NO - Create a new session through the host application",
+                        "File Path Change Detected",
+                        Rhino.UI.ShowMessageButton.YesNo,
+                        Rhino.UI.ShowMessageIcon.Question);
+                    tcs.SetResult(result == Rhino.UI.ShowMessageResult.Yes);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Error showing confirmation dialog: {ex.Message}");
+                    tcs.SetResult(false);
+                }
+            }));
+
+            bool shouldContinue = await tcs.Task;
+            
+            if (!shouldContinue)
+            {
+                Logger.Info("User chose to create new session");
+                Logger.Info("Please link this file through the host application");
+                // Only remove the current document's GUID, don't unregister the linked file
+                // (which would affect the file that's actually using that session)
+                FileIntegrityManager.DeleteDocumentGUID();
+            }
+            
+            return shouldContinue;
+        }
+        /// <summary>
+        /// Handle file replaced scenario
+        /// </summary>
+        private async Task<bool> HandleFileReplacedAsync(FileConnectionValidation validation, string filePath, string existingDocumentGuid)
+        {
+            Logger.Info("═══════════════════════════════════════════════════");
+            Logger.Info("FILE REPLACED - AUTO-CONNECTING");
+            Logger.Info($"File at: {filePath}");
+            Logger.Info($"Original session GUID: {validation.LinkedFileInfo?.DocumentGUID}");
+            Logger.Info($"Current file GUID: {existingDocumentGuid ?? "none"}");
+            Logger.Info("═══════════════════════════════════════════════════");
+            Logger.Info("Automatically continuing with existing session...");
+            
+            // Since the user replaced the file at the same path, they likely want to continue
+            // with the existing session. Set the document GUID to match the session.
+            FileIntegrityManager.SetDocumentGUID(validation.LinkedFileInfo.DocumentGUID);
+            Logger.Info($"Document GUID updated to match session: {validation.LinkedFileInfo.DocumentGUID}");
+            
+            // Always return true to continue with the connection
+            return await Task.FromResult(true);
+        }
     }
 }

@@ -7,6 +7,7 @@
       "type": "shell",
       "args": [
         "build",
+        "-c:Debug",
         "-clp:NoSummary",
         "${workspaceFolder}/ReerConnector.csproj"
       ],
@@ -15,7 +16,10 @@
         "reveal": "always",
         "clear": true
       },
-      "group": "build"
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
     },
     {
       "label": "build debug",

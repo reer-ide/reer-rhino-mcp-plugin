@@ -8,23 +8,43 @@ namespace ReerRhinoMCPPlugin.Core.Common
     public class ConnectionSettings
     {
         /// <summary>
-        /// Default production server URL for remote connections
+        /// Default production server WebSocket URL for remote connections
         /// </summary>
         public const string PRODUCTION_SERVER_URL = "wss://api.reer.ai/mcp";
         
         /// <summary>
-        /// Default development server URL for testing
+        /// Default production server HTTP URL for REST API calls
+        /// </summary>
+        public const string PRODUCTION_HTTP_URL = "https://api.reer.ai/mcp";
+        
+        /// <summary>
+        /// Default development server WebSocket URL for testing
         /// </summary>
         public const string DEVELOPMENT_SERVER_URL = "ws://127.0.0.1:8080";
         
         /// <summary>
-        /// Gets the appropriate server URL based on development mode setting
+        /// Default development server HTTP URL for REST API calls
         /// </summary>
-        /// <returns>Production or development server URL</returns>
+        public const string DEVELOPMENT_HTTP_URL = "http://127.0.0.1:8080";
+        
+        /// <summary>
+        /// Gets the appropriate WebSocket server URL based on development mode setting
+        /// </summary>
+        /// <returns>Production or development WebSocket server URL</returns>
         public static string GetServerUrl()
         {
             var settings = ReerRhinoMCPPlugin.Instance?.MCPSettings;
             return settings?.DevelopmentMode == true ? DEVELOPMENT_SERVER_URL : PRODUCTION_SERVER_URL;
+        }
+        
+        /// <summary>
+        /// Gets the appropriate HTTP server URL based on development mode setting
+        /// </summary>
+        /// <returns>Production or development HTTP server URL</returns>
+        public static string GetHttpServerUrl()
+        {
+            var settings = ReerRhinoMCPPlugin.Instance?.MCPSettings;
+            return settings?.DevelopmentMode == true ? DEVELOPMENT_HTTP_URL : PRODUCTION_HTTP_URL;
         }
         
         /// <summary>
@@ -49,6 +69,20 @@ namespace ReerRhinoMCPPlugin.Core.Common
         /// For Local mode: Not used
         /// </summary>
         public string RemoteUrl { get; set; }
+        
+        /// <summary>
+        /// Gets the HTTP URL for REST API calls (derived from RemoteUrl)
+        /// </summary>
+        public string RemoteHttpUrl 
+        {
+            get 
+            {
+                if (string.IsNullOrEmpty(RemoteUrl))
+                    return null;
+                    
+                return RemoteUrl.Replace("ws://", "http://").Replace("wss://", "https://");
+            }
+        }
         
         /// <summary>
         /// Connection timeout in milliseconds (default: 30 seconds)

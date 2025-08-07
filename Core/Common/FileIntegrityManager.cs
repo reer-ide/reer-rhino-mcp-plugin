@@ -5,17 +5,107 @@ using System.Threading.Tasks;
 using System.Linq;
 using Newtonsoft.Json;
 using Rhino;
-using ReerRhinoMCPPlugin.Core.Common;
+using Rhino.DocObjects;
+using ReerRhinoMCPPlugin.Core.Client;
 
-namespace ReerRhinoMCPPlugin.Core.Client
+namespace ReerRhinoMCPPlugin.Core.Common
 {
+    /// <summary>
+    /// Information about a linked file
+    /// </summary>
+    public class LinkedFileInfo
+    {
+        public string SessionId { get; set; }
+        public string DocumentGUID { get; set; }  // NEW: Persistent document identifier
+        public string FilePath { get; set; }
+        public string OriginalPath { get; set; }  // Path when first registered
+        public long FileSize { get; set; }
+        public DateTime LastModified { get; set; }
+        public DateTime RegisteredAt { get; set; }
+        public DateTime LastChecked { get; set; }
+        public FileStatus Status { get; set; }
+    }
+
+    /// <summary>
+    /// File status enumeration
+    /// </summary>
+    public enum FileStatus
+    {
+        Available,
+        Missing,
+        Modified,
+        Moved,
+        PathChanged  // NEW: Path changed but GUID matches
+    }
+
+    /// <summary>
+    /// File status change notification
+    /// </summary>
+    public class FileStatusChange
+    {
+        public string SessionId { get; set; }
+        public string FilePath { get; set; }
+        public FileStatus OldStatus { get; set; }
+        public FileStatus NewStatus { get; set; }
+        public string Message { get; set; }
+    }
+
+
+    /// <summary>
+    /// Comprehensive file connection validation result
+    /// </summary>
+    public class FileConnectionValidation
+    {
+        public string FilePath { get; set; }
+        public string DocumentGUID { get; set; }
+        public string SessionId { get; set; }
+        public bool IsValid { get; set; }
+        public string Message { get; set; }
+        public LinkedFileInfo LinkedFileInfo { get; set; }
+        public FileValidationScenario ValidationScenario { get; set; }
+        public bool ValidationError { get; set; } = false;
+        public bool RequiresUserDecision { get; set; }
+    }
+
+    /// <summary>
+    /// File validation scenarios
+    /// </summary>
+    public enum FileValidationScenario
+    {
+        PerfectMatch,        // GUID and path both match
+        FilePathChanged,     // GUID matches but path changed (file moved/renamed)
+        FileReplaced,       // Path matches but GUID different or no GUID (file was replaced)
+        NoLinkFound,        // No existing link found, file is new or could have has some other GUID
+    }
+
+    /// <summary>
+    /// Document information for SaveAs detection
+    /// </summary>
+    public class DocumentInfo
+    {
+        public string FilePath { get; set; }
+        public string DocumentGuid { get; set; }
+        public string Name { get; set; }
+    }
+
+    /// <summary>
+    /// Event arguments for SaveAs detection
+    /// </summary>
+    public class SaveAsDetectedEventArgs : EventArgs
+    {
+        public string DocumentGuid { get; set; }
+        public string OldFilePath { get; set; }
+        public string NewFilePath { get; set; }
+        public LinkedFileInfo LinkedFileInfo { get; set; }
+    }
+
     /// <summary>
     /// Manages file integrity checking and monitoring for linked Rhino files
     /// </summary>
     public class FileIntegrityManager
     {
         private const string LINKED_FILES_STORAGE_KEY = "linked_files";
-        
+
         private readonly Dictionary<string, LinkedFileInfo> linkedFiles;
         private readonly object lockObject = new object();
 
@@ -74,6 +164,12 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 lock (lockObject)
                 {
                     linkedFiles[sessionId] = linkedFile;
+                }
+
+                // Set GUID in document if provided (server-generated GUID)
+                if (!string.IsNullOrEmpty(documentGUID))
+                {
+                    SetDocumentGUID(documentGUID);
                 }
 
                 await SaveLinkedFiles();
@@ -145,106 +241,6 @@ namespace ReerRhinoMCPPlugin.Core.Client
         }
 
         /// <summary>
-        /// Check if a specific file is still valid for reconnection
-        /// </summary>
-        /// <param name="sessionId">Session ID</param>
-        /// <param name="expectedFilePath">Expected file path</param>
-        /// <returns>File validation result</returns>
-        public async Task<FileValidationResult> ValidateFileForReconnectionAsync(string sessionId, string expectedFilePath)
-        {
-            try
-            {
-                var result = new FileValidationResult
-                {
-                    SessionId = sessionId,
-                    ExpectedPath = expectedFilePath
-                };
-
-                // Get linked file info
-                LinkedFileInfo linkedFile = null;
-                lock (lockObject)
-                {
-                    linkedFiles.TryGetValue(sessionId, out linkedFile);
-                }
-
-                if (linkedFile == null)
-                {
-                    result.IsValid = false;
-                    result.Issue = FileValidationIssue.SessionNotFound;
-                    result.Message = "No linked file information found for this session";
-                    return result;
-                }
-
-                // First check: File exists at expected location
-                if (!File.Exists(expectedFilePath))
-                {
-                    result.IsValid = false;
-                    result.Issue = FileValidationIssue.FileNotFound;
-                    result.Message = $"File not found at expected location: {expectedFilePath}";
-                    result.LinkedFileInfo = linkedFile;
-                    return result;
-                }
-
-                // Get current document GUID
-                var currentDocumentGuid = DocumentGUIDHelper.GetExistingDocumentGUID();
-                
-                // Check GUID match
-                if (!string.IsNullOrEmpty(linkedFile.DocumentGUID))
-                {
-                    if (currentDocumentGuid != linkedFile.DocumentGUID)
-                    {
-                        result.IsValid = false;
-                        result.Issue = FileValidationIssue.GUIDMismatch;
-                        result.Message = "Document GUID does not match. This might be a different file.";
-                        result.LinkedFileInfo = linkedFile;
-                        result.CurrentDocumentGUID = currentDocumentGuid;
-                        return result;
-                    }
-                }
-
-                // Check file modifications
-                var lastModified = File.GetLastWriteTime(expectedFilePath);
-                var currentSize = GetFileSize(expectedFilePath);
-
-                if (lastModified != linkedFile.LastModified || currentSize != linkedFile.FileSize)
-                {
-                    result.IsValid = true; // Still valid but modified
-                    result.Issue = FileValidationIssue.FileModified;
-                    result.Message = "File has been modified since last connection";
-                    result.LinkedFileInfo = linkedFile;
-                    
-                    // Update the linked file info
-                    linkedFile.LastModified = lastModified;
-                    linkedFile.FileSize = currentSize;
-                    linkedFile.Status = FileStatus.Modified;
-                    await SaveLinkedFiles();
-                }
-                else
-                {
-                    result.IsValid = true;
-                    result.Message = "File validation successful";
-                }
-
-                result.CurrentPath = expectedFilePath;
-                result.LinkedFileInfo = linkedFile;
-                result.CurrentDocumentGUID = currentDocumentGuid;
-                
-                return result;
-            }
-            catch (Exception ex)
-            {
-                return new FileValidationResult
-                {
-                    SessionId = sessionId,
-                    ExpectedPath = expectedFilePath,
-                    IsValid = false,
-                    Issue = FileValidationIssue.ValidationError,
-                    Message = $"Error during file validation: {ex.Message}"
-                };
-            }
-        }
-
-        /// <summary>
         /// Remove a linked file from tracking
         /// </summary>
         /// <param name="sessionId">Session ID</param>
@@ -295,21 +291,21 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// Validate file for connection with comprehensive checks
         /// </summary>
         /// <param name="filePath">Current file path</param>
-        /// <param name="documentGuid">Current document GUID</param>
+        /// <param name="documentGuid">Current document GUID if exists</param>
         /// <returns>Comprehensive validation result with recommendations</returns>
-        public Task<FileConnectionValidation> ValidateFileForConnectionAsync(string filePath, string documentGuid)
+        public Task<FileConnectionValidation> ValidateFileForConnectionAsync(string filePath, string documentGuid = null)
         {
             if (string.IsNullOrWhiteSpace(filePath))
             {
                 return Task.FromResult(new FileConnectionValidation
                 {
                     IsValid = false,
-                    ValidationScenario = FileValidationScenario.ValidationError,
+                    ValidationError = true,
                     Message = "File path cannot be null or empty",
                     FilePath = filePath
                 });
             }
-            
+
             var validation = new FileConnectionValidation
             {
                 FilePath = filePath,
@@ -342,59 +338,37 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 // Case 2: GUID matches but path changed (file moved/renamed)
                 if (linkedByGuid != null && linkedByGuid.FilePath != filePath)
                 {
-                    validation.IsValid = true;
+                    validation.IsValid = false;
                     validation.SessionId = linkedByGuid.SessionId;
                     validation.LinkedFileInfo = linkedByGuid;
                     validation.ValidationScenario = FileValidationScenario.FilePathChanged;
                     validation.Message = "Document GUID matches but file path has changed. File was likely moved or renamed.";
-                    validation.RequiresUpdate = true;
+                    validation.RequiresUserDecision = true;
                     return Task.FromResult(validation);
                 }
 
-                // Case 3: Path matches but no GUID in linked file (legacy file)
-                if (linkedByPath != null && string.IsNullOrEmpty(linkedByPath.DocumentGUID))
+                // Case 3: Path matches but GUID is different or missing (file replaced)
+                if (linkedByPath != null && linkedByPath.DocumentGUID != documentGuid)
                 {
-                    validation.IsValid = true;
+                    validation.IsValid = false;
+                    validation.LinkedFileInfo = linkedByPath;
                     validation.SessionId = linkedByPath.SessionId;
-                    validation.LinkedFileInfo = linkedByPath;
-                    validation.ValidationScenario = FileValidationScenario.LegacyFile;
-                    validation.Message = "File path matches but no document GUID found. This is a legacy linked file.";
-                    validation.RequiresUpdate = true;
-                    return Task.FromResult(validation);
-                }
-
-                // Case 4: Path matches, linked file has GUID, but current file has no GUID (likely replaced)
-                if (linkedByPath != null && !string.IsNullOrEmpty(linkedByPath.DocumentGUID) && string.IsNullOrEmpty(documentGuid))
-                {
-                    validation.IsValid = false;
-                    validation.LinkedFileInfo = linkedByPath;
-                    validation.ValidationScenario = FileValidationScenario.FileReplacedNoGUID;
-                    validation.Message = "File at this path has no GUID but a previous file with GUID was linked here. The file was likely replaced.";
-                    validation.RequiresUserDecision = true;
-                    return Task.FromResult(validation);
-                }
-
-                // Case 5: Path matches but GUID different (file replaced)
-                if (linkedByPath != null && !string.IsNullOrEmpty(documentGuid) && linkedByPath.DocumentGUID != documentGuid)
-                {
-                    validation.IsValid = false;
-                    validation.LinkedFileInfo = linkedByPath;
                     validation.ValidationScenario = FileValidationScenario.FileReplaced;
-                    validation.Message = "A different file exists at this path. The original file may have been replaced.";
-                    validation.RequiresUserDecision = true;
+                    validation.Message = "File at this path has been replaced. The file was likely deleted and a new one was placed at the same location.";
+                    validation.RequiresUserDecision = false; // Auto-connect, user's intent is clear
                     return Task.FromResult(validation);
                 }
 
-                // Case 6: No existing link found
-                validation.IsValid = false;
+                // Case 4: No existing link found - should try server connection
+                validation.IsValid = true; // Let connection logic handle this
                 validation.ValidationScenario = FileValidationScenario.NoLinkFound;
-                validation.Message = "No existing session found for this file. A new session must be created through the host application.";
+                validation.Message = "No existing local link found. Will attempt to connect to server session.";
                 return Task.FromResult(validation);
             }
             catch (Exception ex)
             {
                 validation.IsValid = false;
-                validation.ValidationScenario = FileValidationScenario.ValidationError;
+                validation.ValidationError = true;
                 validation.Message = $"Error during file validation: {ex.Message}";
                 return Task.FromResult(validation);
             }
@@ -413,12 +387,77 @@ namespace ReerRhinoMCPPlugin.Core.Client
             lock (lockObject)
             {
                 // Use case-insensitive comparison for Windows compatibility
-                var comparison = Environment.OSVersion.Platform == PlatformID.Win32NT 
-                    ? StringComparison.OrdinalIgnoreCase 
+                var comparison = System.Environment.OSVersion.Platform == PlatformID.Win32NT
+                    ? StringComparison.OrdinalIgnoreCase
                     : StringComparison.Ordinal;
-                    
-                return linkedFiles.Values.Where(f => 
+
+                return linkedFiles.Values.Where(f =>
                     string.Equals(f.FilePath, filePath, comparison)).ToList();
+            }
+        }
+
+        /// <summary>
+        /// Check if a document GUID has an active session
+        /// </summary>
+        /// <param name="documentGuid">Document GUID to check</param>
+        /// <returns>LinkedFileInfo if found, null otherwise</returns>
+        public LinkedFileInfo GetLinkedFileByGUID(string documentGuid)
+        {
+            if (string.IsNullOrEmpty(documentGuid))
+                return null;
+
+            Logger.Debug($"Looking for linked file with GUID: {documentGuid}");
+            
+            // Debug: List all linked files
+            lock (lockObject)
+            {
+                Logger.Debug($"Currently have {linkedFiles.Count} linked files:");
+                foreach (var kvp in linkedFiles)
+                {
+                    var file = kvp.Value;
+                    Logger.Debug($"  Session {kvp.Key}: GUID={file.DocumentGUID}, Path={file.FilePath}");
+                }
+            }
+
+            return FindFileByGUID(documentGuid);
+        }
+
+        /// <summary>
+        /// Update session file path (called by plugin after user decision)
+        /// </summary>
+        /// <param name="sessionId">Session ID</param>
+        /// <param name="newPath">New file path</param>
+        /// <returns>True if updated successfully</returns>
+        public async Task<bool> UpdateSessionFilePathAsync(string sessionId, string newPath)
+        {
+            try
+            {
+                LinkedFileInfo linkedFile = null;
+                lock (lockObject)
+                {
+                    if (!linkedFiles.TryGetValue(sessionId, out linkedFile))
+                    {
+                        Logger.Warning($"Session {sessionId} not found for file path update");
+                        return false;
+                    }
+
+                    // Update the linked file information
+                    linkedFile.FilePath = newPath;
+                    linkedFile.FileSize = GetFileSize(newPath);
+                    linkedFile.LastModified = File.Exists(newPath) ? File.GetLastWriteTime(newPath) : DateTime.MinValue;
+                    linkedFile.Status = File.Exists(newPath) ? FileStatus.PathChanged : FileStatus.Missing;
+                    linkedFile.LastChecked = DateTime.Now;
+                }
+
+                await SaveLinkedFiles();
+
+                Logger.Success($"Session {sessionId} file path updated to: {Path.GetFileName(newPath)}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error updating session file path: {ex.Message}");
+                return false;
             }
         }
 
@@ -435,40 +474,20 @@ namespace ReerRhinoMCPPlugin.Core.Client
             await SaveLinkedFiles();
             Logger.Info("All linked files cleared");
         }
-        
+
         /// <summary>
-        /// Clean up expired sessions (sessions older than specified hours)
-        /// Note: Session expiration is now managed by the remote server (30 days)
-        /// This method is kept for manual cleanup only
+        /// Dispose of resources
         /// </summary>
-        /// <param name="expiredHours">Number of hours after which a session is considered expired</param>
-        /// <returns>Number of sessions cleaned up</returns>
-        public async Task<int> CleanupExpiredSessionsAsync(int expiredHours = 720) // 30 days = 720 hours
+        public void Dispose()
         {
-            var expiredSessions = new List<string>();
-            var cutoffTime = DateTime.Now.AddHours(-expiredHours);
-            
-            lock (lockObject)
+            try
             {
-                foreach (var kvp in linkedFiles.ToList())
-                {
-                    var linkedFile = kvp.Value;
-                    // Consider a session expired if it's older than the cutoff time
-                    if (linkedFile.RegisteredAt < cutoffTime)
-                    {
-                        expiredSessions.Add(kvp.Key);
-                        linkedFiles.Remove(kvp.Key);
-                    }
-                }
+                Logger.Debug("FileIntegrityManager disposed successfully");
             }
-            
-            if (expiredSessions.Any())
+            catch (Exception ex)
             {
-                await SaveLinkedFiles();
-                Logger.Info($"Cleaned up {expiredSessions.Count} expired sessions");
+                Logger.Error($"Error disposing FileIntegrityManager: {ex.Message}");
             }
-            
-            return expiredSessions.Count;
         }
 
         private FileStatus GetCurrentFileStatus(string filePath)
@@ -492,29 +511,6 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
         }
 
-        /// <summary>
-        /// Clears all stored session information for a fresh start
-        /// </summary>
-        /// <returns>Task representing the async operation</returns>
-        public async Task ClearAllSessionsAsync()
-        {
-            try
-            {
-                lock (lockObject)
-                {
-                    linkedFiles.Clear();
-                }
-
-                await SaveLinkedFiles();
-                Logger.Info("All session data cleared");
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error clearing session data: {ex.Message}");
-                throw;
-            }
-        }
-
         private async Task SaveLinkedFiles()
         {
             try
@@ -533,7 +529,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
             try
             {
                 var fileList = await CrossPlatformStorage.RetrieveDataAsync<List<LinkedFileInfo>>(LINKED_FILES_STORAGE_KEY);
-                
+
                 if (fileList != null)
                 {
                     lock (lockObject)
@@ -554,103 +550,122 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
         }
 
+        #region GUID Management
+
+        private const string DOCUMENT_GUID_KEY = "REER_MCP_DOCUMENT_ID";
+
+        /// <summary>
+        /// Get existing document GUID without creating a new one
+        /// </summary>
+        /// <param name="doc">Rhino document (null for active document)</param>
+        /// <returns>Document GUID string or null if not found</returns>
+        public static string GetExistingDocumentGUID(RhinoDoc doc = null)
+        {
+            doc = doc ?? RhinoDoc.ActiveDoc;
+            if (doc == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                var guid = doc.Strings.GetValue(DOCUMENT_GUID_KEY);
+                return string.IsNullOrEmpty(guid) ? null : guid;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error getting document GUID: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Set document GUID (from server-provided GUID)
+        /// </summary>
+        /// <param name="documentGuid">GUID to set</param>
+        /// <param name="doc">Rhino document (null for active document)</param>
+        /// <returns>True if successful</returns>
+        public static bool SetDocumentGUID(string documentGuid, RhinoDoc doc = null)
+        {
+            if (string.IsNullOrEmpty(documentGuid))
+                return false;
+
+            doc = doc ?? RhinoDoc.ActiveDoc;
+            if (doc == null)
+                return false;
+
+            try
+            {
+                doc.Strings.SetString(DOCUMENT_GUID_KEY, documentGuid);
+                Logger.Info($"Set document GUID: {documentGuid}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error setting document GUID: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Delete document GUID 
+        /// </summary>
+        /// <param name="doc">Rhino document (null for active document)</param>
+        /// <returns>True if successful</returns>
+        public static bool DeleteDocumentGUID(RhinoDoc doc = null)
+        {
+            doc = doc ?? RhinoDoc.ActiveDoc;
+            if (doc == null)
+                return false;
+            try
+            {
+                doc.Strings.Delete(DOCUMENT_GUID_KEY);
+                Logger.Info($"Deleted document GUID");
+                return true;
+            }catch (Exception ex)
+            {
+                Logger.Error($"Error deleting document GUID: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Check if current document has a different GUID than expected
+        /// </summary>
+        /// <param name="expectedGuid">Expected GUID</param>
+        /// <returns>True if GUID differs or is missing</returns>
+        public static bool HasDifferentGUID(string expectedGuid)
+        {
+            if (string.IsNullOrEmpty(expectedGuid))
+                return false;
+
+            var currentGuid = GetExistingDocumentGUID();
+            return currentGuid != expectedGuid;
+        }
+
+        /// <summary>
+        /// Clear the document GUID (for testing/debugging)
+        /// </summary>
+        /// <param name="doc">Rhino document (null for active document)</param>
+        public static void ClearDocumentGUID(RhinoDoc doc = null)
+        {
+            doc = doc ?? RhinoDoc.ActiveDoc;
+            if (doc == null)
+                return;
+
+            try
+            {
+                doc.Strings.Delete(DOCUMENT_GUID_KEY);
+                Logger.Info($"Cleared document GUID for {doc.Name}");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error clearing document GUID: {ex.Message}");
+            }
+        }
+
+        #endregion
+
     }
 
-    /// <summary>
-    /// Information about a linked file
-    /// </summary>
-    public class LinkedFileInfo
-    {
-        public string SessionId { get; set; }
-        public string DocumentGUID { get; set; }  // NEW: Persistent document identifier
-        public string FilePath { get; set; }
-        public string OriginalPath { get; set; }  // Path when first registered
-        public long FileSize { get; set; }
-        public DateTime LastModified { get; set; }
-        public DateTime RegisteredAt { get; set; }
-        public DateTime LastChecked { get; set; }
-        public FileStatus Status { get; set; }
-    }
-
-    /// <summary>
-    /// File status enumeration
-    /// </summary>
-    public enum FileStatus
-    {
-        Available,
-        Missing,
-        Modified,
-        Moved,
-        PathChanged  // NEW: Path changed but GUID matches
-    }
-
-    /// <summary>
-    /// File status change notification
-    /// </summary>
-    public class FileStatusChange
-    {
-        public string SessionId { get; set; }
-        public string FilePath { get; set; }
-        public FileStatus OldStatus { get; set; }
-        public FileStatus NewStatus { get; set; }
-        public string Message { get; set; }
-    }
-
-    /// <summary>
-    /// File validation result
-    /// </summary>
-    public class FileValidationResult
-    {
-        public string SessionId { get; set; }
-        public string ExpectedPath { get; set; }
-        public string CurrentPath { get; set; }
-        public string CurrentDocumentGUID { get; set; }
-        public bool IsValid { get; set; }
-        public FileValidationIssue Issue { get; set; }
-        public string Message { get; set; }
-        public LinkedFileInfo LinkedFileInfo { get; set; }
-    }
-
-    /// <summary>
-    /// File validation issues
-    /// </summary>
-    public enum FileValidationIssue
-    {
-        None,
-        FileNotFound,
-        FileModified,
-        GUIDMismatch,
-        SessionNotFound,
-        ValidationError
-    }
-
-    /// <summary>
-    /// Comprehensive file connection validation result
-    /// </summary>
-    public class FileConnectionValidation
-    {
-        public string FilePath { get; set; }
-        public string DocumentGUID { get; set; }
-        public string SessionId { get; set; }
-        public bool IsValid { get; set; }
-        public string Message { get; set; }
-        public LinkedFileInfo LinkedFileInfo { get; set; }
-        public FileValidationScenario ValidationScenario { get; set; }
-        public bool RequiresUpdate { get; set; }
-        public bool RequiresUserDecision { get; set; }
-    }
-
-    /// <summary>
-    /// File validation scenarios
-    /// </summary>
-    public enum FileValidationScenario
-    {
-        PerfectMatch,        // GUID and path both match
-        FilePathChanged,     // GUID matches but path changed (file moved/renamed)
-        LegacyFile,         // Path matches but no GUID in linked file (pre-GUID implementation)
-        FileReplacedNoGUID, // Path matches, linked has GUID, current has no GUID (file replaced)
-        FileReplaced,       // Path matches but GUID different (file was replaced)
-        NoLinkFound,        // No existing link found
-        ValidationError     // Error during validation
-    }
 } 

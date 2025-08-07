@@ -59,7 +59,7 @@ namespace ReerRhinoMCPPlugin.Core.Server
         /// </summary>
         /// <param name="settings">Connection settings to use</param>
         /// <returns>True if connection started successfully, false otherwise</returns>
-        public async Task<bool> StartAsync(ConnectionSettings settings)
+        public async Task<bool> StartAsync(ConnectionSettings settings, FileConnectionValidation fileValidation = null)
         {
             if (settings == null || settings.Mode != ConnectionMode.Local)
                 return false;

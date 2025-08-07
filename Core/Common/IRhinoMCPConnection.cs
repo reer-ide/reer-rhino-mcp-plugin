@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using ReerRhinoMCPPlugin.Core.Client;
 
 namespace ReerRhinoMCPPlugin.Core.Common
 {
@@ -27,8 +28,9 @@ namespace ReerRhinoMCPPlugin.Core.Common
         /// Starts the connection with the specified settings
         /// </summary>
         /// <param name="settings">Connection settings to use</param>
+        /// <param name="fileValidation">Optional pre-computed file validation result</param>
         /// <returns>True if connection started successfully, false otherwise</returns>
-        Task<bool> StartAsync(ConnectionSettings settings);
+        Task<bool> StartAsync(ConnectionSettings settings, FileConnectionValidation fileValidation);
         
         /// <summary>
         /// Stops the connection and cleans up resources

@@ -11,7 +11,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Rhino;
 using ReerRhinoMCPPlugin.Core.Common;
-using ReerRhinoMCPPlugin.Core;
 
 namespace ReerRhinoMCPPlugin.Core.Client
 {
@@ -53,6 +52,17 @@ namespace ReerRhinoMCPPlugin.Core.Client
         private string licenseId;
         private string currentFilePath;
 
+        /// <summary>
+        /// Information about an existing session that can be reused
+        /// </summary>
+        public class ExistingSessionInfo
+        {
+            public string SessionId { get; set; }
+            public string InstanceId { get; set; }
+            public string WebSocketUrl { get; set; }
+            public string DocumentGuid { get; set; }  // Server-managed document GUID
+        }
+
         public RhinoMCPClient()
         {
             toolExecutor = new ToolExecutor();
@@ -67,7 +77,6 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// Indicates whether the connection is currently active
         /// </summary>
         public bool IsConnected => Status == ConnectionStatus.Connected;
-        
         
         /// <summary>
         /// The connection settings being used
@@ -85,37 +94,6 @@ namespace ReerRhinoMCPPlugin.Core.Client
         public string CurrentFilePath => currentFilePath;
         
         /// <summary>
-        /// Check if the current session is still valid on the server
-        /// </summary>
-        /// <returns>True if session is valid and active, false otherwise</returns>
-        public async Task<bool> IsCurrentSessionValidAsync()
-        {
-            if (string.IsNullOrEmpty(sessionId) || Settings?.RemoteUrl == null)
-                return false;
-                
-            try
-            {
-                var response = await httpClient.GetAsync($"{Settings.RemoteUrl}/sessions/{sessionId}/status");
-                if (response.IsSuccessStatusCode)
-                {
-                    var statusData = await response.Content.ReadAsStringAsync();
-                    var sessionStatus = JsonConvert.DeserializeObject<JObject>(statusData);
-                    var serverStatus = sessionStatus["status"]?.ToString();
-                    var serverInstanceId = sessionStatus["instance_id"]?.ToString();
-                    
-                    // Session is valid if it's active and has our instance ID
-                    return serverStatus == "active" && serverInstanceId == instanceId;
-                }
-                return false;
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"Could not validate session status: {ex.Message}");
-                return false;
-            }
-        }
-        
-        /// <summary>
         /// Event fired when a command is received from a client
         /// </summary>
 #pragma warning disable CS0067 // Event is never used - will be implemented when WebSocket client is added
@@ -128,52 +106,18 @@ namespace ReerRhinoMCPPlugin.Core.Client
         public event EventHandler<ConnectionStatusChangedEventArgs> StatusChanged;
         
         
-        /// <summary>
-        /// Send file status updates to the remote server
-        /// </summary>
-        /// <param name="statusChanges">List of status changes to report</param>
-        public async Task ReportFileStatusChangesAsync(List<FileStatusChange> statusChanges)
-        {
-            if (!statusChanges.Any() || status != ConnectionStatus.Connected)
-                return;
-                
-            try
-            {
-                var notification = new
-                {
-                    type = "file_status_update",
-                    license_id = licenseId,
-                    status_changes = statusChanges.Select(sc => new
-                    {
-                        session_id = sc.SessionId,
-                        file_path = sc.FilePath,
-                        old_status = sc.OldStatus.ToString(),
-                        new_status = sc.NewStatus.ToString(),
-                        message = sc.Message,
-                        timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-                    })
-                };
-                
-                await SendResponseAsync(JsonConvert.SerializeObject(notification));
-                
-                Logger.Info($"Reported {statusChanges.Count} file status changes to server");
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error reporting file status changes: {ex.Message}");
-            }
-        }
-        
+#region connection management
         /// <summary>
         /// Starts the connection with the specified settings
         /// </summary>
         /// <param name="settings">Connection settings to use</param>
+        /// <param name="fileValidation">Optional pre-computed file validation result to avoid duplicate validation</param>
         /// <returns>True if connection started successfully, false otherwise</returns>
-        public async Task<bool> StartAsync(ConnectionSettings settings)
+        public async Task<bool> StartAsync(ConnectionSettings settings, FileConnectionValidation fileValidation)
         {
             if (settings == null || settings.Mode != ConnectionMode.Remote)
                 return false;
-                
+
             if (disposed)
                 throw new ObjectDisposedException(nameof(RhinoMCPClient));
 
@@ -199,12 +143,12 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 {
                     throw new Exception($"License validation failed: {licenseValidation.Message}");
                 }
-                
+
                 licenseId = licenseValidation.LicenseId;
                 Logger.Success($"✓ License validated: {licenseId} (Tier: {licenseValidation.Tier})");
 
                 // Step 2: Connect to existing session on remote server
-                string websocketUrl = await ConnectToSessionAsync(licenseValidation);
+                string websocketUrl = await ConnectToSessionAsync(licenseValidation, fileValidation);
                 if (string.IsNullOrEmpty(websocketUrl))
                 {
                     throw new Exception("Failed to connect to existing session or get WebSocket URL");
@@ -212,18 +156,18 @@ namespace ReerRhinoMCPPlugin.Core.Client
 
                 // Step 3: Connect to WebSocket with timeout and retry logic
                 webSocket = new ClientWebSocket();
-                
+
                 // Cross-platform compatible connection timeout
                 var connectTimeout = TimeSpan.FromSeconds(30);
                 var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token);
                 connectCts.CancelAfter(connectTimeout);
-                
+
                 var uri = new Uri(websocketUrl);
-                
+
                 // Retry logic for connection
                 int maxRetries = 3;
                 int retryDelay = 1000; // Start with 1 second
-                
+
                 for (int attempt = 0; attempt < maxRetries; attempt++)
                 {
                     try
@@ -240,11 +184,11 @@ namespace ReerRhinoMCPPlugin.Core.Client
                         Logger.Warning($"Connection attempt {attempt + 1} failed: {ex.Message}. Retrying in {retryDelay}ms...");
                         await Task.Delay(retryDelay, cancellationTokenSource.Token);
                         retryDelay *= 2; // Exponential backoff
-                        
+
                         // Create new WebSocket for retry (cross-platform best practice)
                         webSocket?.Dispose();
                         webSocket = new ClientWebSocket();
-                        
+
                         // Reset timeout for next attempt
                         connectCts?.Dispose();
                         connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationTokenSource.Token);
@@ -266,8 +210,19 @@ namespace ReerRhinoMCPPlugin.Core.Client
             {
                 Status = ConnectionStatus.Failed;
 
-                OnStatusChanged(ConnectionStatus.Failed, $"Failed to connect WebSocket client: {ex.Message}", ex);
-                Logger.Error($"✗ Failed to connect RhinoMCP WebSocket client: {ex.Message}");
+                // Consolidate error message - avoid duplicate logging
+                string errorMessage = ex.Message;
+                if (errorMessage.StartsWith("No session found"))
+                {
+                    // Add detailed help for session not found errors
+                    errorMessage = $"{ex.Message}\nPossible reasons:\n" +
+                        "• Host application hasn't created a session for this file\n" +
+                        "• Session has expired or been deactivated\n" +
+                        "• File has been modified since session creation\n" +
+                        "• License validation failed";
+                }
+                OnStatusChanged(ConnectionStatus.Failed, errorMessage, ex);
+                Logger.Error($"✗ Failed to connect: {ex.Message}");
 
                 await CleanupAsync();
                 return false;
@@ -316,195 +271,141 @@ namespace ReerRhinoMCPPlugin.Core.Client
         }
         
         /// <summary>
-        /// Sends a response back to the client
+        /// Check if the current session is still valid on the server
         /// </summary>
-        /// <param name="responseJson">JSON response to send</param>
-        /// <param name="clientId">ID of the client to send to (for multi-client scenarios)</param>
-        /// <returns>True if response was sent successfully, false otherwise</returns>
-        public async Task<bool> SendResponseAsync(string responseJson, string clientId = null)
+        /// <returns>True if session is valid and active, false otherwise</returns>
+        public async Task<bool> IsCurrentSessionValidAsync()
         {
-            if (string.IsNullOrEmpty(responseJson) || webSocket?.State != WebSocketState.Open)
+            if (string.IsNullOrEmpty(sessionId) || Settings?.RemoteUrl == null)
                 return false;
-
+                
             try
             {
-                var buffer = Encoding.UTF8.GetBytes(responseJson);
-                await webSocket.SendAsync(
-                    new ArraySegment<byte>(buffer),
-                    WebSocketMessageType.Text,
-                    true,
-                    cancellationTokenSource.Token);
-                
-                return true;
+                var response = await httpClient.GetAsync($"{Settings.RemoteHttpUrl}/sessions/{sessionId}/status");
+                if (response.IsSuccessStatusCode)
+                {
+                    var statusData = await response.Content.ReadAsStringAsync();
+                    var sessionStatus = JsonConvert.DeserializeObject<JObject>(statusData);
+                    var serverStatus = sessionStatus["status"]?.ToString();
+                    var serverInstanceId = sessionStatus["instance_id"]?.ToString();
+                    
+                    // Session is valid if it's active and has our instance ID
+                    return serverStatus == "active" && serverInstanceId == instanceId;
+                }
+                return false;
             }
             catch (Exception ex)
             {
-                Logger.Error($"Error sending WebSocket response: {ex.Message}");
+                Logger.Warning($"Could not validate session status: {ex.Message}");
                 return false;
             }
         }
 
+
         /// <summary>
-        /// Connects to an existing session on the remote server that was created by the host app
-        /// Session must already exist - plugin cannot create sessions
+        /// Connects to an existing session on the remote server based on file validation
         /// </summary>
-        private async Task<string> ConnectToSessionAsync(LicenseValidationResult licenseInfo)
+        private async Task<string> ConnectToSessionAsync(LicenseValidationResult licenseInfo, FileConnectionValidation fileValidation)
         {
             try
             {
                 // Get current file path
                 currentFilePath = GetCurrentRhinoFilePath();
-                
                 Logger.Info($"Connecting to existing session for file: {Path.GetFileName(currentFilePath)}");
                 
-                // Try to connect to existing session
-                var connectionResult = await TryConnectToExistingSessionAsync(licenseInfo, currentFilePath);
-                if (connectionResult != null)
+                // Determine connection parameters based on validation scenario
+                string searchSessionId = null;
+                string searchDocumentGuid = null; 
+                string searchFilePath = null;
+                
+                switch (fileValidation.ValidationScenario)
                 {
-                    Logger.Success($"✓ Connected to existing session - ID: {connectionResult.SessionId}");
-                    sessionId = connectionResult.SessionId;
-                    instanceId = connectionResult.InstanceId;
-                    
-                    // Update local cache with session info including document GUID
-                    var documentGuid = DocumentGUIDHelper.GetOrCreateDocumentGUID();
-                    await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.RegisterLinkedFileAsync(sessionId, currentFilePath, documentGuid);
-                    
-                    return connectionResult.WebSocketUrl;
+                    case FileValidationScenario.PerfectMatch:
+                        Logger.Info("File validation passed - perfect match found");
+                        searchSessionId = fileValidation.SessionId;
+                        break;
+                        
+                    case FileValidationScenario.FilePathChanged:
+                        Logger.Info($"File has been moved/renamed. Original: {fileValidation.LinkedFileInfo.FilePath}, Current: {currentFilePath}");
+                        searchSessionId = fileValidation.SessionId;
+                        // IMPORTANT: Also send the new file path so server can update its records
+                        searchFilePath = currentFilePath;
+                        break;
+                        
+                    case FileValidationScenario.FileReplaced:
+                        Logger.Info("File was replaced - continuing with existing session");
+                        searchSessionId = fileValidation.SessionId;
+                        // Also send the current path to ensure server has correct path
+                        searchFilePath = currentFilePath;
+                        break;
+                        
+                    case FileValidationScenario.NoLinkFound:
+                        Logger.Info("No existing link found for this file - trying server connection");
+                        searchFilePath = currentFilePath;
+                        break;
+                        
+                    default:
+                        Logger.Warning($"Unknown validation scenario: {fileValidation.ValidationScenario}");
+                        return null;
                 }
                 
-                // No session found - provide clear guidance
-                var fileName = Path.GetFileName(currentFilePath);
-                throw new Exception($"No session found for '{fileName}'. Please ensure:\n" +
-                    "1. The host application has created a session for this file\n" +
-                    "2. The file path matches exactly (case-sensitive)\n" +
-                    "3. The session has not expired or been deactivated\n" +
-                    "4. Your license is valid and matches the session license");
+                // Try to connect to server
+                var connectionResult = await ConnectToServerAsync(licenseInfo, searchSessionId, searchDocumentGuid, searchFilePath);
+                if (connectionResult == null)
+                {
+                    // Clean up invalid session if we had one
+                    if (!string.IsNullOrEmpty(fileValidation.SessionId))
+                    {
+                        await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.UnregisterLinkedFileAsync(fileValidation.SessionId);
+                    }
+                    
+                    var fileName = Path.GetFileName(currentFilePath);
+                    // Don't log here - let the caller handle it
+                    throw new Exception($"No session found for '{fileName}'.");
+                }
+                
+                // Connection successful - update instance variables
+                sessionId = connectionResult.SessionId;
+                instanceId = connectionResult.InstanceId;
+                
+                // Register or update the linked file in storage
+                // This will replace any existing entry with the same sessionId, effectively updating the path
+                await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.RegisterLinkedFileAsync(
+                    sessionId, currentFilePath, connectionResult.DocumentGuid);
+                
+                Logger.Success($"✓ Connected to existing session - ID: {sessionId}");
+                Logger.Info($"Using server-provided document GUID: {connectionResult.DocumentGuid}");
+                
+                return connectionResult.WebSocketUrl;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Logger.Error($"Error connecting to session: {ex.Message}");
+                // Don't log here - let the caller handle it to avoid duplicate logs
                 throw;
             }
         }
         
-        /// <summary>
-        /// Try to connect to an existing session on the server using GUID-based approach
-        /// </summary>
-        private async Task<ExistingSessionInfo> TryConnectToExistingSessionAsync(LicenseValidationResult licenseInfo, string filePath)
-        {
-            try
-            {
-                // Get or create document GUID for current file
-                var documentGuid = DocumentGUIDHelper.GetOrCreateDocumentGUID();
-                
-                // Perform comprehensive file validation
-                var validation = await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.ValidateFileForConnectionAsync(filePath, documentGuid);
-                
-                // Handle different validation scenarios
-                switch (validation.ValidationScenario)
-                {
-                    case FileValidationScenario.PerfectMatch:
-                        Logger.Info("File validation passed - perfect match found");
-                        // Try to reconnect using cached session
-                        var reconnectResult = await TryReconnectToServerSessionAsync(licenseInfo, validation.SessionId);
-                        if (reconnectResult != null)
-                        {
-                            Logger.Success($"Reconnected to existing session (GUID: {documentGuid})");
-                            return reconnectResult;
-                        }
-                        // Session no longer valid on server, clean up
-                        await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.UnregisterLinkedFileAsync(validation.SessionId);
-                        break;
-                        
-                    case FileValidationScenario.FilePathChanged:
-                        Logger.Info($"File has been moved/renamed. Original: {validation.LinkedFileInfo.FilePath}, Current: {filePath}");
-                        // Update the file path in linked file info
-                        validation.LinkedFileInfo.FilePath = filePath;
-                        validation.LinkedFileInfo.Status = FileStatus.PathChanged;
-                        await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.RegisterLinkedFileAsync(
-                            validation.SessionId, filePath, documentGuid);
-                        
-                        // Try to reconnect
-                        var pathChangedResult = await TryReconnectToServerSessionAsync(licenseInfo, validation.SessionId);
-                        if (pathChangedResult != null)
-                        {
-                            Logger.Success("Reconnected after file path change");
-                            return pathChangedResult;
-                        }
-                        await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.UnregisterLinkedFileAsync(validation.SessionId);
-                        break;
-                        
-                    case FileValidationScenario.LegacyFile:
-                        Logger.Info("Legacy file without GUID detected, updating with new GUID");
-                        // Update legacy file with new GUID
-                        await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.RegisterLinkedFileAsync(
-                            validation.LinkedFileInfo.SessionId, filePath, documentGuid);
-                        
-                        var legacyResult = await TryReconnectToServerSessionAsync(licenseInfo, validation.LinkedFileInfo.SessionId);
-                        if (legacyResult != null)
-                        {
-                            Logger.Success("Reconnected to legacy session with updated GUID");
-                            return legacyResult;
-                        }
-                        await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.UnregisterLinkedFileAsync(validation.LinkedFileInfo.SessionId);
-                        break;
-                        
-                    case FileValidationScenario.FileReplacedNoGUID:
-                        Logger.Warning($"File at {filePath} has no document GUID but was previously linked with GUID");
-                        Logger.Warning("This suggests the file has been replaced.");
-                        Logger.Warning("Original GUID: " + validation.LinkedFileInfo.DocumentGUID);
-                        
-                        // Let ReerStartCommand handle the user prompt and cleanup
-                        return null;
-                        
-                    case FileValidationScenario.FileReplaced:
-                        Logger.Warning($"File at {filePath} appears to be replaced (different GUID)");
-                        Logger.Warning("Original GUID: " + validation.LinkedFileInfo.DocumentGUID);
-                        Logger.Warning("Current GUID: " + documentGuid);
-                        
-                        // Clean up the old linked file info and require new session
-                        await ReerRhinoMCPPlugin.Instance.FileIntegrityManager.UnregisterLinkedFileAsync(validation.LinkedFileInfo.SessionId);
-                        Logger.Info("Cleaned up old session. New session required.");
-                        return null;
-                        
-                    case FileValidationScenario.NoLinkFound:
-                        Logger.Info("No existing link found for this file");
-                        break;
-                        
-                    case FileValidationScenario.ValidationError:
-                        Logger.Error($"File validation error: {validation.Message}");
-                        break;
-                }
-                
-                // Try to connect using the new /sessions/connect endpoint
-                return await TryConnectToServerSessionDirectAsync(licenseInfo, filePath, documentGuid);
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error connecting to existing session: {ex.Message}");
-                return null;
-            }
-        }
         
         /// <summary>
-        /// Try to connect to session using the new /sessions/connect endpoint with GUID support
+        /// Connect to server session using various search criteria
         /// </summary>
-        private async Task<ExistingSessionInfo> TryConnectToServerSessionDirectAsync(LicenseValidationResult licenseInfo, string filePath, string documentGuid = null)
+        private async Task<ExistingSessionInfo> ConnectToServerAsync(LicenseValidationResult licenseInfo, string sessionId = null, string documentGuid = null, string filePath = null)
         {
             try
             {
                 var connectRequest = new
                 {
                     user_id = licenseInfo.UserId,
-                    file_path = filePath,
                     license_id = licenseInfo.LicenseId,
-                    document_guid = documentGuid
+                    session_id = sessionId,
+                    document_guid = documentGuid,
+                    file_path = filePath
                 };
 
                 var jsonContent = JsonConvert.SerializeObject(connectRequest);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                var response = await httpClient.PostAsync($"{Settings.RemoteUrl}/sessions/connect", content);
+                var response = await httpClient.PostAsync($"{Settings.RemoteHttpUrl}/sessions/connect", content);
                 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -541,103 +442,93 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 {
                     SessionId = sessionData["session_id"]?.ToString(),
                     InstanceId = sessionData["instance_id"]?.ToString(),
-                    WebSocketUrl = sessionData["websocket_url"]?.ToString()
+                    WebSocketUrl = sessionData["websocket_url"]?.ToString(),
+                    DocumentGuid = sessionData["document_guid"]?.ToString()
                 };
             }
             catch (Exception ex)
             {
-                Logger.Error($"Error connecting to session via direct endpoint: {ex.Message}");
+                // Log at debug level only to avoid duplicate error logs
+                Logger.Debug($"Direct endpoint connection failed: {ex.Message}");
                 return null;
             }
         }
 
+        
         /// <summary>
-        /// Try to reconnect to an existing session on the server using cached session ID
+        /// Notify server about file path change (for SaveAs operations)
         /// </summary>
-        private async Task<ExistingSessionInfo> TryReconnectToServerSessionAsync(LicenseValidationResult licenseInfo, string sessionId)
+        /// <param name="sessionId">Session ID</param>
+        /// <param name="oldPath">Previous file path</param>
+        /// <param name="newPath">New file path</param>
+        /// <param name="documentGuid">Document GUID for verification</param>
+        /// <returns>True if notification was successful</returns>
+        public async Task<bool> NotifyServerOfFilePathChangeAsync(string sessionId, string oldPath, string newPath, string documentGuid)
         {
             try
             {
-                var reconnectRequest = new
+                if (Settings?.RemoteHttpUrl == null)
                 {
-                    session_id = sessionId,
-                    license_id = licenseInfo.LicenseId,
-                    user_id = licenseInfo.UserId
-                };
-
-                var jsonContent = JsonConvert.SerializeObject(reconnectRequest);
-                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
-
-                var response = await httpClient.PostAsync($"{Settings.RemoteUrl}/sessions/reconnect", content);
-                
-                if (!response.IsSuccessStatusCode)
-                {
-                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    {
-                        Logger.Info("Session no longer exists on server");
-                        return null;
-                    }
-                    else if (response.StatusCode == System.Net.HttpStatusCode.Gone) // 410 - Session expired
-                    {
-                        Logger.Info("Session has expired on server (server manages 30-day expiration)");
-                        return null;
-                    }
-                    else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden) // 403 - License/User mismatch
-                    {
-                        Logger.Info("License or user validation failed for session");
-                        return null;
-                    }
-                    
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    // Sanitize error message to prevent information disclosure
-                    var sanitizedError = SanitizeErrorMessage(errorContent);
-                    Logger.Error($"Session reconnection failed: {response.StatusCode} - {sanitizedError}");
-                    return null;
+                    Logger.Warning("No remote HTTP URL configured for server notification");
+                    return false;
                 }
 
-                var responseJson = await response.Content.ReadAsStringAsync();
-                var sessionData = JsonConvert.DeserializeObject<JObject>(responseJson);
+                Logger.Debug($"Notifying server of file path change:");
+                Logger.Debug($"  Session ID: {sessionId}");
+                Logger.Debug($"  Old Path: {oldPath}");
+                Logger.Debug($"  New Path: {newPath}");
+                Logger.Debug($"  Document GUID: {documentGuid}");
+                Logger.Debug($"  Server HTTP URL: {Settings.RemoteHttpUrl}");
 
-                return new ExistingSessionInfo
+                // Prepare the request data
+                var requestData = new
                 {
-                    SessionId = sessionData["session_id"]?.ToString(),
-                    InstanceId = sessionData["instance_id"]?.ToString(),
-                    WebSocketUrl = sessionData["websocket_url"]?.ToString()
+                    file_path = newPath,
+                    old_file_path = oldPath,
+                    document_guid = documentGuid
                 };
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error reconnecting to session: {ex.Message}");
-                return null;
-            }
-        }
-        
-        
-        /// <summary>
-        /// Get the current Rhino file path
-        /// </summary>
-        private string GetCurrentRhinoFilePath()
-        {
-            try
-            {
-                var doc = RhinoDoc.ActiveDoc;
-                if (doc != null && !string.IsNullOrEmpty(doc.Path))
+
+                var jsonContent = JsonConvert.SerializeObject(requestData);
+                Logger.Debug($"Request JSON: {jsonContent}");
+                
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                var requestUrl = $"{Settings.RemoteHttpUrl}/sessions/{sessionId}/update-path";
+                Logger.Debug($"POST URL: {requestUrl}");
+
+                var response = await httpClient.PostAsync(requestUrl, content);
+                Logger.Debug($"Server response: {response.StatusCode}");
+
+                if (response.IsSuccessStatusCode)
                 {
-                    return doc.Path;
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    Logger.Success($"Server notified of file path change for session {sessionId}");
+                    Logger.Debug($"Server response: {responseContent}");
+                    return true;
                 }
                 else
                 {
-                    // Return a placeholder for unsaved documents
-                    return $"/rhino/unsaved_document_{DateTime.Now:yyyyMMdd_HHmmss}.3dm";
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Logger.Warning($"Failed to notify server of SaveAs operation: {response.StatusCode} - {errorContent}");
+                    
+                    // If session not found, this might be expected for local-only sessions
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        Logger.Info("Session not found on server - this might be a local session or the session expired");
+                    }
+                    
+                    return false;
                 }
             }
             catch (Exception ex)
             {
-                Logger.Warning($"Warning: Could not get current file path: {ex.Message}");
-                return $"/rhino/unknown_document_{DateTime.Now:yyyyMMdd_HHmmss}.3dm";
+                Logger.Error($"Error notifying server of file path change: {ex.Message}");
+                return false;
             }
         }
+#endregion
 
+
+#region message handling
         /// <summary>
         /// Continuously receives messages from the WebSocket
         /// </summary>
@@ -827,7 +718,64 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 Logger.Error($"Error in status changed handler: {ex.Message}");
             }
         }
+                
 
+        /// <summary>
+        /// Sends a response back to the client
+        /// </summary>
+        /// <param name="responseJson">JSON response to send</param>
+        /// <param name="clientId">ID of the client to send to (for multi-client scenarios)</param>
+        /// <returns>True if response was sent successfully, false otherwise</returns>
+        public async Task<bool> SendResponseAsync(string responseJson, string clientId = null)
+        {
+            if (string.IsNullOrEmpty(responseJson) || webSocket?.State != WebSocketState.Open)
+                return false;
+
+            try
+            {
+                var buffer = Encoding.UTF8.GetBytes(responseJson);
+                await webSocket.SendAsync(
+                    new ArraySegment<byte>(buffer),
+                    WebSocketMessageType.Text,
+                    true,
+                    cancellationTokenSource.Token);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error sending WebSocket response: {ex.Message}");
+                return false;
+            }
+        }
+        #endregion
+
+        #region Utils
+
+        /// <summary>
+        /// Get the current Rhino file path
+        /// </summary>
+        private string GetCurrentRhinoFilePath()
+        {
+            try
+            {
+                var doc = RhinoDoc.ActiveDoc;
+                if (doc != null && !string.IsNullOrEmpty(doc.Path))
+                {
+                    return doc.Path;
+                }
+                else
+                {
+                    // Return a placeholder for unsaved documents
+                    return $"/rhino/unsaved_document_{DateTime.Now:yyyyMMdd_HHmmss}.3dm";
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Warning: Could not get current file path: {ex.Message}");
+                return $"/rhino/unknown_document_{DateTime.Now:yyyyMMdd_HHmmss}.3dm";
+            }
+        }
         /// <summary>
         /// Cleans up resources
         /// </summary>
@@ -924,14 +872,5 @@ namespace ReerRhinoMCPPlugin.Core.Client
             }
         }
     }
-    
-    /// <summary>
-    /// Information about an existing session that can be reused
-    /// </summary>
-    public class ExistingSessionInfo
-    {
-        public string SessionId { get; set; }
-        public string InstanceId { get; set; }
-        public string WebSocketUrl { get; set; }
-    }
+#endregion
 } 

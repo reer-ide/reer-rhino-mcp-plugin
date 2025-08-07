@@ -252,7 +252,20 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 
                 if (result != null)
                 {
-                    Logger.Success($"UI thread invocation succeeded, bitmap: {result.Width}x{result.Height}");
+                    // Check platform before accessing bitmap properties
+                    bool isWindows = System.Environment.OSVersion.Platform == PlatformID.Win32NT;
+#if NET5_0_OR_GREATER
+                    isWindows = OperatingSystem.IsWindows();
+#endif
+                    
+                    if (isWindows)
+                    {
+                        Logger.Success($"UI thread invocation succeeded, bitmap: {result.Width}x{result.Height}");
+                    }
+                    else
+                    {
+                        Logger.Success("UI thread invocation succeeded, bitmap created");
+                    }
                 }
                 else
                 {
@@ -296,7 +309,20 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 
                 if (bitmap != null)
                 {
-                    Logger.Success($"ViewCapture succeeded: {bitmap.Width}x{bitmap.Height}");
+                    // Check platform before accessing bitmap properties
+                    bool isWindows = System.Environment.OSVersion.Platform == PlatformID.Win32NT;
+#if NET5_0_OR_GREATER
+                    isWindows = OperatingSystem.IsWindows();
+#endif
+                    
+                    if (isWindows)
+                    {
+                        Logger.Success($"ViewCapture succeeded: {bitmap.Width}x{bitmap.Height}");
+                    }
+                    else
+                    {
+                        Logger.Success("ViewCapture succeeded, bitmap created");
+                    }
                 }
                 else
                 {
@@ -316,6 +342,18 @@ namespace ReerRhinoMCPPlugin.Core.Functions
         {
             try
             {
+                // Check if we're on a platform that supports System.Drawing
+                bool isWindows = System.Environment.OSVersion.Platform == PlatformID.Win32NT;
+#if NET5_0_OR_GREATER
+                isWindows = OperatingSystem.IsWindows();
+#endif
+                
+                if (!isWindows)
+                {
+                    Logger.Warning("Image resizing is only supported on Windows platform");
+                    return originalBitmap; // Return original bitmap on non-Windows platforms
+                }
+                
                 int originalWidth = originalBitmap.Width;
                 int originalHeight = originalBitmap.Height;
 
@@ -353,6 +391,18 @@ namespace ReerRhinoMCPPlugin.Core.Functions
         {
             try
             {
+                // Check if we're on a platform that supports System.Drawing
+                bool isWindows = System.Environment.OSVersion.Platform == PlatformID.Win32NT;
+#if NET5_0_OR_GREATER
+                isWindows = OperatingSystem.IsWindows();
+#endif
+                
+                if (!isWindows)
+                {
+                    Logger.Warning("Bitmap to base64 conversion is only supported on Windows platform");
+                    return string.Empty;
+                }
+                
                 using (var memoryStream = new MemoryStream())
                 {
                     // Save as PNG to preserve transparency if TransparentBackground=true
