@@ -1,6 +1,9 @@
 # Local development folders
 docs/example/
 
+# Rhino backup files
+*.3dm.rhl
+
 #Claude
 .claude/
 CLAUDE.md

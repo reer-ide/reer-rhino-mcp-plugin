@@ -340,9 +340,9 @@ namespace ReerRhinoMCPPlugin
         }
 
         /// <summary>
-        /// Handles SaveAs detection events from FileIntegrityManager
+        /// Handles SaveAs detection events from SaveAsDetector
         /// </summary>
-        private async void OnSaveAsDetected(object sender, Core.Common.SaveAsDetectedEventArgs e)
+        private async void OnSaveAsDetected(object sender, SaveAsDetector.SaveAsDetectedEventArgs e)
         {
             try
             {
@@ -358,9 +358,10 @@ namespace ReerRhinoMCPPlugin
                 {
                     Logger.Warning($"No linked session found for document GUID {e.DocumentGuid} during SaveAs");
                     Logger.Info("This might happen if:");
-                    Logger.Info("  1. No active MCP session for this document");
+                    Logger.Info("  1. This document was never linked to Reer before");
                     Logger.Info("  2. Document GUID was not properly registered");
                     Logger.Info("  3. Session was cleaned up or expired");
+                    Logger.Info("Skipping SaveAs handling.");
                     return;
                 }
                 
@@ -372,25 +373,60 @@ namespace ReerRhinoMCPPlugin
 
                 // Show user confirmation dialog
                 Logger.Debug("Showing SaveAs confirmation dialog...");
-                var userChoice = await ShowSaveAsConfirmationDialog(e.OldFilePath, e.NewFilePath);
+                var userChoice = await SaveAsDetector.ShowSaveAsConfirmationDialog(e.OldFilePath, e.NewFilePath);
                 Logger.Debug($"User choice: {userChoice}");
 
                 switch (userChoice)
                 {
                     case SaveAsUserChoice.ContinueWithNewFile:
                         Logger.Info("User chose to continue with new file");
-                        // Update session to use new file path
+                        
+                        // Instead of just updating the path, we need to restart the connection
+                        // This ensures we don't accidentally update multiple sessions
+                        
+                        // First, update the local file path in storage
                         await fileIntegrityManager.UpdateSessionFilePathAsync(linkedFile.SessionId, e.NewFilePath);
-
-                        // Notify server if in remote mode through ConnectionManager
-                        var success = await connectionManager.NotifyServerOfFilePathChangeAsync(linkedFile.SessionId, e.OldFilePath, e.NewFilePath, e.DocumentGuid);
-                        if (!success)
+                        
+                        // Check if we have an active remote connection
+                        if (connectionManager.ActiveConnection.Settings.Mode == ConnectionMode.Remote && connectionManager.IsConnected)
                         {
-                            Logger.Warning("Failed to notify server of file path change");
+                            Logger.Info("Restarting remote connection with updated file path...");
+
+                            // Stop the current connection
+                            await connectionManager.StopConnectionAsync(false);
+
+                            // Create a FilePathChanged validation to trigger proper reconnection
+                            var validation = new FileConnectionValidation
+                            {
+                                FilePath = e.NewFilePath,
+                                DocumentGUID = e.DocumentGuid,
+                                SessionId = linkedFile.SessionId,
+                                LinkedFileInfo = linkedFile,
+                                ValidationScenario = FileValidationScenario.FilePathChanged,
+                                IsValid = false,
+                                RequiresUserDecision = false // Already decided by user
+                            };
+                            
+                            // Restart connection with the validation
+                            var settings = new ConnectionSettings
+                            {
+                                Mode = ConnectionMode.Remote,
+                                RemoteUrl = ConnectionSettings.GetServerUrl()
+                            };
+                            
+                            var success = await connectionManager.StartConnectionAsync(settings, validation);
+                            if (success)
+                            {
+                                Logger.Success("Remote connection restarted with new file path");
+                            }
+                            else
+                            {
+                                Logger.Warning("Failed to restart remote connection");
+                            }
                         }
                         else
                         {
-                            Logger.Success("Server notified of file path change successfully");
+                            Logger.Info("No active remote connection to update");
                         }
                         break;
 
@@ -422,102 +458,7 @@ namespace ReerRhinoMCPPlugin
             }
         }
 
-        /// <summary>
-        /// Show user confirmation dialog for SaveAs operation using Rhino's command prompt
-        /// </summary>
-        private Task<SaveAsUserChoice> ShowSaveAsConfirmationDialog(string oldPath, string newPath)
-        {
-            var tcs = new TaskCompletionSource<SaveAsUserChoice>();
-            
-            // Execute on main thread after a short delay to ensure SaveAs completes
-            RhinoApp.InvokeOnUiThread(new System.Action(async () =>
-            {
-                try
-                {
-                    // Add a small delay to ensure SaveAs operation completes
-                    await Task.Delay(500);
-                    
-                    var oldFileName = System.IO.Path.GetFileName(oldPath);
-                    var newFileName = System.IO.Path.GetFileName(newPath);
-
-                    // Display information to user in command history
-                    RhinoApp.WriteLine("");
-                    RhinoApp.WriteLine(new string('=', 60));
-                    RhinoApp.WriteLine("MCP SAVE AS OPERATION DETECTED");
-                    RhinoApp.WriteLine(new string('=', 60));
-                    RhinoApp.WriteLine($"You saved a copy to: {newFileName}");
-                    RhinoApp.WriteLine($"Original file: {oldFileName}");
-                    RhinoApp.WriteLine("");
-                    RhinoApp.WriteLine("Choose how to continue your MCP session:");
-                    RhinoApp.WriteLine("  1. UseNewFile - Continue with the new saved file");
-                    RhinoApp.WriteLine("  2. ReturnToOriginal - Open original file and continue");
-                    RhinoApp.WriteLine("  3. DoNothing - Keep current state");
-                    RhinoApp.WriteLine("");
-
-                    // Use Rhino's GetOption for user choice
-                    var getOption = new Rhino.Input.Custom.GetOption();
-                    getOption.SetCommandPrompt("Select action for MCP session");
-                    getOption.AcceptNothing(false);
-
-                    int continueNewIndex = getOption.AddOption("UseNewFile");
-                    int returnOriginalIndex = getOption.AddOption("ReturnToOriginal");  
-                    int cancelIndex = getOption.AddOption("DoNothing");
-
-                    var result = getOption.Get();
-
-                    SaveAsUserChoice choice;
-                    if (result == Rhino.Input.GetResult.Option)
-                    {
-                        var option = getOption.Option();
-                        if (option != null && option.Index == continueNewIndex)
-                        {
-                            RhinoApp.WriteLine($"✓ MCP session will now use: {newFileName}");
-                            choice = SaveAsUserChoice.ContinueWithNewFile;
-                        }
-                        else if (option != null && option.Index == returnOriginalIndex)
-                        {
-                            RhinoApp.WriteLine($"✓ Opening original file: {oldFileName}");
-                            choice = SaveAsUserChoice.ReturnToOriginalFile;
-                        }
-                        else if (option != null && option.Index == cancelIndex)
-                        {
-                            RhinoApp.WriteLine("✓ MCP session unchanged");
-                            choice = SaveAsUserChoice.Cancel;
-                        }
-                        else
-                        {
-                            // Default
-                            RhinoApp.WriteLine($"⚠ Defaulting to use new file: {newFileName}");
-                            choice = SaveAsUserChoice.ContinueWithNewFile;
-                        }
-                    }
-                    else if (result == Rhino.Input.GetResult.Cancel || result == Rhino.Input.GetResult.Nothing)
-                    {
-                        RhinoApp.WriteLine("✗ SaveAs handling cancelled - MCP session unchanged");
-                        choice = SaveAsUserChoice.Cancel;
-                    }
-                    else
-                    {
-                        // Default if no valid option selected
-                        RhinoApp.WriteLine($"⚠ Defaulting to use new file: {newFileName}");
-                        choice = SaveAsUserChoice.ContinueWithNewFile;
-                    }
-                    
-                    tcs.SetResult(choice);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Error($"Error in SaveAs confirmation dialog: {ex.Message}");
-                    RhinoApp.WriteLine($"✗ Error in SaveAs dialog: {ex.Message}");
-                    // Safe default
-                    tcs.SetResult(SaveAsUserChoice.ContinueWithNewFile);
-                }
-            }));
-            
-            return tcs.Task;
-        }
-
-        
+#region Utility Methods
         /// <summary>
         /// Open a file in Rhino
         /// </summary>
@@ -542,15 +483,7 @@ namespace ReerRhinoMCPPlugin
             }
         }
 
-        /// <summary>
-        /// User choice for SaveAs operation
-        /// </summary>
-        public enum SaveAsUserChoice
-        {
-            ContinueWithNewFile,
-            ReturnToOriginalFile,
-            Cancel
-        }
+        // SaveAsUserChoice enum moved to SaveAsDetector class
 
         /// <summary>
         /// Shows the new refactored control panel (for testing)
@@ -586,22 +519,7 @@ namespace ReerRhinoMCPPlugin
                 Logger.Error($"Error in ShowNewControlPanel: {ex.Message}");
             }
         }
-
-        public void ShowControlPanel()
-        {
-            try
-            {
-                Logger.Debug("ShowControlPanel called - using new UI");
-                // Redirect to new UI implementation
-                ShowNewControlPanel();
-
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error showing control panel: {ex}");
-            }
-        }
-
+#endregion
         // You can override methods here to change the plug-in behavior on
         // loading and shut down, add options pages to the Rhino _Option command
         // and maintain plug-in wide options in a document.

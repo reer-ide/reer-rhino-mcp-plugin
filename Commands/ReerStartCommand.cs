@@ -336,7 +336,7 @@ namespace ReerRhinoMCPPlugin.Commands
                         $"The file path has changed. " +
                         "Do you want to continue using the existing session with this file?\n" +
                         "YES - Use this file with the existing session\n" +
-                        "NO - Create a new session through the host application",
+                        "NO - Please re-link the file through the host application",
                         "File Path Change Detected",
                         Rhino.UI.ShowMessageButton.YesNo,
                         Rhino.UI.ShowMessageIcon.Question);

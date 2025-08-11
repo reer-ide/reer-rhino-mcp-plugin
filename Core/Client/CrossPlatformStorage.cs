@@ -1,16 +1,11 @@
 using System;
 using System.IO;
+using System.Runtime.Versioning;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Rhino;
 using ReerRhinoMCPPlugin.Core.Common;
-
-#if WINDOWS
-using Microsoft.Win32;
-using System.Security.Cryptography;
-#endif
 
 namespace ReerRhinoMCPPlugin.Core.Client
 {
@@ -244,7 +239,11 @@ namespace ReerRhinoMCPPlugin.Core.Client
         {
             try
             {
+#if NET7_0_OR_GREATER
+                if (OperatingSystem.IsWindows())
+#else
                 if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+#endif
                 {
                     // Windows: Use DPAPI
                     return EncryptWithDPAPI(plainText);
@@ -270,7 +269,11 @@ namespace ReerRhinoMCPPlugin.Core.Client
         {
             try
             {
+#if NET7_0_OR_GREATER
+                if (OperatingSystem.IsWindows())
+#else
                 if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+#endif
                 {
                     // Windows: Use DPAPI
                     return DecryptWithDPAPI(encryptedText);
@@ -298,6 +301,9 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// <summary>
         /// Encrypt using Windows DPAPI
         /// </summary>
+#if NET7_0_OR_GREATER
+        [SupportedOSPlatform("windows")]
+#endif
         private static string EncryptWithDPAPI(string plainText)
         {
 #if WINDOWS
@@ -312,6 +318,9 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// <summary>
         /// Decrypt using Windows DPAPI
         /// </summary>
+#if NET7_0_OR_GREATER
+        [SupportedOSPlatform("windows")]
+#endif
         private static string DecryptWithDPAPI(string encryptedText)
         {
 #if WINDOWS
