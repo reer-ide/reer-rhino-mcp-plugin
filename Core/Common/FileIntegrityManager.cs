@@ -528,6 +528,7 @@ namespace ReerRhinoMCPPlugin.Core.Common
         {
             try
             {
+                // This call will automatically trigger migration of any hidden .linked_files.dat to linked_files.dat
                 var fileList = await CrossPlatformStorage.RetrieveDataAsync<List<LinkedFileInfo>>(LINKED_FILES_STORAGE_KEY);
 
                 if (fileList != null)
@@ -542,6 +543,10 @@ namespace ReerRhinoMCPPlugin.Core.Common
                     }
 
                     Logger.Info($"Loaded {fileList.Count} linked files from storage");
+                }
+                else
+                {
+                    Logger.Debug("No linked files found in storage");
                 }
             }
             catch (Exception ex)

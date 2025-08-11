@@ -9,6 +9,7 @@ using ReerRhinoMCPPlugin.Core.Common;
 
 #if WINDOWS
 using Microsoft.Win32;
+using System.Security.Cryptography;
 #endif
 
 namespace ReerRhinoMCPPlugin.Core.Client
@@ -91,36 +92,29 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 // Use async file writing (compatible with .NET Framework)
                 await Task.Run(() => File.WriteAllText(filePath, encryptedData)).ConfigureAwait(false);
                 
-                // Set file permissions to be user-readable only on Unix-like systems
+                // Clean up any existing hidden files from previous implementation
                 if (Environment.OSVersion.Platform == PlatformID.Unix || 
                     Environment.OSVersion.Platform == PlatformID.MacOSX)
                 {
                     try
                     {
-                        // Wrap synchronous file operations in Task.Run for async execution
                         await Task.Run(() =>
                         {
-                            // Use Mono.Posix if available for proper Unix permissions
-                            // For now, we'll use File.SetAttributes to at least make it less accessible
-                            var fileInfo = new FileInfo(filePath);
-                            if (fileInfo.Exists)
+                            var directory = Path.GetDirectoryName(filePath);
+                            var filename = Path.GetFileName(filePath);
+                            var hiddenPath = Path.Combine(directory, "." + filename);
+                            
+                            // Remove any existing hidden file from old implementation
+                            if (File.Exists(hiddenPath))
                             {
-                                // Make file hidden on Unix systems (starts with .)
-                                var directory = Path.GetDirectoryName(filePath);
-                                var filename = Path.GetFileName(filePath);
-                                if (!filename.StartsWith("."))
-                                {
-                                    var hiddenPath = Path.Combine(directory, "." + filename);
-                                    if (File.Exists(hiddenPath))
-                                        File.Delete(hiddenPath);
-                                    File.Move(filePath, hiddenPath);
-                                }
+                                File.Delete(hiddenPath);
+                                Logger.Info($"Removed hidden file from old implementation: .{filename}");
                             }
                         }).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {
-                        Logger.Warning($"Warning: Could not set file permissions: {ex.Message}");
+                        Logger.Warning($"Warning: Could not clean up hidden files: {ex.Message}");
                     }
                 }
                 
@@ -143,14 +137,40 @@ namespace ReerRhinoMCPPlugin.Core.Client
         {
             try
             {
-                var filePath = Path.Combine(GetStorageDirectory(), $"{key}.dat");
+                var storageDir = GetStorageDirectory();
+                var filePath = Path.Combine(storageDir, $"{key}.dat");
+                var hiddenFilePath = Path.Combine(storageDir, $".{key}.dat");
                 
-                if (!File.Exists(filePath))
+                string actualFilePath = null;
+                bool needsMigration = false;
+                
+                // Check for hidden file first (from old implementation)
+                if (File.Exists(hiddenFilePath))
+                {
+                    actualFilePath = hiddenFilePath;
+                    needsMigration = true;
+                    Logger.Info($"Found hidden file from old implementation: .{key}.dat - migrating to normal file");
+                }
+                else if (File.Exists(filePath))
+                {
+                    actualFilePath = filePath;
+                }
+                
+                if (actualFilePath == null)
                 {
                     return Task.FromResult<T>(null);
                 }
                 
-                var encryptedData = File.ReadAllText(filePath);
+                var encryptedData = File.ReadAllText(actualFilePath);
+                
+                // If we found a hidden file, migrate it to normal file
+                if (needsMigration)
+                {
+                    File.WriteAllText(filePath, encryptedData);
+                    File.Delete(hiddenFilePath);
+                    Logger.Info($"Successfully migrated .{key}.dat to {key}.dat");
+                }
+                
                 var decryptedJson = DecryptData(encryptedData);
                 var data = JsonConvert.DeserializeObject<T>(decryptedJson);
                 return Task.FromResult(data);
@@ -170,11 +190,29 @@ namespace ReerRhinoMCPPlugin.Core.Client
         {
             try
             {
-                var filePath = Path.Combine(GetStorageDirectory(), $"{key}.dat");
+                var storageDir = GetStorageDirectory();
+                var filePath = Path.Combine(storageDir, $"{key}.dat");
+                var hiddenFilePath = Path.Combine(storageDir, $".{key}.dat");
                 
+                bool deleted = false;
+                
+                // Delete normal file if it exists
                 if (File.Exists(filePath))
                 {
                     File.Delete(filePath);
+                    deleted = true;
+                }
+                
+                // Delete hidden file if it exists (from old implementation)
+                if (File.Exists(hiddenFilePath))
+                {
+                    File.Delete(hiddenFilePath);
+                    Logger.Info($"Also removed hidden file from old implementation: .{key}.dat");
+                    deleted = true;
+                }
+                
+                if (deleted)
+                {
                     Logger.Info($"Data deleted: {key}");
                 }
             }
@@ -191,8 +229,12 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// <returns>True if data exists</returns>
         public static bool DataExists(string key)
         {
-            var filePath = Path.Combine(GetStorageDirectory(), $"{key}.dat");
-            return File.Exists(filePath);
+            var storageDir = GetStorageDirectory();
+            var filePath = Path.Combine(storageDir, $"{key}.dat");
+            var hiddenFilePath = Path.Combine(storageDir, $".{key}.dat");
+            
+            // Check normal file first, then hidden file from old implementation
+            return File.Exists(filePath) || File.Exists(hiddenFilePath);
         }
         
         /// <summary>
@@ -258,21 +300,12 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// </summary>
         private static string EncryptWithDPAPI(string plainText)
         {
-#if NET48
+#if WINDOWS
             var data = Encoding.UTF8.GetBytes(plainText);
             var encryptedData = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
             return Convert.ToBase64String(encryptedData);
 #else
-            if (OperatingSystem.IsWindows())
-            {
-                var data = Encoding.UTF8.GetBytes(plainText);
-                var encryptedData = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
-                return Convert.ToBase64String(encryptedData);
-            }
-            else
-            {
-                throw new PlatformNotSupportedException("DPAPI is only available on Windows");
-            }
+            throw new PlatformNotSupportedException("DPAPI is only available on Windows");
 #endif
         }
         
@@ -281,21 +314,12 @@ namespace ReerRhinoMCPPlugin.Core.Client
         /// </summary>
         private static string DecryptWithDPAPI(string encryptedText)
         {
-#if NET48
+#if WINDOWS
             var encryptedData = Convert.FromBase64String(encryptedText);
             var decryptedData = ProtectedData.Unprotect(encryptedData, null, DataProtectionScope.CurrentUser);
             return Encoding.UTF8.GetString(decryptedData);
 #else
-            if (OperatingSystem.IsWindows())
-            {
-                var encryptedData = Convert.FromBase64String(encryptedText);
-                var decryptedData = ProtectedData.Unprotect(encryptedData, null, DataProtectionScope.CurrentUser);
-                return Encoding.UTF8.GetString(decryptedData);
-            }
-            else
-            {
-                throw new PlatformNotSupportedException("DPAPI is only available on Windows");
-            }
+            throw new PlatformNotSupportedException("DPAPI is only available on Windows");
 #endif
         }
         
