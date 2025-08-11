@@ -40,8 +40,7 @@ namespace ReerRhinoMCPPlugin.UI.Windows
 
             try
             {
-                var remoteClient = new RhinoMCPClient();
-                var licenseResult = await remoteClient.GetLicenseStatusAsync();
+                var licenseResult = await _plugin.LicenseManager.GetLicenseStatusAsync();
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
@@ -132,14 +131,13 @@ namespace ReerRhinoMCPPlugin.UI.Windows
                 {
                     try
                     {
-                        var remoteClient = new RhinoMCPClient();
-                        var success = await remoteClient.RegisterLicenseAsync(licenseKey, userId, serverUrl);
+                        var result = await _plugin.LicenseManager.RegisterLicenseAsync(licenseKey, userId);
 
                         await Dispatcher.UIThread.InvokeAsync(async () =>
                         {
-                            if (success)
+                            if (result.Success)
                             {
-                                LogMessage("✅ License registration completed successfully!");
+                                LogMessage($"✅ License registration completed successfully! License ID: {result.LicenseId}");
                                 LicenseKeyTextBox.Text = "";
                                 
                                 // Re-check status and update UI after successful registration
@@ -190,8 +188,7 @@ namespace ReerRhinoMCPPlugin.UI.Windows
                 {
                     try
                     {
-                        var remoteClient = new RhinoMCPClient();
-                        var licenseResult = await remoteClient.GetLicenseStatusAsync();
+                        var licenseResult = await _plugin.LicenseManager.GetLicenseStatusAsync();
 
                         await Dispatcher.UIThread.InvokeAsync(() =>
                         {
@@ -238,8 +235,8 @@ namespace ReerRhinoMCPPlugin.UI.Windows
 
                 LogMessage("🔄 Clearing stored license...");
                 
-                var remoteClient = new RhinoMCPClient();
-                remoteClient.ClearStoredLicense();
+                // Clear stored license using LicenseManager
+                _plugin.LicenseManager.ClearStoredLicense();
                 
                 LogMessage("✅ License cleared successfully");
                 

@@ -1,0 +1,109 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RhinoUI major_ver="5" minor_ver="0" guid="e2ac0b9d-3e66-4e0b-9803-e28dcd3329c0" localize="False" default_language_id="1033" dpi_scale="150">
+  <extend_rhino_menus />
+  <menus />
+  <tool_bar_groups />
+  <tool_bars>
+    <tool_bar guid="e455ba5d-07f3-4e83-a87f-5ab169cbde8e" bitmap_id="580bcb92-06c2-40e1-a2c7-f5bc2fd3a0fe">
+      <text>
+        <locale_2052>Reer</locale_2052>
+      </text>
+      <tool_bar_item guid="d17ad9ba-b3c5-4ea4-92ab-11551d05fd12">
+        <text>
+          <locale_2052>ReerLicense</locale_2052>
+        </text>
+        <left_macro_id>a1d59d63-60fa-4814-9409-3d21c93fdad0</left_macro_id>
+      </tool_bar_item>
+      <tool_bar_item guid="2f522952-0879-459e-b541-1651e968445f">
+        <text>
+          <locale_2052>ReerStart</locale_2052>
+        </text>
+        <left_macro_id>3e373206-9119-4ae4-9e24-2fb3ed88e4e0</left_macro_id>
+      </tool_bar_item>
+    </tool_bar>
+  </tool_bars>
+  <macros>
+    <macro_item guid="3e373206-9119-4ae4-9e24-2fb3ed88e4e0" bitmap_id="3a4f0c01-f7ec-4043-9636-90cf7d43ed20">
+      <text>
+        <locale_2052>ReerStart</locale_2052>
+      </text>
+      <script>ReerStart</script>
+    </macro_item>
+    <macro_item guid="a1d59d63-60fa-4814-9409-3d21c93fdad0" bitmap_id="3a039ef0-b599-45d8-91fc-5a228045dc80">
+      <text>
+        <locale_2052>ReerLicense</locale_2052>
+      </text>
+      <script>ReerLicenseUI</script>
+    </macro_item>
+  </macros>
+  <icons>
+    <icon guid="3a4f0c01-f7ec-4043-9636-90cf7d43ed20" name="56ce46d4-b1a8-4371-8b51-553011f7b418.svg">
+      <light><svg width="367" height="367" viewBox="0 0 367 367" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="183.284" cy="183.284" r="183.284" fill="#E9FF6C"/>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M155.233 132.512C172.882 123.089 198.509 121.529 217.876 127.066C227.497 129.816 233.493 133.733 236.335 137.136C238.423 139.636 239.3 142.176 237.746 146.699C237.777 146.609 237.764 146.626 237.673 146.746C237.283 147.258 235.466 149.645 229.609 153.424C223.178 157.573 214.417 161.799 204.372 165.912C194.114 170.112 183.406 173.851 173.602 177.096C171.7 177.59 169.844 178.199 168.044 178.918C165.073 179.882 162.218 180.797 159.522 181.661C155.592 182.921 151.994 184.074 148.87 185.114C137.123 189.025 134.973 200.13 134.583 203.832C134.051 208.888 134.919 213.995 136.253 218.411C138.998 227.501 144.938 237.713 154.412 246.335C170.977 261.41 200.151 276.533 238.293 268.176C263.907 262.564 291.334 242.509 303.231 209.324C303.306 209.115 303.196 208.882 302.985 208.81L269.784 197.429C269.576 197.358 269.349 197.47 269.275 197.676C261.666 218.751 244.515 230.553 230.48 233.628C207.217 238.725 189.897 230.096 179.552 220.999C179.536 220.986 179.522 220.97 179.508 220.954C178.138 219.293 177.676 218.028 177.516 217.302C177.337 216.496 177.411 215.845 177.625 215.256C177.961 214.33 178.915 213.002 180.78 212.059C180.797 212.05 180.816 212.043 180.835 212.036C192.202 208.321 205.633 203.728 218.182 198.591C229.09 194.125 240.186 188.919 249.322 183.025C257.665 177.642 267.86 169.533 271.809 158.039C277.412 141.735 273.955 126.445 264.114 114.661C255.027 103.781 241.502 96.9633 227.905 93.0765C200.838 85.3391 165.249 86.8998 138.088 101.4C103.323 119.96 90.5241 160.555 85.5121 194.481C82.0877 217.661 81.8469 240.946 82.3778 258.892C82.3827 259.058 82.4899 259.201 82.647 259.256L118.358 271.573C118.626 271.665 118.903 271.463 118.888 271.179C117.934 253.402 117.172 226.143 121.097 199.574C125.903 167.043 136.751 142.379 155.233 132.512Z" fill="#313131"/>
+</svg>
+</light>
+    </icon>
+    <icon guid="a7a43fb0-901e-4e62-9a01-4627efa97dec" name="a7a43fb0-901e-4e62-9a01-4627efa97dec.svg">
+      <light><svg height="48" viewBox="0 0 48 48" width="48" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><clipPath id="a"><path clip-rule="evenodd" d="m0 0h36v36h-36z"/></clipPath><clipPath id="b"><path d="m10.67 9.319h21.188v21.188h-21.188z"/></clipPath><linearGradient id="c" gradientTransform="matrix(0 17.245 -17.245 0 21.18 10.818)" gradientUnits="userSpaceOnUse" spreadMethod="pad" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".435294"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><mask id="d" height="1" maskUnits="userSpaceOnUse" width="1" x="0" y="0"><g clip-path="url(#b)"><path d="m10.67 9.319h21.188v21.188h-21.188z" fill="url(#c)" fill-rule="evenodd"/></g></mask><clipPath id="e"><path d="m12.309 18.789h9v10.08h-9z"/></clipPath><mask id="f" height="1" maskUnits="userSpaceOnUse" width="1" x="0" y="0"><image height="1" image-rendering="optimizeSpeed" preserveAspectRatio="none" width="1" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAcCAAAAACxT0sMAAAAAXNCSVQI5gpbmQAAABZJREFUKJFj/M+AAzDhkhiVGZUZ9DIAJs4BN8jbMzUAAAAASUVORK5CYII="/></mask><mask id="g" height="1" maskUnits="userSpaceOnUse" width="1" x="0" y="0"><g clip-path="url(#e)"><image height="1" image-rendering="optimizeSpeed" mask="url(#f)" preserveAspectRatio="none" transform="matrix(9 0 0 -10.08 12.309 28.869)" width="1" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAAcCAYAAACUJBTQAAAABHNCSVQICAgIfAhkiAAAApBJREFUSImVVtuO4yAUcyP+/zP7lDbhTkKAfajMntBkdwYJtWo7x9jGzjyez2fDxWrt78fTNAEAaq2oteI4DqSUsO87SilwziHGiJwzQgiw1uL1emGeZyzLAnUFAACPx+P0vrWG1hpKKX0fx4GcM/Z9x7ZtSCnBWgutNdZ1hdYaxhgoDrgDIKtSCnLOp8Eczh1CgDEGy7J0EGvth8kVED8vpaC11gcThINjjH1772GMgTEG1lp47xFCgLoaLhlIH65YhBDgvYdzDuu6dhbGGDjnPiBXElF/mj3qLz2QMmmtuw/ee3jvkVL6MLnyoNaK1toXA6k/WRhjOgutdb9t/O30P6nuZEopIcbYPaDRBCDLbdsw1VpPckkPtm1DrRUpJaSUkHNGSqmzsNZ2BsYYhBAQY+yvzJKapqmHjV7Qh1LKSXvK5JyDtbb7wNtEo6VUOedPTu7k2bbtSyKCaK1PeSAAT7/ve5dYjRKN+sudUupG8yaNp+fw4zj6rVQy0QQhED2QDCQAQbz3HYRMeNBSyucKk8ldH0mJZF3csZDNUEqB4vC7KyqzMIJcAVAqylVKgZKNegfinOtScbOXZEFKmTkXABSHH8eBWuvpj1gLxhjM84x1XTsDsuBzhIeTs7iU/JKtSh9kZbDwyIC/G6VhHcni7UwoEWVi4N7vd2dAo0eT5SuB5FJX5UcQaTKlk0mWUpPNCAAAiqfn9t6fOom14ZzrLJkFMpJSXS3F00mAMWxjH8m6yTn3nN0tNQKs63rqIxo9dpJsh9HoL5AxcKMP8tkgDSbQvxicmJABh/PK0mwOlYGjFz9Zk3w2yP8yYoxfLSzb9ScMOhM+F5gHZoJplvmRXvwGZGIvXTXqlclk8pv1B6AEU/fZPOo1AAAAAElFTkSuQmCC"/></g></mask><g clip-path="url(#a)" transform="matrix(1.3333333 0 0 -1.3333333 0 48)"><g mask="url(#d)"><path d="m21.264 30.507c5.848 0 10.594-4.746 10.594-10.594s-4.746-10.594-10.594-10.594-10.594 4.746-10.594 10.594 4.746 10.594 10.594 10.594z" fill="#fff" fill-rule="evenodd"/></g><path d="m21.264 30.91c6.07 0 10.997-4.927 10.997-10.997s-4.927-10.997-10.997-10.997-10.997 4.927-10.997 10.997 4.927 10.997 10.997 10.997z" fill="none" stroke="#000" stroke-miterlimit="10" stroke-width="1.449"/><path d="m13.326 11.977-7.815-7.816" fill="none" stroke="#000" stroke-miterlimit="10" stroke-width="2.899"/><g mask="url(#g)"><path d="m14.216 26.084c1.92 2.361 4.671 3.309 6.141 2.115 1.469-1.195 1.103-4.081-.817-6.443-1.92-2.361-4.671-3.309-6.141-2.115-1.469 1.195-1.103 4.081.817 6.443z" fill="#fff" fill-rule="evenodd"/></g><g fill-rule="evenodd"><path d="m14.082 15.145h4.529v1.51h-1.509v9.058h-1.51v-1.51h-1.51v-1.51h1.51v-6.038h-1.51z"/><path d="m23.14 15.145h4.529v1.51h-1.509v9.058h-1.51v-1.51h-1.51v-1.51h1.51v-6.038h-1.51z"/><path d="m20.121 22.693v-1.51h1.51v1.51z"/><path d="m20.121 19.674v-1.51h1.51v1.51z"/></g><path d="m44.352 18.144-2.422 6.328h-.039c.045-.501.068-1.097.068-1.787v-4.541h-.767v7.138h1.25l2.261-5.888h.039l2.28 5.888h1.241v-7.138h-.831v4.599c0 .528.023 1.101.069 1.719h-.039l-2.442-6.318z"/><path d="m53.389 18.144-.161.762h-.039c-.267-.336-.533-.563-.798-.681-.266-.119-.597-.179-.994-.179-.53 0-.946.137-1.247.41-.301.274-.452.663-.452 1.167 0 1.081.864 1.648 2.593 1.7l.908.029v.332c0 .42-.09.73-.271.93s-.47.3-.867.3c-.446 0-.95-.136-1.513-.41l-.249.62c.263.144.552.256.866.337.314.082.629.122.945.122.638 0 1.111-.141 1.418-.425.308-.283.462-.737.462-1.362v-3.652zm-1.831.571c.505 0 .901.139 1.189.415.288.277.432.664.432 1.162v.484l-.81-.034c-.645-.023-1.109-.123-1.394-.301-.285-.177-.427-.453-.427-.827 0-.293.088-.516.266-.669.177-.153.425-.23.744-.23z"/><path d="m57.799 18.046c-.775 0-1.374.239-1.799.716-.425.476-.637 1.151-.637 2.024 0 .895.215 1.586.646 2.075.432.488 1.046.732 1.844.732.257 0 .514-.028.771-.083s.459-.12.606-.195l-.249-.689c-.18.072-.375.131-.586.179-.212.047-.399.07-.562.07-1.087 0-1.631-.693-1.631-2.08 0-.657.133-1.162.398-1.513.266-.352.659-.528 1.179-.528.446 0 .904.096 1.372.288v-.717c-.358-.186-.808-.279-1.352-.279z"/></g></svg></light>
+      <dark><svg fill="none" fill-rule="evenodd" stroke="black" stroke-width="0.501" stroke-linejoin="bevel" stroke-miterlimit="10" font-family="Times New Roman" font-size="16" style="font-variant-ligatures:none" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg" version="1.1" overflow="visible" width="36pt" height="36pt" viewBox="0 -36 36 36">
+ <defs>
+  <linearGradient id="LinearGradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="17.245" gradientTransform="translate(21.18 10.818)">
+   <stop offset="0" stop-color="#6f6f6f"/>
+   <stop offset="1" stop-color="#000000"/>
+  </linearGradient>
+  <linearGradient id="LinearGradient_1" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="5.138" y2="-4.315" gradientTransform="translate(14.113 25.877)">
+   <stop offset="0" stop-color="#e6e6e6"/>
+   <stop offset="0.1" stop-color="#dadada"/>
+   <stop offset="0.2" stop-color="#cbcbcb"/>
+   <stop offset="0.3" stop-color="#b8b8b8"/>
+   <stop offset="0.4" stop-color="#9c9c9c"/>
+   <stop offset="0.5" stop-color="#737373"/>
+   <stop offset="0.6" stop-color="#4a4a4a"/>
+   <stop offset="0.7" stop-color="#2e2e2e"/>
+   <stop offset="0.8" stop-color="#1b1b1b"/>
+   <stop offset="0.9" stop-color="#0c0c0c"/>
+   <stop offset="1" stop-color="#000000"/>
+  </linearGradient>
+ </defs>
+ <g id="Layer 1" transform="scale(1 -1)">
+  <mask id="TranspMask">
+   <rect x="-10%" y="-10%" width="120%" height="120%" fill="url(#LinearGradient)" stroke="none"/>
+  </mask>
+  <path d="M 21.264,30.507 C 27.112,30.507 31.858,25.761 31.858,19.913 C 31.858,14.065 27.112,9.319 21.264,9.319 C 15.416,9.319 10.67,14.065 10.67,19.913 C 10.67,25.761 15.416,30.507 21.264,30.507 Z" stroke-linejoin="miter" stroke="none" fill="#ffffff" stroke-width="1.449" marker-start="none" marker-end="none" mask="url(#TranspMask)"/>
+  <ellipse rx="10.997" ry="10.997" transform="translate(21.264 19.913) rotate(90)" stroke="#e1e1e1" stroke-linejoin="miter" stroke-width="1.449"/>
+  <path d="M 13.326,11.977 L 5.511,4.161" fill="none" stroke="#e1e1e1" stroke-linejoin="miter" stroke-width="2.899"/>
+  <mask id="TranspMask_1">
+   <rect x="-10%" y="-10%" width="120%" height="120%" fill="url(#LinearGradient_1)" stroke="none"/>
+  </mask>
+  <path d="M 14.216,26.084 C 16.136,28.445 18.887,29.393 20.357,28.199 C 21.826,27.004 21.46,24.118 19.54,21.756 C 17.62,19.395 14.869,18.447 13.399,19.641 C 11.93,20.836 12.296,23.722 14.216,26.084 Z" stroke-linejoin="miter" stroke="none" fill="#ffffff" stroke-width="1.208" marker-start="none" marker-end="none" mask="url(#TranspMask_1)"/>
+  <path d="M 14.082,15.145 L 18.611,15.145 L 18.611,16.655 L 17.102,16.655 L 17.102,25.713 L 15.592,25.713 L 15.592,24.203 L 14.082,24.203 L 14.082,22.693 L 15.592,22.693 L 15.592,16.655 L 14.082,16.655 L 14.082,15.145 Z" fill="#e1e1e1" stroke="none" stroke-width="1.449" stroke-linejoin="miter" marker-start="none" marker-end="none"/>
+  <path d="M 23.14,15.145 L 27.669,15.145 L 27.669,16.655 L 26.16,16.655 L 26.16,25.713 L 24.65,25.713 L 24.65,24.203 L 23.14,24.203 L 23.14,22.693 L 24.65,22.693 L 24.65,16.655 L 23.14,16.655 L 23.14,15.145 Z" fill="#e1e1e1" stroke="none" stroke-width="1.449" stroke-linejoin="miter" marker-start="none" marker-end="none"/>
+  <rect x="-0.755" y="-0.755" width="1.51" height="1.51" transform="translate(20.876 21.938) rotate(90)" fill="#e1e1e1" stroke="none" stroke-width="1.498" stroke-linejoin="miter"/>
+  <rect x="-0.755" y="-0.755" width="1.51" height="1.51" transform="translate(20.876 18.919) rotate(90)" fill="#e1e1e1" stroke="none" stroke-width="1.498" stroke-linejoin="miter"/>
+ </g>
+</svg>
+</dark>
+    </icon>
+    <icon guid="580bcb92-06c2-40e1-a2c7-f5bc2fd3a0fe" name="580bcb92-06c2-40e1-a2c7-f5bc2fd3a0fe.svg">
+      <light><svg width="367" height="367" viewBox="0 0 367 367" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="183.284" cy="183.284" r="183.284" fill="#E9FF6C"/>
+<path d="M189.391 157.845C190.859 153.095 191.636 148 191.636 142.818C191.636 114.232 168.405 91 139.818 91C111.232 91 88 114.232 88 142.818C88 171.405 111.232 194.636 139.818 194.636C147.418 194.636 154.673 192.995 161.15 190.059L165.727 194.636V220.545H191.636V246.455H217.545V263.727L234.818 281H278V246.455L189.391 157.845ZM131.182 151.455C121.682 151.455 113.909 143.682 113.909 134.182C113.909 124.682 121.682 116.909 131.182 116.909C140.682 116.909 148.455 124.682 148.455 134.182C148.455 143.682 140.682 151.455 131.182 151.455Z" fill="#313131"/>
+</svg>
+</light>
+    </icon>
+    <icon guid="3a039ef0-b599-45d8-91fc-5a228045dc80" name="ef22689f-a705-4b3a-ae3b-214c34536e23.svg">
+      <light><svg width="367" height="367" viewBox="0 0 367 367" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="183.284" cy="183.284" r="183.284" fill="#E9FF6C"/>
+<path d="M189.391 157.845C190.859 153.095 191.636 148 191.636 142.818C191.636 114.232 168.405 91 139.818 91C111.232 91 88 114.232 88 142.818C88 171.405 111.232 194.636 139.818 194.636C147.418 194.636 154.673 192.995 161.15 190.059L165.727 194.636V220.545H191.636V246.455H217.545V263.727L234.818 281H278V246.455L189.391 157.845ZM131.182 151.455C121.682 151.455 113.909 143.682 113.909 134.182C113.909 124.682 121.682 116.909 131.182 116.909C140.682 116.909 148.455 124.682 148.455 134.182C148.455 143.682 140.682 151.455 131.182 151.455Z" fill="#313131"/>
+</svg>
+</light>
+    </icon>
+  </icons>
+  <bitmaps>
+    <small_bitmap item_width="0" item_height="0" />
+    <normal_bitmap item_width="0" item_height="0" />
+    <large_bitmap item_width="0" item_height="0" />
+  </bitmaps>
+  <scripts />
+</RhinoUI>
