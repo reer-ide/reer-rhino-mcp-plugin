@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using Rhino;
 using Rhino.DocObjects;
+using Rhino.Geometry;
+using Rhino.Input.Custom;
 using ReerRhinoMCPPlugin.Core.Functions;
 using ReerRhinoMCPPlugin.Core.Common;
 
@@ -24,34 +27,129 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     };
                 }
 
+                // Get parameters for lights and grips
                 bool includeLights = ParameterUtils.GetBoolValue(parameters, "include_lights", false);
                 bool includeGrips = ParameterUtils.GetBoolValue(parameters, "include_grips", false);
-
+                
+                // Use GetObject approach to handle both full objects and subobjects
+                var selectedObjectsDict = new Dictionary<Guid, JObject>();
                 var selectedObjects = new JArray();
-                var selectedIds = new JArray();
-                int count = 0;
-
-                // Get selected objects
-                var selectedRhinoObjects = doc.Objects.GetSelectedObjects(includeLights, includeGrips);
-
-                foreach (var rhinoObject in selectedRhinoObjects)
+                int totalSelectionCount = 0;
+                
+                Logger.Debug("Checking sub-objects selection...");
+                
+                // Create GetObject for interactive selection
+                using (var go = new GetObject())
                 {
-                    if (rhinoObject == null || !rhinoObject.IsValid) continue;
-
-                    var objectData = BuildObjectData(rhinoObject, doc);
-                    selectedObjects.Add(objectData);
-                    selectedIds.Add(rhinoObject.Id.ToString());
-                    count++;
+                    go.SubObjectSelect = true; // Enable subobject selection
+                    go.DeselectAllBeforePostSelect = false;
+                    go.EnablePreSelect(true, true);
+                    go.EnablePostSelect(true);
+                    
+                    // Configure object type filters based on parameters
+                    if (!includeLights)
+                    {
+                        go.DisablePreSelect(); // This will help us filter manually
+                    }
+                    
+                    // Set geometry filter to exclude/include specific types
+                    var geometryFilter = Rhino.DocObjects.ObjectType.AnyObject;
+                    if (!includeLights)
+                    {
+                        geometryFilter &= ~Rhino.DocObjects.ObjectType.Light;
+                    }
+                    go.SetCommandPrompt("Select objects or subobjects (Enter when done)");
+                    go.GeometryFilter = geometryFilter;
+                    
+                    // Get multiple objects/subobjects
+                    var result = go.GetMultiple(0, 0); // min=0, max=0 means any number
+                    
+                    if (result == Rhino.Input.GetResult.Object)
+                    {
+                        totalSelectionCount = go.ObjectCount; // Total count includes all selections (objects + subobjects)
+                        
+                        for (int i = 0; i < totalSelectionCount; i++)
+                        {
+                            var objRef = go.Object(i);
+                            var obj = objRef.Object();
+                            
+                            if (obj == null || !obj.IsValid) continue;
+                            
+                            // Filter based on grips setting
+                            if (!includeGrips && obj.GripsOn)
+                            {
+                                continue; // Skip objects with grips on if not including grips
+                            }
+                            
+                            // Filter based on lights setting (double check since GeometryFilter might not catch all)
+                            if (!includeLights && obj.ObjectType == Rhino.DocObjects.ObjectType.Light)
+                            {
+                                continue; // Skip light objects if not including lights
+                            }
+                            
+                            var componentIndex = objRef.GeometryComponentIndex;
+                            var objId = obj.Id;
+                            
+                            // Check if this is a subobject selection
+                            if (componentIndex.ComponentIndexType != ComponentIndexType.InvalidType &&
+                                componentIndex.ComponentIndexType != ComponentIndexType.BrepLoop)
+                            {
+                                // This is a subobject selection
+                                if (selectedObjectsDict.ContainsKey(objId))
+                                {
+                                    // Add to existing subobject list
+                                    var subobjects = selectedObjectsDict[objId]["subobjects"] as JArray;
+                                    subobjects?.Add(new JObject
+                                    {
+                                        ["index"] = componentIndex.Index,
+                                        ["type"] = componentIndex.ComponentIndexType.ToString()
+                                    });
+                                }
+                                else
+                                {
+                                    // Create new entry for subobject selection
+                                    var objData = BuildObjectData(obj, doc);
+                                    objData["selection_type"] = "subobject";
+                                    objData["subobjects"] = new JArray
+                                    {
+                                        new JObject
+                                        {
+                                            ["index"] = componentIndex.Index,
+                                            ["type"] = componentIndex.ComponentIndexType.ToString()
+                                        }
+                                    };
+                                    selectedObjectsDict[objId] = objData;
+                                }
+                            }
+                            else
+                            {
+                                // This is a full object selection
+                                if (!selectedObjectsDict.ContainsKey(objId))
+                                {
+                                    var objData = BuildObjectData(obj, doc);
+                                    objData["selection_type"] = "full";
+                                    selectedObjectsDict[objId] = objData;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Convert dictionary to array for response
+                foreach (var objData in selectedObjectsDict.Values)
+                {
+                    selectedObjects.Add(objData);
                 }
 
                 return new JObject
                 {
                     ["status"] = "success",
-                    ["selected_count"] = count,
-                    ["selected_ids"] = selectedIds,
+                    ["selected_count"] = totalSelectionCount, // Total items selected (including subobjects)
+                    ["unique_objects_count"] = selectedObjectsDict.Count, // Number of unique parent objects
                     ["selected_objects"] = selectedObjects,
                     ["include_lights"] = includeLights,
                     ["include_grips"] = includeGrips,
+                    ["object_count_in_file"] = doc.Objects.Count,
                     ["timestamp"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
                 };
             }
@@ -68,11 +166,11 @@ namespace ReerRhinoMCPPlugin.Core.Functions
         private JObject BuildObjectData(RhinoObject rhinoObject, RhinoDoc doc)
         {
             var userStrings = rhinoObject.Attributes.GetUserStrings();
-            
+
             var objectData = new JObject
             {
                 ["id"] = rhinoObject.Id.ToString(),
-                ["type"] = rhinoObject.Geometry?.GetType().Name ?? "Unknown",
+                ["type"] = GetObjectTypeName(rhinoObject),
                 ["name"] = rhinoObject.Attributes.Name ?? ""
             };
 
@@ -150,6 +248,69 @@ namespace ReerRhinoMCPPlugin.Core.Functions
 
             // Return as string
             return value;
+        }
+
+        private string GetObjectTypeName(RhinoObject rhinoObject)
+        {
+            // Use the actual object type rather than geometry type
+            switch (rhinoObject.ObjectType)
+            {
+                case ObjectType.Point:
+                    return "Point";
+                case ObjectType.PointSet:
+                    return "PointCloud";
+                case ObjectType.Curve:
+                    return "Curve";
+                case ObjectType.Surface:
+                    return "Surface";
+                case ObjectType.Brep:
+                    return "Brep";
+                case ObjectType.Mesh:
+                    return "Mesh";
+                case ObjectType.Light:
+                    return "Light";
+                case ObjectType.Annotation:
+                    return "Annotation";
+                case ObjectType.InstanceDefinition:
+                    return "Block";
+                case ObjectType.InstanceReference:
+                    return "BlockInstance";
+                case ObjectType.TextDot:
+                    return "TextDot";
+                case ObjectType.Grip:
+                    return "Grip";
+                case ObjectType.Detail:
+                    return "Detail";
+                case ObjectType.Hatch:
+                    return "Hatch";
+                case ObjectType.MorphControl:
+                    return "MorphControl";
+                case ObjectType.BrepLoop:
+                    return "BrepLoop";
+                case ObjectType.PolysrfFilter:
+                    return "Polysurface";
+                case ObjectType.EdgeFilter:
+                    return "Edge";
+                case ObjectType.PolyedgeFilter:
+                    return "Polyedge";
+                case ObjectType.MeshVertex:
+                    return "MeshVertex";
+                case ObjectType.MeshEdge:
+                    return "MeshEdge";
+                case ObjectType.MeshFace:
+                    return "MeshFace";
+                case ObjectType.Cage:
+                    return "Cage";
+                case ObjectType.Phantom:
+                    return "Phantom";
+                case ObjectType.ClipPlane:
+                    return "ClippingPlane";
+                case ObjectType.Extrusion:
+                    return "Extrusion";
+                default:
+                    // Fallback to geometry type if object type is not recognized
+                    return rhinoObject.Geometry?.GetType().Name ?? "Unknown";
+            }
         }
     }
 }
