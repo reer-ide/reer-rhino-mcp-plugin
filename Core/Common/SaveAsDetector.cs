@@ -2,16 +2,40 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Rhino;
+using Rhino.Input.Custom;
 using ReerRhinoMCPPlugin.Core.Client;
 
 namespace ReerRhinoMCPPlugin.Core.Common
 {
+    /// <summary>
+    /// User choice for SaveAs operation
+    /// </summary>
+    public enum SaveAsUserChoice
+    {
+        ContinueWithNewFile,
+        ReturnToOriginalFile,
+        Cancel
+    }
+
     /// <summary>
     /// Detects SaveAs operations by monitoring Rhino document save events
     /// </summary>
     public class SaveAsDetector
     {
         private DocumentInfo documentInfoBeforeSave;
+
+        
+        /// <summary>
+        /// Event arguments for SaveAs detection
+        /// </summary>
+        public class SaveAsDetectedEventArgs : EventArgs
+        {
+            public string DocumentGuid { get; set; }
+            public string OldFilePath { get; set; }
+            public string NewFilePath { get; set; }
+            public LinkedFileInfo LinkedFileInfo { get; set; }
+        }
+
 
         /// <summary>
         /// Event raised when SaveAs operation is detected
@@ -115,6 +139,101 @@ namespace ReerRhinoMCPPlugin.Core.Common
                 DocumentGuid = FileIntegrityManager.GetExistingDocumentGUID(doc),
                 Name = doc.Name
             };
+        }
+
+        /// <summary>
+        /// Show user confirmation dialog for SaveAs operation using Rhino's command prompt
+        /// </summary>
+        public static Task<SaveAsUserChoice> ShowSaveAsConfirmationDialog(string oldPath, string newPath)
+        {
+            var tcs = new TaskCompletionSource<SaveAsUserChoice>();
+            
+            // Execute on main thread after a short delay to ensure SaveAs completes
+            RhinoApp.InvokeOnUiThread(new System.Action(async () =>
+            {
+                try
+                {
+                    // Add a small delay to ensure SaveAs operation completes
+                    await Task.Delay(500);
+                    
+                    var oldFileName = Path.GetFileName(oldPath);
+                    var newFileName = Path.GetFileName(newPath);
+
+                    // Display information to user in command history
+                    RhinoApp.WriteLine("");
+                    RhinoApp.WriteLine(new string('=', 60));
+                    RhinoApp.WriteLine("MCP SAVE AS OPERATION DETECTED");
+                    RhinoApp.WriteLine(new string('=', 60));
+                    RhinoApp.WriteLine($"You saved a copy to: {newFileName}");
+                    RhinoApp.WriteLine($"Original file: {oldFileName}");
+                    RhinoApp.WriteLine("");
+                    RhinoApp.WriteLine("Choose how to continue your MCP session:");
+                    RhinoApp.WriteLine("  1. UseNewFile - Continue with the new saved file");
+                    RhinoApp.WriteLine("  2. ReturnToOriginal - Open original file and continue");
+                    RhinoApp.WriteLine("  3. DoNothing - Keep current state");
+                    RhinoApp.WriteLine("");
+
+                    // Use Rhino's GetOption for user choice
+                    var getOption = new GetOption();
+                    getOption.SetCommandPrompt("Select action for MCP session");
+                    getOption.AcceptNothing(false);
+
+                    int continueNewIndex = getOption.AddOption("UseNewFile");
+                    int returnOriginalIndex = getOption.AddOption("ReturnToOriginal");  
+                    int cancelIndex = getOption.AddOption("DoNothing");
+
+                    var result = getOption.Get();
+
+                    SaveAsUserChoice choice;
+                    if (result == Rhino.Input.GetResult.Option)
+                    {
+                        var option = getOption.Option();
+                        if (option != null && option.Index == continueNewIndex)
+                        {
+                            RhinoApp.WriteLine($"✓ MCP session will now use: {newFileName}");
+                            choice = SaveAsUserChoice.ContinueWithNewFile;
+                        }
+                        else if (option != null && option.Index == returnOriginalIndex)
+                        {
+                            RhinoApp.WriteLine($"✓ Opening original file: {oldFileName}");
+                            choice = SaveAsUserChoice.ReturnToOriginalFile;
+                        }
+                        else if (option != null && option.Index == cancelIndex)
+                        {
+                            RhinoApp.WriteLine("✓ MCP session unchanged");
+                            choice = SaveAsUserChoice.Cancel;
+                        }
+                        else
+                        {
+                            // Default
+                            RhinoApp.WriteLine($"⚠ Defaulting to use new file: {newFileName}");
+                            choice = SaveAsUserChoice.ContinueWithNewFile;
+                        }
+                    }
+                    else if (result == Rhino.Input.GetResult.Cancel || result == Rhino.Input.GetResult.Nothing)
+                    {
+                        RhinoApp.WriteLine("✗ SaveAs handling cancelled - MCP session unchanged");
+                        choice = SaveAsUserChoice.Cancel;
+                    }
+                    else
+                    {
+                        // Default if no valid option selected
+                        RhinoApp.WriteLine($"⚠ Defaulting to use new file: {newFileName}");
+                        choice = SaveAsUserChoice.ContinueWithNewFile;
+                    }
+                    
+                    tcs.SetResult(choice);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Error in SaveAs confirmation dialog: {ex.Message}");
+                    RhinoApp.WriteLine($"✗ Error in SaveAs dialog: {ex.Message}");
+                    // Safe default
+                    tcs.SetResult(SaveAsUserChoice.ContinueWithNewFile);
+                }
+            }));
+            
+            return tcs.Task;
         }
 
         /// <summary>

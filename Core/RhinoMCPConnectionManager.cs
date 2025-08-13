@@ -426,46 +426,6 @@ namespace ReerRhinoMCPPlugin.Core
         {
             StatusChanged?.Invoke(this, e);
         }
-
-        /// <summary>
-        /// Notify server about file path change (for SaveAs operations)
-        /// </summary>
-        /// <param name="sessionId">Session ID</param>
-        /// <param name="oldPath">Previous file path</param>
-        /// <param name="newPath">New file path</param>
-        /// <param name="documentGuid">Document GUID for verification</param>
-        /// <returns>True if notification was successful</returns>
-        public async Task<bool> NotifyServerOfFilePathChangeAsync(string sessionId, string oldPath, string newPath, string documentGuid)
-        {
-            try
-            {
-                lock (lockObject)
-                {
-                    if (activeConnection == null)
-                    {
-                        Logger.Debug("No active connection for server notification");
-                        return false;
-                    }
-                }
-
-                // Only remote connections need server notification
-                var remoteConnection = activeConnection as RhinoMCPClient;
-                if (remoteConnection == null)
-                {
-                    Logger.Debug("Active connection is not remote, skipping server notification");
-                    return false;
-                }
-
-                // Use the remote client to notify server
-                var success = await remoteConnection.NotifyServerOfFilePathChangeAsync(sessionId, oldPath, newPath, documentGuid);
-                return success;
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error notifying server of file path change: {ex.Message}");
-                return false;
-            }
-        }
         
         /// <summary>
         /// Disposes the connection manager and any active connections

@@ -89,17 +89,6 @@ namespace ReerRhinoMCPPlugin.Core.Common
     }
 
     /// <summary>
-    /// Event arguments for SaveAs detection
-    /// </summary>
-    public class SaveAsDetectedEventArgs : EventArgs
-    {
-        public string DocumentGuid { get; set; }
-        public string OldFilePath { get; set; }
-        public string NewFilePath { get; set; }
-        public LinkedFileInfo LinkedFileInfo { get; set; }
-    }
-
-    /// <summary>
     /// Manages file integrity checking and monitoring for linked Rhino files
     /// </summary>
     public class FileIntegrityManager
@@ -528,6 +517,7 @@ namespace ReerRhinoMCPPlugin.Core.Common
         {
             try
             {
+                // This call will automatically trigger migration of any hidden .linked_files.dat to linked_files.dat
                 var fileList = await CrossPlatformStorage.RetrieveDataAsync<List<LinkedFileInfo>>(LINKED_FILES_STORAGE_KEY);
 
                 if (fileList != null)
@@ -542,6 +532,10 @@ namespace ReerRhinoMCPPlugin.Core.Common
                     }
 
                     Logger.Info($"Loaded {fileList.Count} linked files from storage");
+                }
+                else
+                {
+                    Logger.Debug("No linked files found in storage");
                 }
             }
             catch (Exception ex)
@@ -642,28 +636,6 @@ namespace ReerRhinoMCPPlugin.Core.Common
             var currentGuid = GetExistingDocumentGUID();
             return currentGuid != expectedGuid;
         }
-
-        /// <summary>
-        /// Clear the document GUID (for testing/debugging)
-        /// </summary>
-        /// <param name="doc">Rhino document (null for active document)</param>
-        public static void ClearDocumentGUID(RhinoDoc doc = null)
-        {
-            doc = doc ?? RhinoDoc.ActiveDoc;
-            if (doc == null)
-                return;
-
-            try
-            {
-                doc.Strings.Delete(DOCUMENT_GUID_KEY);
-                Logger.Info($"Cleared document GUID for {doc.Name}");
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error clearing document GUID: {ex.Message}");
-            }
-        }
-
         #endregion
 
     }
