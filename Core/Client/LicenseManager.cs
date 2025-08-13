@@ -103,7 +103,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 return new LicenseRegistrationResult
                 {
                     Success = false,
-                    Message = ex.Message
+                    Message = "No valid license found. Please check your license details or get one."
                 };
             }
         }
@@ -136,7 +136,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                     return new LicenseValidationResult
                     {
                         IsValid = false,
-                        Message = "Machine fingerprint mismatch. License may have been moved to a different machine."
+                        Message = "No valid license found. Please check your license details or get one."
                     };
                 }
                 
@@ -192,7 +192,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                     return new LicenseValidationResult
                     {
                         IsValid = false,
-                        Message = invalidMessage
+                        Message = "License is invalid or expired. Please check your license or get one."
                     };
                 }
                 

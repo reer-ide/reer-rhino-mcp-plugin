@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ReerRhinoMCPPlugin.UI.Views.NoLicenseView">
+    
+    <UserControl.Styles>
+        <StyleInclude Source="/UI/Styles/ReerTheme.axaml"/>
+    </UserControl.Styles>
+    
+    <Grid Background="{DynamicResource ReerLightBackgroundBrush}">
+        <StackPanel HorizontalAlignment="Center" 
+                    VerticalAlignment="Center"
+                    MaxWidth="400"
+                    Spacing="24">
+            
+            <!-- Warning Icon -->
+            <Border Width="64" Height="64"
+                    CornerRadius="32"
+                    Background="#FFE5E0"
+                    HorizontalAlignment="Center">
+                <TextBlock Text="❗" 
+                           FontSize="32"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+            </Border>
+            
+            <!-- Message -->
+            <TextBlock Text="No valid license found."
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource ReerTextPrimaryBrush}"/>
+            
+            <TextBlock Text="Please check your Reer integrations."
+                       FontSize="14"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource ReerSecondaryTextBrush}"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"/>
+            
+            <!-- Get License Button -->
+            <Button Name="GetLicenseButton"
+                    Classes="ReerPrimary"
+                    Content="Get License →"
+                    Width="200"
+                    HorizontalAlignment="Center"
+                    Margin="0,16,0,0"/>
+        </StackPanel>
+    </Grid>
+    
+</UserControl>

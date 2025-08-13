@@ -58,6 +58,7 @@
     <PackageReference Include="Avalonia" Version="11.0.0" />
     <PackageReference Include="Avalonia.Desktop" Version="11.0.0" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.0.0" />
+    <PackageReference Include="Avalonia.Svg.Skia" Version="11.0.0" />
     
     <PackageReference Include="SkiaSharp" Version="3.119.0" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.119.0" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
@@ -83,7 +84,7 @@
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Assets\plugin-utility.ico" />
-    <EmbeddedResource Include="EmbeddedResources\LicenseIcon.png" />
+    <AvaloniaResource Include="EmbeddedResources\**\*" />
     <None Include="ReerConnector.rhc" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>

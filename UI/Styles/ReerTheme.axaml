@@ -1,0 +1,191 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    
+    <Styles.Resources>
+        <!-- Reer Brand Colors from Figma Design -->
+        
+        <!-- Primary Brand Color -->
+        <Color x:Key="ReerGreen">#E9FF6C</Color>
+        <SolidColorBrush x:Key="ReerGreenBrush" Color="{StaticResource ReerGreen}"/>
+        
+        <!-- Background Colors -->
+        <Color x:Key="ReerLightBackground">#F7F7F2</Color>
+        <Color x:Key="ReerDarkBackground">#1E1E1E</Color>
+        <SolidColorBrush x:Key="ReerLightBackgroundBrush" Color="{StaticResource ReerLightBackground}"/>
+        <SolidColorBrush x:Key="ReerDarkBackgroundBrush" Color="{StaticResource ReerDarkBackground}"/>
+        
+        <!-- Text Colors -->
+        <Color x:Key="ReerFontDark">#313131</Color>
+        <Color x:Key="ReerTextPrimary">#1E1E1E</Color>
+        <SolidColorBrush x:Key="ReerFontDarkBrush" Color="{StaticResource ReerFontDark}"/>
+        <SolidColorBrush x:Key="ReerTextPrimaryBrush" Color="{StaticResource ReerTextPrimary}"/>
+        
+        <!-- Status Colors -->
+        <Color x:Key="ReerLinked">#16DB94</Color>
+        <Color x:Key="ReerLinkMissing">#FF5C3B</Color>
+        <SolidColorBrush x:Key="ReerLinkedBrush" Color="{StaticResource ReerLinked}"/>
+        <SolidColorBrush x:Key="ReerLinkMissingBrush" Color="{StaticResource ReerLinkMissing}"/>
+        
+        <!-- Additional UI Colors -->
+        <Color x:Key="ReerBorderLight">#E0E0E0</Color>
+        <Color x:Key="ReerSecondaryText">#949494</Color>
+        <SolidColorBrush x:Key="ReerBorderLightBrush" Color="{StaticResource ReerBorderLight}"/>
+        <SolidColorBrush x:Key="ReerSecondaryTextBrush" Color="{StaticResource ReerSecondaryText}"/>
+    </Styles.Resources>
+    
+    <!-- Card Style -->
+    <Style Selector="Border.ReerCard">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="BorderBrush" Value="{StaticResource ReerBorderLightBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="24"/>
+        <Setter Property="Margin" Value="0,0,0,16"/>
+    </Style>
+    
+    <!-- Primary Button Style (Reer Green) -->
+    <Style Selector="Button.ReerPrimary">
+        <Setter Property="Background" Value="{StaticResource ReerGreenBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource ReerDarkBackgroundBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Padding" Value="24,12"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    
+    <Style Selector="Button.ReerPrimary:pointerover">
+        <Setter Property="Opacity" Value="0.9"/>
+    </Style>
+    
+    <Style Selector="Button.ReerPrimary:pressed">
+        <Setter Property="Opacity" Value="0.8"/>
+    </Style>
+    
+    <Style Selector="Button.ReerPrimary:disabled">
+        <Setter Property="Opacity" Value="0.5"/>
+    </Style>
+    
+    <!-- Secondary Button Style -->
+    <Style Selector="Button.ReerSecondary">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{StaticResource ReerTextPrimaryBrush}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource ReerBorderLightBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Padding" Value="20,10"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    
+    <!-- Title Text Style -->
+    <Style Selector="TextBlock.ReerTitle">
+        <Setter Property="FontSize" Value="24"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="Foreground" Value="{StaticResource ReerTextPrimaryBrush}"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,0,24"/>
+    </Style>
+    
+    <!-- Subtitle Text Style -->
+    <Style Selector="TextBlock.ReerSubtitle">
+        <Setter Property="FontSize" Value="16"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Foreground" Value="{StaticResource ReerFontDarkBrush}"/>
+        <Setter Property="TextAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,0,16"/>
+    </Style>
+    
+    <!-- Label Text Style -->
+    <Style Selector="TextBlock.ReerLabel">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Foreground" Value="{StaticResource ReerSecondaryTextBrush}"/>
+        <Setter Property="Margin" Value="0,0,0,4"/>
+    </Style>
+    
+    <!-- Input Field Style -->
+    <Style Selector="TextBox.ReerInput">
+        <Setter Property="Background" Value="White"/>
+        <Setter Property="BorderBrush" Value="{StaticResource ReerBorderLightBrush}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="12,10"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="MinHeight" Value="40"/>
+    </Style>
+    
+    <Style Selector="TextBox.ReerInput:focus">
+        <Setter Property="BorderBrush" Value="{StaticResource ReerGreenBrush}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+    </Style>
+    
+    <!-- Status Badge Styles -->
+    <Style Selector="Border.ReerStatusBadge">
+        <Setter Property="CornerRadius" Value="50"/>
+        <Setter Property="Width" Value="48"/>
+        <Setter Property="Height" Value="48"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    
+    <Style Selector="Border.ReerStatusBadge.Success">
+        <Setter Property="Background" Value="{StaticResource ReerLinkedBrush}"/>
+    </Style>
+    
+    <Style Selector="Border.ReerStatusBadge.Error">
+        <Setter Property="Background" Value="{StaticResource ReerLinkMissingBrush}"/>
+    </Style>
+    
+    <Style Selector="Border.ReerStatusBadge.Primary">
+        <Setter Property="Background" Value="{StaticResource ReerGreenBrush}"/>
+    </Style>
+    
+    <!-- Icon Badge (Circular container for icons) -->
+    <Style Selector="Border.ReerIconBadge">
+        <Setter Property="Background" Value="{StaticResource ReerGreenBrush}"/>
+        <Setter Property="CornerRadius" Value="50"/>
+        <Setter Property="Width" Value="64"/>
+        <Setter Property="Height" Value="64"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,0,16"/>
+    </Style>
+    
+    <!-- Progress Step Indicator -->
+    <Style Selector="Border.ReerStepIndicator">
+        <Setter Property="Background" Value="{StaticResource ReerBorderLightBrush}"/>
+        <Setter Property="Height" Value="4"/>
+        <Setter Property="CornerRadius" Value="2"/>
+        <Setter Property="Margin" Value="4,0"/>
+    </Style>
+    
+    <Style Selector="Border.ReerStepIndicator.Active">
+        <Setter Property="Background" Value="{StaticResource ReerGreenBrush}"/>
+    </Style>
+    
+    <!-- License Status Text Styles -->
+    <Style Selector="TextBlock.ReerLicenseId">
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="FontFamily" Value="Consolas, Courier New, monospace"/>
+        <Setter Property="Foreground" Value="{StaticResource ReerFontDarkBrush}"/>
+    </Style>
+    
+    <Style Selector="TextBlock.ReerStatusText">
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Margin" Value="0,8,0,0"/>
+    </Style>
+    
+    <Style Selector="TextBlock.ReerStatusText.Valid">
+        <Setter Property="Foreground" Value="{StaticResource ReerLinkedBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    
+    <Style Selector="TextBlock.ReerStatusText.Invalid">
+        <Setter Property="Foreground" Value="{StaticResource ReerLinkMissingBrush}"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    
+</Styles>

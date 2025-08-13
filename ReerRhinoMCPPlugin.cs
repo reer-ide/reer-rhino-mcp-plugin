@@ -235,70 +235,8 @@ namespace ReerRhinoMCPPlugin
         /// </summary>
         private void LoadPluginToolbar()
         {
-            try
-            {
-                Logger.Info("LoadPluginToolbar started");
-                
-                // Get the path to the RHC (container) file
-                string assemblyPath = Assembly.GetExecutingAssembly().Location;
-                string rhcPath = Path.Combine(Path.GetDirectoryName(assemblyPath), "ReerConnector.rhc");
-                
-                Logger.Info($"Looking for RHC file at: {rhcPath}");
-                
-                if (File.Exists(rhcPath))
-                {
-                    Logger.Success($"RHC file found: {rhcPath}");
-                    
-                    // Try to import container after a delay
-                    Task.Run(async () =>
-                    {
-                        Logger.Info("Waiting 3 seconds for Rhino UI to initialize...");
-                        await Task.Delay(3000);
-                        
-                        RhinoApp.InvokeOnUiThread(new System.Action(() =>
-                        {
-                            try
-                            {
-                                Logger.Info("Attempting to import container...");
-                                
-                                // Try different command formats
-                                // Method 1: Try to import the container definition
-                                string command1 = $"_-WindowLayout _Import \"{rhcPath}\"";
-                                Logger.Info($"Trying command: {command1}");
-                                bool result1 = RhinoApp.RunScript(command1, false);
-                                Logger.Info($"WindowLayout Import result: {result1}");
-                                
-                                if (!result1)
-                                {
-                                    // Method 2: Try Container command if WindowLayout doesn't work
-                                    System.Threading.Thread.Sleep(500);
-                                    string command2 = $"_-Containers _Import \"{rhcPath}\"";
-                                    Logger.Info($"Trying command: {command2}");
-                                    bool result2 = RhinoApp.RunScript(command2, false);
-                                    Logger.Info($"Containers Import result: {result2}");
-                                }
-                                
-                                Logger.Success("Container import commands executed");
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.Error($"Error importing container: {ex.Message}");
-                                Logger.Error($"Stack trace: {ex.StackTrace}");
-                            }
-                        }));
-                    });
-                }
-                else
-                {
-                    Logger.Warning($"Container file not found at: {rhcPath}");
-                    Logger.Info("Please ensure ReerConnector.rhc is in the plugin directory");
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error in LoadPluginToolbar: {ex.Message}");
-                Logger.Error($"Stack trace: {ex.StackTrace}");
-            }
+            // Container loading disabled - not currently needed
+            // The .rhc file loading was causing unnecessary command output
         }
 
         /// <summary>

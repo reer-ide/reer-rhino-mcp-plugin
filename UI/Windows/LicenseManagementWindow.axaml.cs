@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using ReerRhinoMCPPlugin.Core.Client;
+using ReerRhinoMCPPlugin.UI.Views;
 using Rhino;
 
 namespace ReerRhinoMCPPlugin.UI.Windows
@@ -11,23 +12,52 @@ namespace ReerRhinoMCPPlugin.UI.Windows
     public partial class LicenseManagementWindow : Window
     {
         private readonly ReerRhinoMCPPlugin _plugin;
-        private bool _hasValidLicense = false;
+        private LicenseRegistrationView _registrationView;
+        private LicenseManagementView _managementView;
+        private RemoveLicenseConfirmationView _removeConfirmationView;
+        private UserControl _currentView;
+        private bool _logPanelVisible = false;
 
         public LicenseManagementWindow(ReerRhinoMCPPlugin plugin)
         {
             _plugin = plugin;
             InitializeComponent();
+            SetupWindowIcon();
+            SetupViews();
             SetupEventHandlers();
             
             // Automatically check license status on startup
             _ = Task.Run(CheckLicenseStatusOnStartup);
         }
+        
+        private void SetupWindowIcon()
+        {
+            try
+            {
+                // Load icon from Avalonia resources - using PNG for window icon as SVG isn't supported for window icons
+                var iconStream = Avalonia.Platform.AssetLoader.Open(new Uri("avares://ReerConnector/EmbeddedResources/ReerIcon.png"));
+                this.Icon = new WindowIcon(iconStream);
+            }
+            catch { }
+        }
+
+        private void SetupViews()
+        {
+            // Initialize views
+            _registrationView = new LicenseRegistrationView(_plugin);
+            _managementView = new LicenseManagementView(_plugin);
+            _removeConfirmationView = new RemoveLicenseConfirmationView(_plugin);
+            
+            // Subscribe to view events
+            _registrationView.RegistrationCompleted += OnRegistrationCompleted;
+            _managementView.LicenseActionRequested += OnLicenseActionRequested;
+            _removeConfirmationView.RemoveLicenseRequested += OnRemoveLicenseRequested;
+        }
 
         private void SetupEventHandlers()
         {
-            RegisterButton.Click += OnRegisterClick;
-            CheckStatusButton.Click += OnCheckStatusClick;
-            ClearLicenseButton.Click += OnClearLicenseClick;
+            ToggleLogButton.Click += OnToggleLogClick;
+            CloseLogButton.Click += OnCloseLogClick;
             ClearLogButton.Click += OnClearLogClick;
         }
 
@@ -38,13 +68,46 @@ namespace ReerRhinoMCPPlugin.UI.Windows
                 LogMessage("🔄 Checking existing license...");
             });
 
+            await RefreshLicenseStatus();
+        }
+        
+        private async Task RefreshLicenseStatus()
+        {
             try
             {
                 var licenseResult = await _plugin.LicenseManager.GetLicenseStatusAsync();
 
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    UpdateUIBasedOnLicenseStatus(licenseResult);
+                    if (licenseResult != null && !string.IsNullOrEmpty(licenseResult.LicenseId))
+                    {
+                        // Has license (valid or invalid)
+                        // Recreate management view to ensure fresh state
+                        _managementView = new LicenseManagementView(_plugin);
+                        _managementView.LicenseActionRequested += OnLicenseActionRequested;
+                        
+                        ShowManagementView();
+                        _managementView.UpdateLicenseDisplay(licenseResult);
+                        
+                        if (licenseResult.IsValid)
+                        {
+                            LogMessage("✅ Valid license found");
+                        }
+                        else
+                        {
+                            LogMessage("⚠️ License is invalid or expired");
+                        }
+                    }
+                    else
+                    {
+                        // No license at all - show registration
+                        // Recreate registration view to ensure fresh state
+                        _registrationView = new LicenseRegistrationView(_plugin);
+                        _registrationView.RegistrationCompleted += OnRegistrationCompleted;
+                        
+                        ShowRegistrationView();
+                        LogMessage("📦 No license found - showing registration");
+                    }
                 });
             }
             catch (Exception ex)
@@ -52,201 +115,129 @@ namespace ReerRhinoMCPPlugin.UI.Windows
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     LogMessage($"⚠️ Could not check license status: {ex.Message}");
-                    ShowRegistrationForm();
+                    // If error checking, assume no license and show registration
+                    // Recreate registration view to ensure fresh state
+                    _registrationView = new LicenseRegistrationView(_plugin);
+                    _registrationView.RegistrationCompleted += OnRegistrationCompleted;
+                    
+                    ShowRegistrationView();
                 });
             }
         }
 
-        private void UpdateUIBasedOnLicenseStatus(LicenseValidationResult licenseResult)
+        private void ShowRegistrationView()
         {
-            if (licenseResult.IsValid)
+            if (_currentView != _registrationView)
             {
-                _hasValidLicense = true;
-                ShowLicenseInfo(licenseResult);
-                LogMessage("✅ Valid license found");
+                _currentView = _registrationView;
+                ViewContainer.Content = _registrationView;
+                LogMessage("📦 Showing registration view");
+            }
+        }
+
+        private void ShowManagementView()
+        {
+            if (_currentView != _managementView)
+            {
+                _currentView = _managementView;
+                ViewContainer.Content = _managementView;
+                LogMessage("🔑 Showing license management view");
+            }
+        }
+        
+        // NoLicenseView is no longer used - we show registration instead
+
+        private async void OnRegistrationCompleted(object sender, LicenseRegistrationEventArgs e)
+        {
+            if (e.Success)
+            {
+                LogMessage($"✅ Registration completed successfully! License ID: {e.LicenseId}");
+                
+                // Refresh the UI based on actual license status
+                await RefreshLicenseStatus();
             }
             else
             {
-                _hasValidLicense = false;
-                ShowRegistrationForm();
-                LogMessage("❌ No valid license found - please register");
+                LogMessage("❌ Registration failed");
             }
         }
 
-        private void ShowLicenseInfo(LicenseValidationResult licenseResult)
+        private void OnLicenseActionRequested(object sender, LicenseActionEventArgs e)
         {
-            // Hide registration form
-            RegistrationPanel.IsVisible = false;
-            
-            // Show license information
-            LicenseInfoPanel.IsVisible = true;
-            
-            var statusText = $"✅ License Status: ACTIVE\n" +
-                           $"License ID: {licenseResult.LicenseId}\n" +
-                           $"User ID: {licenseResult.UserId}\n" +
-                           $"Tier: {licenseResult.Tier}\n" +
-                           $"Max Files: {licenseResult.MaxConcurrentFiles}";
-
-            StatusTextBlock.Text = statusText;
-            
-            // Update button states
-            CheckStatusButton.Content = "Refresh Status";
-            ClearLicenseButton.IsVisible = true;
-        }
-
-        private void ShowRegistrationForm()
-        {
-            // Show registration form
-            RegistrationPanel.IsVisible = true;
-            
-            // Hide license information
-            LicenseInfoPanel.IsVisible = false;
-            
-            StatusTextBlock.Text = "No license registered. Please register below.";
-            
-            // Update button states
-            CheckStatusButton.Content = "Check Status";
-            ClearLicenseButton.IsVisible = false;
-        }
-
-        private async void OnRegisterClick(object sender, RoutedEventArgs e)
-        {
-            try
+            switch (e.Action)
             {
-                var licenseKey = LicenseKeyTextBox.Text?.Trim();
-                var userId = UserIdTextBox.Text?.Trim();
-                var serverUrl = ServerUrlTextBox.Text?.Trim();
+                case LicenseAction.Register:
+                    ShowRegistrationView();
+                    break;
+                case LicenseAction.Upgrade:
+                    LogMessage("🚀 Opening upgrade page...");
+                    // TODO: Open upgrade URL in browser
+                    break;
+                case LicenseAction.Renew:
+                    LogMessage("🔄 Opening renewal page...");
+                    // TODO: Open renewal URL in browser
+                    break;
+                case LicenseAction.RemoveConfirmation:
+                    ShowRemoveConfirmationView();
+                    break;
+            }
+        }
+        
+        private async void OnRemoveLicenseRequested(object sender, RemoveLicenseEventArgs e)
+        {
+            if (e.Action == RemoveLicenseAction.Removed)
+            {
+                LogMessage("🗑️ License removed successfully");
+                // After removing, check the actual license status and update UI accordingly
+                await RefreshLicenseStatus();
+            }
+            else if (e.Action == RemoveLicenseAction.Cancelled)
+            {
+                LogMessage("❌ License removal cancelled");
+                // Go back and refresh the license status
+                await RefreshLicenseStatus();
+            }
+        }
+        
+        private void ShowRemoveConfirmationView()
+        {
+            if (_currentView != _removeConfirmationView)
+            {
+                _currentView = _removeConfirmationView;
+                ViewContainer.Content = _removeConfirmationView;
+                LogMessage("⚠️ Showing end user license agreement confirmation");
+            }
+        }
 
-                if (string.IsNullOrEmpty(licenseKey) || string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(serverUrl))
+        private void OnToggleLogClick(object sender, RoutedEventArgs e)
+        {
+            _logPanelVisible = !_logPanelVisible;
+            ActivityLogPanel.IsVisible = _logPanelVisible;
+            
+            if (_logPanelVisible)
+            {
+                if (ToggleLogButton.Content is TextBlock tb)
                 {
-                    LogMessage("❌ Please fill in all fields");
-                    return;
+                    tb.Text = "✕";
                 }
-
-                LogMessage("🔄 Registering license...");
-                RegisterButton.IsEnabled = false;
-                RegisterButton.Content = "Registering...";
-
-                await Task.Run(async () =>
+                LogMessage("📋 Activity log opened");
+            }
+            else
+            {
+                if (ToggleLogButton.Content is TextBlock tb)
                 {
-                    try
-                    {
-                        var result = await _plugin.LicenseManager.RegisterLicenseAsync(licenseKey, userId);
-
-                        await Dispatcher.UIThread.InvokeAsync(async () =>
-                        {
-                            if (result.Success)
-                            {
-                                LogMessage($"✅ License registration completed successfully! License ID: {result.LicenseId}");
-                                LicenseKeyTextBox.Text = "";
-                                
-                                // Re-check status and update UI after successful registration
-                                LogMessage("🔄 Refreshing license status...");
-                                await CheckLicenseStatusOnStartup();
-                            }
-                            else
-                            {
-                                LogMessage("❌ License registration failed");
-                            }
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            LogMessage($"❌ Registration error: {ex.Message}");
-                        });
-                    }
-                    finally
-                    {
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            RegisterButton.IsEnabled = true;
-                            RegisterButton.Content = "Register License";
-                        });
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                LogMessage($"❌ Error: {ex.Message}");
-                RegisterButton.IsEnabled = true;
-                RegisterButton.Content = "Register License";
-            }
-        }
-
-        private async void OnCheckStatusClick(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                LogMessage("🔄 Checking license status...");
-                CheckStatusButton.IsEnabled = false;
-                var originalContent = CheckStatusButton.Content;
-                CheckStatusButton.Content = "Checking...";
-
-                await Task.Run(async () =>
-                {
-                    try
-                    {
-                        var licenseResult = await _plugin.LicenseManager.GetLicenseStatusAsync();
-
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            UpdateUIBasedOnLicenseStatus(licenseResult);
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            LogMessage($"❌ Error checking license: {ex.Message}");
-                            StatusTextBlock.Text = $"❌ Error: {ex.Message}";
-                        });
-                    }
-                    finally
-                    {
-                        await Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            CheckStatusButton.IsEnabled = true;
-                            CheckStatusButton.Content = originalContent;
-                        });
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                LogMessage($"❌ Error: {ex.Message}");
-                CheckStatusButton.IsEnabled = true;
-            }
-        }
-
-        private async void OnClearLicenseClick(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var result = await ShowConfirmationDialog("Clear License", 
-                    "Are you sure you want to clear the stored license?\nYou will need to register again to use remote connections.");
-
-                if (!result)
-                {
-                    LogMessage("License clear cancelled");
-                    return;
+                    tb.Text = "📋";
                 }
-
-                LogMessage("🔄 Clearing stored license...");
-                
-                // Clear stored license using LicenseManager
-                _plugin.LicenseManager.ClearStoredLicense();
-                
-                LogMessage("✅ License cleared successfully");
-                
-                // Show registration form after clearing
-                ShowRegistrationForm();
-                
             }
-            catch (Exception ex)
+        }
+
+        private void OnCloseLogClick(object sender, RoutedEventArgs e)
+        {
+            _logPanelVisible = false;
+            ActivityLogPanel.IsVisible = false;
+            if (ToggleLogButton.Content is TextBlock tb)
             {
-                LogMessage($"❌ Error clearing license: {ex.Message}");
+                tb.Text = "📋";
             }
         }
 
@@ -260,59 +251,27 @@ namespace ReerRhinoMCPPlugin.UI.Windows
             var timestamp = DateTime.Now.ToString("HH:mm:ss");
             var logEntry = $"[{timestamp}] {message}";
             
-            if (LogTextBlock.Text == "Ready...")
+            if (LogTextBlock != null)
             {
-                LogTextBlock.Text = logEntry;
-            }
-            else
-            {
-                LogTextBlock.Text += $"\n{logEntry}";
+                if (LogTextBlock.Text == "Ready...")
+                {
+                    LogTextBlock.Text = logEntry;
+                }
+                else
+                {
+                    LogTextBlock.Text += $"\n{logEntry}";
+                }
+                
+                // Auto-scroll to bottom if log panel is visible
+                if (_logPanelVisible && LogTextBlock.Parent is ScrollViewer scrollViewer)
+                {
+                    scrollViewer.ScrollToEnd();
+                }
             }
         }
 
-        private async Task<bool> ShowConfirmationDialog(string title, string message)
-        {
-            var dialog = new Window
-            {
-                Title = title,
-                Width = 400,
-                Height = 200,
-                WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                CanResize = false
-            };
-
-            var result = false;
-            var panel = new StackPanel { Margin = new Avalonia.Thickness(20), Spacing = 15 };
-            
-            panel.Children.Add(new TextBlock 
-            { 
-                Text = message, 
-                TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-                Margin = new Avalonia.Thickness(0, 0, 0, 20)
-            });
-
-            var buttonPanel = new StackPanel 
-            { 
-                Orientation = Avalonia.Layout.Orientation.Horizontal, 
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
-                Spacing = 10
-            };
-
-            var yesButton = new Button { Content = "Yes", Padding = new Avalonia.Thickness(20, 8) };
-            var noButton = new Button { Content = "No", Padding = new Avalonia.Thickness(20, 8) };
-
-            yesButton.Click += (s, e) => { result = true; dialog.Close(); };
-            noButton.Click += (s, e) => { result = false; dialog.Close(); };
-
-            buttonPanel.Children.Add(noButton);
-            buttonPanel.Children.Add(yesButton);
-            panel.Children.Add(buttonPanel);
-
-            dialog.Content = panel;
-            await dialog.ShowDialog(this);
-            
-            return result;
-        }
+        // Placeholder for any additional helper methods
+        // The confirmation dialog functionality is now handled within the views
     }
 }
 
