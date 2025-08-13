@@ -1,0 +1,211 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Avalonia.Svg.Skia"
+             x:Class="ReerRhinoMCPPlugin.UI.Views.LicenseRegistrationView">
+    
+    <UserControl.Styles>
+        <StyleInclude Source="/UI/Styles/ReerTheme.axaml"/>
+    </UserControl.Styles>
+    
+    <Grid Background="{DynamicResource ReerLightBackgroundBrush}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="40,32,40,60" MaxWidth="420">
+                
+                <!-- Reer Icon -->
+                <Border Classes="ReerIconBadge">
+                    <Image Source="avares://ReerConnector/EmbeddedResources/ReerIcon_hr.png"
+                           Width="48" 
+                           Height="48"
+                           Stretch="Uniform"/>
+                </Border>
+                
+                
+                <!-- Step 1: Registration Form -->
+                <StackPanel Name="Step1Panel" IsVisible="True">
+                    <TextBlock Classes="ReerSubtitle" 
+                               Text="Register your license to start building with Reer in Rhino"
+                               TextWrapping="Wrap"
+                               FontSize="18"
+                               FontWeight="Medium"
+                               Margin="0,0,0,24"/>
+                    
+                    <StackPanel Spacing="16">
+                            <StackPanel>
+                                <TextBlock Classes="ReerLabel" Text="License Key"/>
+                                <TextBox Name="LicenseKeyTextBox" 
+                                         Classes="ReerInput"
+                                         Watermark="XXXX-XXXXXX-XXXXX"/>
+                            </StackPanel>
+                            
+                            <StackPanel>
+                                <TextBlock Classes="ReerLabel" Text="User ID"/>
+                                <TextBox Name="UserIdTextBox" 
+                                         Classes="ReerInput"
+                                         Watermark="Enter your user ID"/>
+                            </StackPanel>
+                            
+                            <StackPanel>
+                                <TextBlock Classes="ReerLabel" Text="Server URL"/>
+                                <TextBox Name="ServerUrlTextBox" 
+                                         Classes="ReerInput"
+                                         IsReadOnly="True"/>
+                            </StackPanel>
+                            
+                            <Button Name="RegisterButton" 
+                                    Classes="ReerPrimary"
+                                    Content="Register License"
+                                    Margin="0,8,0,0"/>
+                            
+                            <!-- Error Message -->
+                            <StackPanel Name="ErrorPanel" IsVisible="False" Margin="0,12,0,0">
+                                <Border Background="#FFEBE8" 
+                                        BorderBrush="#FF5C3B" 
+                                        BorderThickness="1" 
+                                        CornerRadius="4"
+                                        Padding="12,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" 
+                                                   Text="❗" 
+                                                   Foreground="#FF5C3B"
+                                                   FontWeight="Bold"
+                                                   Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="1" 
+                                                   Name="ErrorMessageText"
+                                                   Text="No valid license found. Please check your Reer integrations or get one."
+                                                   Foreground="#1E1E1E"
+                                                   FontSize="13"
+                                                   TextWrapping="Wrap"/>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                            
+                            <TextBlock HorizontalAlignment="Center"
+                                       Margin="0,16,0,0">
+                                <TextBlock.Inlines>
+                                    <Run Text="Don't have one? "
+                                         Foreground="{DynamicResource ReerSecondaryTextBrush}"/>
+                                    <InlineUIContainer>
+                                        <Button Name="GetLicenseButton"
+                                                Content="Get it →"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Foreground="#1E1E1E"
+                                                FontWeight="SemiBold"
+                                                Cursor="Hand"
+                                                Padding="0"/>
+                                    </InlineUIContainer>
+                                </TextBlock.Inlines>
+                            </TextBlock>
+                        </StackPanel>
+                </StackPanel>
+                
+                <!-- Step 2: Checking existing license -->
+                <StackPanel Name="CheckingLicensePanel" IsVisible="False">
+                    <TextBlock Classes="ReerSubtitle" 
+                               Text="Checking existing license"
+                               TextWrapping="Wrap"
+                               FontSize="18"
+                               FontWeight="Medium"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,24"/>
+                    
+                    <ProgressBar IsIndeterminate="True" 
+                                 Height="4"
+                                 Background="{DynamicResource ReerBorderLightBrush}"
+                                 Foreground="{DynamicResource ReerGreenBrush}"
+                                 Margin="0,100"/>
+                </StackPanel>
+                
+                <!-- Step 3: Processing registration -->
+                <StackPanel Name="Step2Panel" IsVisible="False">
+                    <TextBlock Classes="ReerTitle" Text="Registering License"/>
+                    <TextBlock Classes="ReerSubtitle" 
+                               Text="Register your license to start building with Reer in Rhino"
+                               TextWrapping="Wrap"/>
+                    
+                    <StackPanel VerticalAlignment="Center" Spacing="24">
+                        <!-- Loading Animation -->
+                        <Border Width="64" Height="64" CornerRadius="32" 
+                                Background="{DynamicResource ReerGreenBrush}"
+                                HorizontalAlignment="Center">
+                            <Grid>
+                                <ProgressBar IsIndeterminate="True" 
+                                             Background="Transparent"
+                                             Foreground="{DynamicResource ReerDarkBackgroundBrush}"
+                                             Width="48" Height="48"/>
+                            </Grid>
+                        </Border>
+                        
+                        <TextBlock Text="Validating license..." 
+                                   HorizontalAlignment="Center"
+                                   FontSize="14"
+                                   Foreground="{DynamicResource ReerFontDarkBrush}"/>
+                        
+                        <TextBlock Name="ProcessingStatusText" 
+                                   Text="Checking license status"
+                                   HorizontalAlignment="Center"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource ReerSecondaryTextBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+                
+                <!-- Step 4: Success -->
+                <StackPanel Name="Step3Panel" IsVisible="False">
+                    <TextBlock Classes="ReerTitle" Text="Success!"/>
+                    <TextBlock Classes="ReerSubtitle" 
+                               Text="Register your license to start building with Reer in Rhino"
+                               TextWrapping="Wrap"/>
+                    
+                    <StackPanel Spacing="24">
+                        <!-- Success Badge -->
+                        <Border Classes="ReerStatusBadge Success" 
+                                Width="64" Height="64">
+                            <TextBlock Text="✓" 
+                                       FontSize="32" 
+                                       FontWeight="Bold"
+                                       HorizontalAlignment="Center" 
+                                       VerticalAlignment="Center"
+                                       Foreground="White"/>
+                        </Border>
+                        
+                        <TextBlock Text="You can now link your Reer file to Rhino" 
+                                   HorizontalAlignment="Center"
+                                   FontSize="16"
+                                   FontWeight="Medium"
+                                   Foreground="{DynamicResource ReerTextPrimaryBrush}"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"/>
+                        
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="License ID:" 
+                                       FontSize="12"
+                                       Foreground="{DynamicResource ReerSecondaryTextBrush}"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Name="LicenseIdText" 
+                                       Classes="ReerLicenseId"
+                                       Text="XXX-XXXXXX-XXXXX"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <Button Name="FinishButton" 
+                                Classes="ReerPrimary"
+                                Content="Finish"
+                                Margin="0,8,0,0"/>
+                    </StackPanel>
+                    
+                    <TextBlock Text="Closing this window will not affect your connection" 
+                               HorizontalAlignment="Center"
+                               FontSize="11"
+                               Foreground="{DynamicResource ReerSecondaryTextBrush}"
+                               Margin="0,12,0,0"/>
+                </StackPanel>
+                
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+    
+</UserControl>

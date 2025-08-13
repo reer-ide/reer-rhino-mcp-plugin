@@ -1,0 +1,192 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ReerRhinoMCPPlugin.UI.Views.LicenseManagementView">
+    
+    <UserControl.Styles>
+        <StyleInclude Source="/UI/Styles/ReerTheme.axaml"/>
+    </UserControl.Styles>
+    
+    <Grid Background="{DynamicResource ReerLightBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Main Content Area (Top) -->
+        <StackPanel Grid.Row="0" Margin="40,32,40,20" MaxWidth="400" VerticalAlignment="Top">
+            
+            <!-- Title -->
+            <TextBlock Text="My License" 
+                       FontSize="24"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,40"/>
+            
+            <!-- License Valid State -->
+            <Grid Name="ValidLicensePanel" IsVisible="True">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Success Badge -->
+                <Border Grid.Column="0" 
+                        Width="32" Height="32"
+                        CornerRadius="16"
+                        Background="{DynamicResource ReerLinkedBrush}"
+                        Margin="0,0,12,0">
+                    <TextBlock Text="✓" 
+                               FontSize="18" 
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center" 
+                               VerticalAlignment="Center"
+                               Foreground="White"/>
+                </Border>
+                
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="License Validated" 
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource ReerLinkedBrush}"/>
+                    <TextBlock Name="ValidLicenseIdText" 
+                               Text="License ID: XXX-XXXXXX-XXXXX"
+                               FontSize="12"
+                               Foreground="{DynamicResource ReerSecondaryTextBrush}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+            </Grid>
+            
+            <!-- License Invalid State -->
+            <Grid Name="InvalidLicensePanel" IsVisible="False">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Error Badge -->
+                <Border Grid.Column="0" 
+                        Width="32" Height="32"
+                        CornerRadius="16"
+                        Background="{DynamicResource ReerLinkMissingBrush}"
+                        Margin="0,0,12,0">
+                    <TextBlock Text="⚠" 
+                               FontSize="18" 
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center" 
+                               VerticalAlignment="Center"
+                               Foreground="White"/>
+                </Border>
+                
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="License is Invalid" 
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource ReerLinkMissingBrush}"/>
+                    <TextBlock Name="InvalidLicenseIdText" 
+                               Text="License ID: XXX-XXXXXX-XXXXX"
+                               FontSize="12"
+                               Foreground="{DynamicResource ReerSecondaryTextBrush}"
+                               Margin="0,2,0,0"/>
+                </StackPanel>
+            </Grid>
+            
+        </StackPanel>
+        
+        <!-- Bottom Actions Area -->
+        <StackPanel Grid.Row="1" Margin="40,0,40,60" MaxWidth="400">
+            
+            <!-- Valid License Actions -->
+            <StackPanel Name="ValidLicenseActions" IsVisible="True" Spacing="12">
+                <!-- Expiry Info (moved here, above button) -->
+                <StackPanel HorizontalAlignment="Center" Spacing="4" Margin="0,0,0,16">
+                    <TextBlock Text="My Reer Plan: PRO"
+                               FontSize="12"
+                               Foreground="{DynamicResource ReerSecondaryTextBrush}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="License Expires in 16 days"
+                               FontSize="14"
+                               FontWeight="Medium"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="License Expired on YYYY/MM/DD"
+                               FontSize="11"
+                               Foreground="{DynamicResource ReerSecondaryTextBrush}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+                
+                <!-- Upgrade Button -->
+                <Button Name="UpgradeButton" 
+                        Classes="ReerPrimary"
+                        Content="Upgrade Plan"
+                        HorizontalAlignment="Stretch"/>
+                
+                <!-- End User License Agreement Link -->
+                <TextBlock HorizontalAlignment="Center">
+                    <TextBlock.Inlines>
+                        <InlineUIContainer>
+                            <Button Name="ClearLicenseButton"
+                                    Content="End User License Agreement"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Foreground="{DynamicResource ReerSecondaryTextBrush}"
+                                    FontSize="12"
+                                    Cursor="Hand"
+                                    Padding="2"
+                                    Margin="0">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Foreground" Value="{DynamicResource ReerLinkMissingBrush}"/>
+                                        <Setter Property="TextBlock.TextDecorations" Value="Underline"/>
+                                    </Style>
+                                </Button.Styles>
+                            </Button>
+                        </InlineUIContainer>
+                    </TextBlock.Inlines>
+                </TextBlock>
+            </StackPanel>
+            
+            <!-- Invalid License Actions -->
+            <StackPanel Name="InvalidLicenseActions" IsVisible="False" Spacing="12">
+                <!-- Expiry Info for invalid (moved here) -->
+                <StackPanel HorizontalAlignment="Center" Spacing="4" Margin="0,0,0,16">
+                    <TextBlock Text="My Reer Plan: PRO"
+                               FontSize="12"
+                               Foreground="{DynamicResource ReerSecondaryTextBrush}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="License Expired on YYYY/MM/DD"
+                               FontSize="14"
+                               FontWeight="Medium"
+                               Foreground="{DynamicResource ReerLinkMissingBrush}"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+                
+                <!-- Renew Button -->
+                <Button Name="RenewButton" 
+                        Classes="ReerPrimary"
+                        Content="Renew License"
+                        HorizontalAlignment="Stretch"/>
+                
+                <!-- Get Help Link -->
+                <TextBlock HorizontalAlignment="Center">
+                    <TextBlock.Inlines>
+                        <Run Text="Get help? Contact " 
+                             Foreground="{DynamicResource ReerSecondaryTextBrush}"
+                             FontSize="12"/>
+                        <InlineUIContainer>
+                            <Button Name="ContactSupportButton"
+                                    Content="support@"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Foreground="#FF5C3B"
+                                    FontSize="12"
+                                    FontWeight="Medium"
+                                    Cursor="Hand"
+                                    Padding="0"/>
+                        </InlineUIContainer>
+                    </TextBlock.Inlines>
+                </TextBlock>
+            </StackPanel>
+            
+        </StackPanel>
+    </Grid>
+    
+</UserControl>

@@ -1,0 +1,82 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ReerRhinoMCPPlugin.UI.Views.RemoveLicenseConfirmationView">
+    
+    <UserControl.Styles>
+        <StyleInclude Source="/UI/Styles/ReerTheme.axaml"/>
+    </UserControl.Styles>
+    
+    <Grid Background="{DynamicResource ReerLightBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Main Content (Top/Center) -->
+        <StackPanel Grid.Row="0" Margin="40,60,40,20" MaxWidth="400" VerticalAlignment="Center">
+            
+            <!-- Warning Icon -->
+            <Border Width="64" Height="64" 
+                    CornerRadius="32"
+                    Background="{DynamicResource ReerLinkMissingBrush}"
+                    HorizontalAlignment="Center"
+                    Margin="0,0,0,24">
+                <TextBlock Text="⚠" 
+                           FontSize="32" 
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center" 
+                           VerticalAlignment="Center"
+                           Foreground="White"/>
+            </Border>
+            
+            <!-- Title -->
+            <TextBlock Text="End User License Agreement" 
+                       FontSize="20"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,16"/>
+            
+            <!-- Message -->
+            <TextBlock Text="Are you sure you want to end the user license agreement?" 
+                       FontSize="14"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       Foreground="{DynamicResource ReerSecondaryTextBrush}"
+                       Margin="0,0,0,8"/>
+            
+            <TextBlock Text="You will need to register again to use remote connections." 
+                       FontSize="14"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       Foreground="{DynamicResource ReerSecondaryTextBrush}"/>
+            
+        </StackPanel>
+        
+        <!-- Bottom Buttons -->
+        <StackPanel Grid.Row="1" Margin="40,0,40,60" MaxWidth="400" Spacing="12">
+            <Button Name="RemoveButton" 
+                    Classes="ReerDanger"
+                    Content="Yes, End Agreement"
+                    HorizontalAlignment="Stretch">
+                <Button.Styles>
+                    <Style Selector="Button.ReerDanger">
+                        <Setter Property="Background" Value="#FF5C3B"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="Padding" Value="16,12"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="CornerRadius" Value="8"/>
+                    </Style>
+                    <Style Selector="Button.ReerDanger:pointerover">
+                        <Setter Property="Background" Value="#E54320"/>
+                    </Style>
+                </Button.Styles>
+            </Button>
+            
+            <Button Name="CancelButton" 
+                    Classes="ReerSecondary"
+                    Content="Cancel"
+                    HorizontalAlignment="Stretch"/>
+        </StackPanel>
+    </Grid>
+    
+</UserControl>

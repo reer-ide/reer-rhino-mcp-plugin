@@ -128,6 +128,9 @@ namespace ReerRhinoMCPPlugin
                 // Subscribe to connection events
                 connectionManager.CommandReceived += OnCommandReceived;
                 connectionManager.StatusChanged += OnConnectionStatusChanged;
+                
+                // Load the RUI file explicitly using RhinoCommon API
+                LoadPluginToolbar();
 
 
                 // Auto-start if enabled and settings are valid
@@ -225,6 +228,15 @@ namespace ReerRhinoMCPPlugin
                 Logger.Error($"Exception in InitializeAvalonia: {ex}");
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Load the plugin's container from RHC file
+        /// </summary>
+        private void LoadPluginToolbar()
+        {
+            // Container loading disabled - not currently needed
+            // The .rhc file loading was causing unnecessary command output
         }
 
         /// <summary>
@@ -519,6 +531,50 @@ namespace ReerRhinoMCPPlugin
                 Logger.Error($"Error in ShowNewControlPanel: {ex.Message}");
             }
         }
+
+        public void ShowControlPanel()
+        {
+            try
+            {
+                Logger.Debug("ShowControlPanel called - using new UI");
+                // Redirect to new UI implementation
+                ShowNewControlPanel();
+
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error showing control panel: {ex}");
+            }
+        }
+
+        public void ShowLicenseManagementUI()
+        {
+            try
+            {
+                if (!_avaloniaInitialized)
+                {
+                    InitializeAvalonia();
+                }
+
+                Dispatcher.UIThread.Post(() =>
+                {
+                    try
+                    {
+                        var licenseWindow = new UI.Windows.LicenseManagementWindow(this);
+                        licenseWindow.Show();
+                    }
+                    catch (Exception ex)
+                    {
+                        RhinoApp.WriteLine($"Failed to show License UI: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                RhinoApp.WriteLine($"Error in ShowLicenseManagementUI: {ex.Message}");
+            }
+        }
+
 #endregion
         // You can override methods here to change the plug-in behavior on
         // loading and shut down, add options pages to the Rhino _Option command

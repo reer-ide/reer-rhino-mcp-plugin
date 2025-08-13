@@ -1,0 +1,101 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:ReerRhinoMCPPlugin.UI.Views"
+        x:Class="ReerRhinoMCPPlugin.UI.Windows.LicenseManagementWindow"
+        Title="REER License Management"
+        Width="520"
+        Height="650"
+        MinWidth="480"
+        MinHeight="550"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource ReerLightBackgroundBrush}">
+
+    <Window.Styles>
+        <StyleInclude Source="/UI/Styles/ReerTheme.axaml"/>
+    </Window.Styles>
+
+    <Grid>
+        <!-- Main Content Container with View Transitions -->
+        <ContentControl Name="ViewContainer" 
+                        HorizontalAlignment="Stretch" 
+                        VerticalAlignment="Stretch">
+            <!-- Transitions removed due to Avalonia version compatibility -->
+        </ContentControl>
+        
+        <!-- Activity Log Panel (Hidden by default, can be toggled) -->
+        <Border Name="ActivityLogPanel" 
+                Background="White"
+                BorderBrush="{DynamicResource ReerBorderLightBrush}"
+                BorderThickness="1,0,0,0"
+                Width="300"
+                HorizontalAlignment="Right"
+                IsVisible="False">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <Border Grid.Row="0" 
+                        Background="{DynamicResource ReerLightBackgroundBrush}"
+                        Padding="16,12">
+                    <Grid>
+                        <TextBlock Text="Activity Log" 
+                                   FontWeight="SemiBold" 
+                                   FontSize="14"/>
+                        <Button Name="CloseLogButton" 
+                                Content="✕" 
+                                HorizontalAlignment="Right"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Padding="8,4"
+                                FontSize="16"
+                                Cursor="Hand"/>
+                    </Grid>
+                </Border>
+                
+                <ScrollViewer Grid.Row="1" 
+                              VerticalScrollBarVisibility="Auto"
+                              Padding="16">
+                    <TextBlock Name="LogTextBlock" 
+                               Text="Ready..." 
+                               TextWrapping="Wrap"
+                               FontSize="12"
+                               Foreground="{DynamicResource ReerFontDarkBrush}"/>
+                </ScrollViewer>
+                
+                <Border Grid.Row="2" 
+                        Background="{DynamicResource ReerLightBackgroundBrush}"
+                        Padding="16,12">
+                    <Button Name="ClearLogButton" 
+                            Content="Clear Log" 
+                            HorizontalAlignment="Stretch"
+                            Classes="ReerSecondary"/>
+                </Border>
+            </Grid>
+        </Border>
+        
+        <!-- Floating Log Toggle Button -->
+        <Button Name="ToggleLogButton" 
+                Width="40" 
+                Height="40"
+                HorizontalAlignment="Right" 
+                VerticalAlignment="Bottom"
+                HorizontalContentAlignment="Center"
+                VerticalContentAlignment="Center"
+                Margin="0,0,16,16"
+                Background="{DynamicResource ReerGreenBrush}"
+                Foreground="{DynamicResource ReerDarkBackgroundBrush}"
+                CornerRadius="20"
+                FontSize="18"
+                Cursor="Hand"
+                Padding="0"
+                ToolTip.Tip="Toggle Activity Log">
+            <TextBlock Text="📋" 
+                       HorizontalAlignment="Center" 
+                       VerticalAlignment="Center"/>
+        </Button>
+    </Grid>
+</Window>
+
