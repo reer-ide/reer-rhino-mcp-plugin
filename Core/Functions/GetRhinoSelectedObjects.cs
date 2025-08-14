@@ -44,13 +44,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     go.SubObjectSelect = true; // Enable subobject selection
                     go.DeselectAllBeforePostSelect = false;
                     go.EnablePreSelect(true, true);
-                    go.EnablePostSelect(true);
-                    
-                    // Configure object type filters based on parameters
-                    if (!includeLights)
-                    {
-                        go.DisablePreSelect(); // This will help us filter manually
-                    }
+                    go.EnablePostSelect(false);
                     
                     // Set geometry filter to exclude/include specific types
                     var geometryFilter = Rhino.DocObjects.ObjectType.AnyObject;
@@ -58,38 +52,37 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     {
                         geometryFilter &= ~Rhino.DocObjects.ObjectType.Light;
                     }
-                    go.SetCommandPrompt("Select objects or subobjects (Enter when done)");
                     go.GeometryFilter = geometryFilter;
                     
                     // Get multiple objects/subobjects
-                    var result = go.GetMultiple(0, 0); // min=0, max=0 means any number
+                    var result = go.GetMultiple(1, 0); // min=1, max=0 means at least 1 object required
                     
                     if (result == Rhino.Input.GetResult.Object)
                     {
                         totalSelectionCount = go.ObjectCount; // Total count includes all selections (objects + subobjects)
-                        
+                        Logger.Info($"Total selected items (including subobjects): {totalSelectionCount}");
                         for (int i = 0; i < totalSelectionCount; i++)
                         {
                             var objRef = go.Object(i);
                             var obj = objRef.Object();
-                            
+
                             if (obj == null || !obj.IsValid) continue;
-                            
+
                             // Filter based on grips setting
                             if (!includeGrips && obj.GripsOn)
                             {
                                 continue; // Skip objects with grips on if not including grips
                             }
-                            
+
                             // Filter based on lights setting (double check since GeometryFilter might not catch all)
                             if (!includeLights && obj.ObjectType == Rhino.DocObjects.ObjectType.Light)
                             {
                                 continue; // Skip light objects if not including lights
                             }
-                            
+
                             var componentIndex = objRef.GeometryComponentIndex;
                             var objId = obj.Id;
-                            
+
                             // Check if this is a subobject selection
                             if (componentIndex.ComponentIndexType != ComponentIndexType.InvalidType &&
                                 componentIndex.ComponentIndexType != ComponentIndexType.BrepLoop)
@@ -133,6 +126,15 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                             }
                         }
                     }
+                    else
+                    {
+                        // Handle case where user cancelled or no objects selected
+                        Logger.Info("No objects selected or operation cancelled.");
+                        return new JObject
+                        {
+                            ["error"] = "No objects selected"
+                        };
+                    }
                 }
                 
                 // Convert dictionary to array for response
@@ -150,7 +152,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     ["include_lights"] = includeLights,
                     ["include_grips"] = includeGrips,
                     ["object_count_in_file"] = doc.Objects.Count,
-                    ["timestamp"] = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
                 };
             }
             catch (Exception ex)

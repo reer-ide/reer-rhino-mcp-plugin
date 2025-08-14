@@ -10,7 +10,7 @@ using ReerRhinoMCPPlugin.Core.Common;
 
 namespace ReerRhinoMCPPlugin.Core.Functions
 {
-    [MCPTool("select_rhino_objects", "Select Rhino objects based on filters")]
+    [MCPTool("select_filtered_rhino_objects", "Select Rhino objects based on filters")]
     public class SelectRhinoObjects : ITool
     {
         public JObject Execute(JObject parameters)
@@ -128,6 +128,8 @@ namespace ReerRhinoMCPPlugin.Core.Functions
 
         private bool IsObjectSelectable(RhinoObject rhinoObject, RhinoDoc doc)
         {
+            if (rhinoObject?.Attributes == null || doc == null) return false;
+            
             // Check if object is locked
             if (rhinoObject.IsLocked)
                 return false;
@@ -137,11 +139,19 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 return false;
 
             // Check if object's layer is locked or hidden
-            var layer = doc.Layers[rhinoObject.Attributes.LayerIndex];
-            if (layer != null)
+            try
             {
-                if (layer.IsLocked || !layer.IsVisible)
-                    return false;
+                var layer = doc.Layers[rhinoObject.Attributes.LayerIndex];
+                if (layer != null)
+                {
+                    if (layer.IsLocked || !layer.IsVisible)
+                        return false;
+                }
+            }
+            catch (Exception)
+            {
+                // Invalid layer index - treat as non-selectable
+                return false;
             }
 
             // Check if object has grips and if it's selectable with grips on
@@ -157,19 +167,29 @@ namespace ReerRhinoMCPPlugin.Core.Functions
 
         private string GetUnselectableReason(RhinoObject rhinoObject, RhinoDoc doc)
         {
+            if (rhinoObject?.Attributes == null || doc == null) 
+                return "Invalid object or document";
+                
             if (rhinoObject.IsLocked)
                 return "Object is locked";
 
             if (!rhinoObject.Visible)
                 return "Object is hidden";
 
-            var layer = doc.Layers[rhinoObject.Attributes.LayerIndex];
-            if (layer != null)
+            try
             {
-                if (layer.IsLocked)
-                    return "Object's layer is locked";
-                if (!layer.IsVisible)
-                    return "Object's layer is hidden";
+                var layer = doc.Layers[rhinoObject.Attributes.LayerIndex];
+                if (layer != null)
+                {
+                    if (layer.IsLocked)
+                        return "Object's layer is locked";
+                    if (!layer.IsVisible)
+                        return "Object's layer is hidden";
+                }
+            }
+            catch (Exception)
+            {
+                return "Invalid layer index";
             }
 
             if (rhinoObject.GripsOn)
@@ -200,7 +220,10 @@ namespace ReerRhinoMCPPlugin.Core.Functions
 
         private bool MatchesFilter(RhinoObject rhinoObject, string filterName, JToken filterValue, RhinoDoc doc)
         {
+            if (rhinoObject?.Attributes == null || doc == null) return false;
+            
             var filterValues = ParameterUtils.CastToStringList(filterValue);
+            if (filterValues == null || !filterValues.Any()) return false;
             
             switch (filterName.ToLower())
             {
@@ -212,8 +235,17 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     return MatchesColorFilter(rhinoObject, filterValue);
 
                 case "layer":
-                    string layerName = doc.Layers[rhinoObject.Attributes.LayerIndex].Name;
-                    return filterValues.Any(value => layerName.Equals(value, StringComparison.OrdinalIgnoreCase));
+                    try
+                    {
+                        var layer = doc.Layers[rhinoObject.Attributes.LayerIndex];
+                        if (layer == null) return false;
+                        string layerName = layer.Name;
+                        return filterValues.Any(value => layerName.Equals(value, StringComparison.OrdinalIgnoreCase));
+                    }
+                    catch (Exception)
+                    {
+                        return false; // Invalid layer index
+                    }
 
                 case "material":
                     return MatchesMaterialFilter(rhinoObject, filterValue);

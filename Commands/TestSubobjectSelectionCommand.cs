@@ -44,9 +44,15 @@ namespace ReerRhinoMCPPlugin.Commands
                 
                 var result = getSelectedFunction.Execute(parameters);
                 
-                if (result["error"] != null)
+                bool hasError = result["error"] != null;
+                
+                if (hasError)
                 {
                     Logger.Error($"   Error: {result["error"]}");
+                    Logger.Info("\n========================================");
+                    Logger.Error("Test completed with error - no objects were selected");
+                    Logger.Info("========================================");
+                    return Result.Cancel; // Use Cancel to indicate no selection made
                 }
                 else
                 {
@@ -89,17 +95,13 @@ namespace ReerRhinoMCPPlugin.Commands
                             }
                         }
                     }
-                    else
-                    {
-                        Logger.Info("   No objects selected");
-                    }
+                    
+                    Logger.Info("\n========================================");
+                    Logger.Success("Test completed successfully!");
+                    Logger.Info("========================================");
+                    
+                    return Result.Success;
                 }
-                
-                Logger.Info("\n========================================");
-                Logger.Success("Test completed successfully!");
-                Logger.Info("========================================");
-                
-                return Result.Success;
             }
             catch (Exception ex)
             {

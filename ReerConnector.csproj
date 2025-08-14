@@ -85,7 +85,7 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\plugin-utility.ico" />
     <AvaloniaResource Include="EmbeddedResources\**\*" />
-    <None Include="ReerConnector.rhc" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="ReerConnector.rui" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <Compile Update="UI\Windows\MCPControlPanel.axaml.cs">
