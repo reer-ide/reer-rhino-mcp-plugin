@@ -107,43 +107,6 @@ namespace ReerRhinoMCPPlugin.Commands
             return Result.Success;
         }
 
-        private async Task<bool> RunStartLocalAsync(IConnectionManager connectionManager, string host, int port)
-        {
-            try
-            {
-                var settings = new ConnectionSettings
-                {
-                    Mode = ConnectionMode.Local,
-                    LocalHost = host,
-                    LocalPort = port
-                };
-                
-                RhinoApp.WriteLine("Starting local TCP server...");
-                var success = await connectionManager.StartConnectionAsync(settings);
-                if (success)
-                {
-                    RhinoApp.WriteLine($"✓ Local TCP server started successfully on {host}:{port}.");
-                    
-                    // Save settings for future auto-start and restart
-                    var pluginSettings = ReerRhinoMCPPlugin.Instance.MCPSettings;
-                    pluginSettings.DefaultConnection = settings;
-                    pluginSettings.LastUsedMode = ConnectionMode.Local;
-                    pluginSettings.Save();
-                    RhinoApp.WriteLine("Settings saved for auto-start and restart");
-                }
-                else
-                {
-                    Logger.Error("✗ Failed to start local TCP server.");
-                }
-                return success;
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error starting local server: {ex.Message}");
-                return false;
-            }
-        }
-
         private Result HandleStartRemote(IConnectionManager connectionManager)
         {
             RhinoApp.WriteLine("=== Connecting to Remote MCP Server ===");
@@ -174,7 +137,44 @@ namespace ReerRhinoMCPPlugin.Commands
             return Result.Success;
         }
 
-        private async Task<bool> RunStartRemoteAsync(IConnectionManager connectionManager)
+        public async Task<bool> RunStartLocalAsync(IConnectionManager connectionManager, string host, int port)
+        {
+            try
+            {
+                var settings = new ConnectionSettings
+                {
+                    Mode = ConnectionMode.Local,
+                    LocalHost = host,
+                    LocalPort = port
+                };
+
+                RhinoApp.WriteLine("Starting local TCP server...");
+                var success = await connectionManager.StartConnectionAsync(settings);
+                if (success)
+                {
+                    RhinoApp.WriteLine($"✓ Local TCP server started successfully on {host}:{port}.");
+
+                    // Save settings for future auto-start and restart
+                    var pluginSettings = ReerRhinoMCPPlugin.Instance.MCPSettings;
+                    pluginSettings.DefaultConnection = settings;
+                    pluginSettings.LastUsedMode = ConnectionMode.Local;
+                    pluginSettings.Save();
+                    RhinoApp.WriteLine("Settings saved for auto-start and restart");
+                }
+                else
+                {
+                    Logger.Error("✗ Failed to start local TCP server.");
+                }
+                return success;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error starting local server: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> RunStartRemoteAsync(IConnectionManager connectionManager)
         {
             try
             {
@@ -362,6 +362,7 @@ namespace ReerRhinoMCPPlugin.Commands
             
             return shouldContinue;
         }
+
         /// <summary>
         /// Handle file replaced scenario
         /// </summary>

@@ -15,10 +15,6 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 
-using ReerRhinoMCPPlugin.UI;
-using ReerRhinoMCPPlugin.UI.Windows;
-using System.Security.Cryptography;
-
 namespace ReerRhinoMCPPlugin
 {
     ///<summary>
@@ -144,16 +140,15 @@ namespace ReerRhinoMCPPlugin
                         try
                         {
                             await Task.Delay(2000); // Give Rhino time to finish loading
-                            var connectionSettings = settings.GetDefaultConnectionSettings();
-                            bool success = await connectionManager.StartConnectionAsync(connectionSettings);
-
+                            Logger.Debug("Auto-starting connection after delay...");
+                            bool success = await AutoStartConnectionAsync();
                             if (success)
                             {
-                                Logger.Success($"✓ Auto-started {connectionSettings.Mode} connection successfully");
+                                Logger.Success("✓ Auto-started connection successfully");
                             }
                             else
                             {
-                                Logger.Warning($"⚠ Failed to auto-start {connectionSettings.Mode} connection");
+                                Logger.Warning("⚠ Failed to auto-start connection");
                             }
                         }
                         catch (Exception ex)
@@ -470,7 +465,47 @@ namespace ReerRhinoMCPPlugin
             }
         }
 
-#region Utility Methods
+        #region Utility Methods
+        /// <summary>
+        /// Auto-start connection using saved settings (non-interactive)
+        /// Simply reuses the same logic as manual start
+        /// </summary>
+        /// <returns>True if connection started successfully, false otherwise</returns>
+        public async Task<bool> AutoStartConnectionAsync()
+        {
+            try
+            {           
+                var startCommand = ReerStartCommand.Instance;     
+                if (!settings.AutoStart || !settings.IsValid())
+                {
+                    Logger.Debug($"Auto-start disabled or invalid settings. AutoStart={settings.AutoStart}, IsValid={settings.IsValid()}");
+                    return false;
+                }
+                
+                var connectionSettings = settings.GetDefaultConnectionSettings();
+                Logger.Info($"Auto-starting {connectionSettings.Mode} connection...");
+                
+                // Simply reuse the same logic as manual start
+                switch (connectionSettings.Mode)
+                {
+                    case ConnectionMode.Local:
+                        return await startCommand.RunStartLocalAsync(connectionManager, connectionSettings.LocalHost, connectionSettings.LocalPort);
+                        
+                    case ConnectionMode.Remote:
+                        return await startCommand.RunStartRemoteAsync(connectionManager);
+                        
+                    default:
+                        Logger.Warning($"Unknown connection mode for auto-start: {connectionSettings.Mode}");
+                        return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error during auto-start: {ex.Message}");
+                return false;
+            }
+        }
+
         /// <summary>
         /// Open a file in Rhino
         /// </summary>
