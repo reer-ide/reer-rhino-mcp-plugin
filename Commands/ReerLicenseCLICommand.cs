@@ -10,10 +10,10 @@ using ReerRhinoMCPPlugin;
 
 namespace ReerRhinoMCPPlugin.Commands
 {
-    public class ReerLicenseCommand : Command
+    public class ReerLicenseCLICommand : Command
     {
-        public ReerLicenseCommand() { Instance = this; }
-        public static ReerLicenseCommand Instance { get; private set; }
+        public ReerLicenseCLICommand() { Instance = this; }
+        public static ReerLicenseCLICommand Instance { get; private set; }
         public override string EnglishName => "ReerLicenseCLI";
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)

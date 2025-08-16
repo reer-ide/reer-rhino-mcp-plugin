@@ -532,56 +532,6 @@ namespace ReerRhinoMCPPlugin
 
         // SaveAsUserChoice enum moved to SaveAsDetector class
 
-        /// <summary>
-        /// Shows the new refactored control panel (for testing)
-        /// </summary>
-        public void ShowNewControlPanel()
-        {
-            try
-            {
-                Logger.Debug("ShowNewControlPanel called");
-                if (!_avaloniaInitialized)
-                {
-                    Logger.Debug("Avalonia not initialized, initializing now...");
-                    InitializeAvalonia();
-                }
-
-                Dispatcher.UIThread.Post(() =>
-                {
-                    try
-                    {
-                        var newPanel = new UI.Windows.MCPControlPanelNew(this);
-                        newPanel.Show();
-                        Logger.Success("New control panel shown successfully");
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error($"Failed to show new control panel: {ex.Message}");
-                        Logger.Error($"Stack trace: {ex.StackTrace}");
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error in ShowNewControlPanel: {ex.Message}");
-            }
-        }
-
-        public void ShowControlPanel()
-        {
-            try
-            {
-                Logger.Debug("ShowControlPanel called - using new UI");
-                // Redirect to new UI implementation
-                ShowNewControlPanel();
-
-            }
-            catch (Exception ex)
-            {
-                Logger.Error($"Error showing control panel: {ex}");
-            }
-        }
-
         public void ShowLicenseManagementUI()
         {
             try

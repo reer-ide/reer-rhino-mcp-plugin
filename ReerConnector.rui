@@ -33,7 +33,7 @@
       <text>
         <locale_2052>ReerLicense</locale_2052>
       </text>
-      <script>ReerLicenseUI</script>
+      <script>ReerLicense</script>
     </macro_item>
   </macros>
   <icons>

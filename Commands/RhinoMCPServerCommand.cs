@@ -21,8 +21,8 @@ namespace ReerRhinoMCPPlugin.Commands
             RhinoApp.WriteLine("This plugin connects Rhino to external applications using the Model Context Protocol.");
             RhinoApp.WriteLine("");
             RhinoApp.WriteLine("Available commands:");
-            RhinoApp.WriteLine("  - ReerLicense: Manage your software license.");
-            RhinoApp.WriteLine("  - ReerLicenseUI: Manage your software license with a user interface.");
+            RhinoApp.WriteLine("  - ReerLicense: Manage your software license with a user interface.");
+            RhinoApp.WriteLine("  - ReerLicenseCLI: Manage your software license via command line.");
             RhinoApp.WriteLine("  - ReerStart: Start a local or remote connection.");
             RhinoApp.WriteLine("  - ReerStop: Stop the active connection.");
             RhinoApp.WriteLine("  - ReerRestart: Stop and start a new connection.");

@@ -225,7 +225,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 ["name"] = objectName,
                 ["type"] = objectType,
                 ["deleted"] = true,
-                ["message"] = $"Object '{objectName}' deleted successfully"
             };
         }
     }

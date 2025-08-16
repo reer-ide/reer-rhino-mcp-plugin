@@ -4,10 +4,10 @@ using Rhino.Commands;
 
 namespace ReerRhinoMCPPlugin.Commands
 {
-    public class ReerLicenseUICommand : Command
+    public class ReerLicenseCommand : Command
     {
-        public ReerLicenseUICommand() { Instance = this; }
-        public static ReerLicenseUICommand Instance { get; private set; }
+        public ReerLicenseCommand() { Instance = this; }
+        public static ReerLicenseCommand Instance { get; private set; }
         public override string EnglishName => "ReerLicense";
 
         protected override Result RunCommand(RhinoDoc doc, RunMode mode)
