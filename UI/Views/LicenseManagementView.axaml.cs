@@ -31,7 +31,6 @@ namespace ReerRhinoMCPPlugin.UI.Views
         {
             UpgradeButton.Click += (s, e) => OpenReerWebsite();
             RenewButton.Click += (s, e) => OpenReerWebsite();
-            ClearLicenseButton.Click += OnClearLicenseClick;
             ContactSupportButton.Click += OnContactSupportClick;
         }
         
@@ -114,11 +113,6 @@ namespace ReerRhinoMCPPlugin.UI.Views
             return licenseId.ToUpper();
         }
         
-        private void OnClearLicenseClick(object sender, RoutedEventArgs e)
-        {
-            // Request to show the remove confirmation view
-            OnActionRequested(LicenseAction.RemoveConfirmation);
-        }
         
         private void OnActionRequested(LicenseAction action)
         {
@@ -164,8 +158,7 @@ namespace ReerRhinoMCPPlugin.UI.Views
     {
         Register,
         Upgrade,
-        Renew,
-        RemoveConfirmation
+        Renew
     }
     
     public class LicenseActionEventArgs : EventArgs

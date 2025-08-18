@@ -20,6 +20,7 @@
                        FontSize="24"
                        FontWeight="Bold"
                        HorizontalAlignment="Center"
+                       Foreground="{DynamicResource ReerTextPrimaryBrush}"
                        Margin="0,0,0,40"/>
             
             <!-- License Valid State -->
@@ -119,29 +120,6 @@
                         Content="Upgrade Plan"
                         HorizontalAlignment="Stretch"/>
                 
-                <!-- End User License Agreement Link -->
-                <TextBlock HorizontalAlignment="Center">
-                    <TextBlock.Inlines>
-                        <InlineUIContainer>
-                            <Button Name="ClearLicenseButton"
-                                    Content="End User License Agreement"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Foreground="{DynamicResource ReerSecondaryTextBrush}"
-                                    FontSize="12"
-                                    Cursor="Hand"
-                                    Padding="2"
-                                    Margin="0">
-                                <Button.Styles>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Foreground" Value="{DynamicResource ReerLinkMissingBrush}"/>
-                                        <Setter Property="TextBlock.TextDecorations" Value="Underline"/>
-                                    </Style>
-                                </Button.Styles>
-                            </Button>
-                        </InlineUIContainer>
-                    </TextBlock.Inlines>
-                </TextBlock>
             </StackPanel>
             
             <!-- Invalid License Actions -->
