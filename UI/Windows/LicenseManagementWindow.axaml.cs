@@ -14,7 +14,6 @@ namespace ReerRhinoMCPPlugin.UI.Windows
         private readonly ReerRhinoMCPPlugin _plugin;
         private LicenseRegistrationView _registrationView;
         private LicenseManagementView _managementView;
-        private RemoveLicenseConfirmationView _removeConfirmationView;
         private UserControl _currentView;
         private bool _logPanelVisible = false;
 
@@ -46,12 +45,10 @@ namespace ReerRhinoMCPPlugin.UI.Windows
             // Initialize views
             _registrationView = new LicenseRegistrationView(_plugin);
             _managementView = new LicenseManagementView(_plugin);
-            _removeConfirmationView = new RemoveLicenseConfirmationView(_plugin);
             
             // Subscribe to view events
             _registrationView.RegistrationCompleted += OnRegistrationCompleted;
             _managementView.LicenseActionRequested += OnLicenseActionRequested;
-            _removeConfirmationView.RemoveLicenseRequested += OnRemoveLicenseRequested;
         }
 
         private void SetupEventHandlers()
@@ -177,35 +174,6 @@ namespace ReerRhinoMCPPlugin.UI.Windows
                     LogMessage("🔄 Opening renewal page...");
                     // TODO: Open renewal URL in browser
                     break;
-                case LicenseAction.RemoveConfirmation:
-                    ShowRemoveConfirmationView();
-                    break;
-            }
-        }
-        
-        private async void OnRemoveLicenseRequested(object sender, RemoveLicenseEventArgs e)
-        {
-            if (e.Action == RemoveLicenseAction.Removed)
-            {
-                LogMessage("🗑️ License removed successfully");
-                // After removing, check the actual license status and update UI accordingly
-                await RefreshLicenseStatus();
-            }
-            else if (e.Action == RemoveLicenseAction.Cancelled)
-            {
-                LogMessage("❌ License removal cancelled");
-                // Go back and refresh the license status
-                await RefreshLicenseStatus();
-            }
-        }
-        
-        private void ShowRemoveConfirmationView()
-        {
-            if (_currentView != _removeConfirmationView)
-            {
-                _currentView = _removeConfirmationView;
-                ViewContainer.Content = _removeConfirmationView;
-                LogMessage("⚠️ Showing end user license agreement confirmation");
             }
         }
 
