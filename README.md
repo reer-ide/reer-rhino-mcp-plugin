@@ -161,6 +161,61 @@ Output files:
 - `bin/Debug/net48/ReerConnector.rhp` (Rhino 7/8 .NET Framework)
 - `bin/Debug/net7.0/ReerConnector.rhp` (Rhino 8 .NET Core)
 
+#### Mac - Rhino 8 autoinstallation script
+```bash
+!/usr/bin/env bash
+set -euo pipefail
+
+PLUGIN_NAME="ReerConnector"
+BUILD_DIR="bin/Debug/net7.0"                 # Folder that contains the .rhp
+PLUGIN_PATH="$BUILD_DIR/$PLUGIN_NAME.rhp"
+
+# Clone the repository
+git clone https://github.com/reer-ide/reer-rhino-mcp-plugin.git
+cd reer-rhino-mcp-plugin
+
+# Build for both target frameworks
+dotnet build
+
+# Build release version
+dotnet build --configuration Release
+
+if [[ ! -f "$PLUGIN_PATH" ]]; then
+  echo "ERROR: Plugin file not found: $PLUGIN_PATH" >&2
+  exit 1
+fi
+
+# Remove previous package artifacts in the build dir
+rm -f "$BUILD_DIR/$PLUGIN_NAME.rhp.zip" "$BUILD_DIR/$PLUGIN_NAME.macrhi"
+
+# Create a staging area outside the build dir to avoid name conflicts
+STAGING_ROOT="$(mktemp -d 2>/dev/null || mktemp -d -t macrhi)"
+STAGING_DIR="$STAGING_ROOT/$PLUGIN_NAME.rhp"  # NOTE: folder name ends with .rhp
+mkdir -p "$STAGING_DIR"
+
+# Copy the entire containing folder (BUILD_DIR) into the "<Plugin>.rhp" folder
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --exclude "${PLUGIN_NAME}.rhp.zip" --exclude "${PLUGIN_NAME}.macrhi" "$BUILD_DIR"/ "$STAGING_DIR"/
+else
+  cp -a "$BUILD_DIR"/. "$STAGING_DIR"/
+  rm -f "$STAGING_DIR/$PLUGIN_NAME.rhp.zip" "$STAGING_DIR/$PLUGIN_NAME.macrhi"
+fi
+
+# Zip the "<Plugin>.rhp" folder and rename to .macrhi
+(
+  cd "$STAGING_ROOT"
+  zip -r -q "$PLUGIN_NAME.rhp.zip" "$PLUGIN_NAME.rhp"
+)
+mv -f "$STAGING_ROOT/$PLUGIN_NAME.rhp.zip" "$BUILD_DIR/$PLUGIN_NAME.macrhi"
+
+# Cleanup
+rm -rf "$STAGING_ROOT"
+
+echo "Created: $BUILD_DIR/$PLUGIN_NAME.macrhi"
+open "$BUILD_DIR/$PLUGIN_NAME.macrhi"
+```
+
+
 ### Debugging
 
 #### Visual Studio / Rider
