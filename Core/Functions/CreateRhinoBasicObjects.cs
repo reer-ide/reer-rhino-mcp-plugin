@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
+using System.Linq;
 using Newtonsoft.Json.Linq;
 using Rhino;
 using Rhino.DocObjects;
@@ -42,23 +43,11 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 {
                     objectsToCreate = objectsArray;
                 }
-                // Fall back to single object format for backward compatibility
-                else if (parameters["geometry_type"] != null)
-                {
-                    objectsToCreate = new JArray
-                    {
-                        new JObject
-                        {
-                            ["type"] = parameters["geometry_type"],
-                            ["params"] = parameters["parameters"]
-                        }
-                    };
-                }
                 else
                 {
                     return new JObject
                     {
-                        ["error"] = "Missing 'objects' array or 'geometry_type' parameter"
+                        ["error"] = "Missing 'objects' parameter"
                     };
                 }
 
@@ -68,7 +57,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 try
                 {
                     var createdObjects = new JArray();
-                    var results = new JObject();
+                    var hasErrors = false;
 
                     foreach (var objectToken in objectsToCreate)
                     {
@@ -79,23 +68,17 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                         {
                             var result = CreateSingleObject(doc, objectParams);
                             createdObjects.Add(result);
-                            
-                            // Add to results with object name as key
-                            string objectName = result["name"]?.ToString() ?? $"Object_{createdObjects.Count}";
-                            results[objectName] = result;
                         }
                         catch (Exception ex)
                         {
+                            hasErrors = true;
                             var errorResult = new JObject
                             {
-                                ["status"] = "error",
-                                ["error"] = ex.Message,
-                                ["type"] = objectParams["type"]?.ToString() ?? "unknown"
+                                ["name"] = objectParams["name"]?.ToString() ?? "unnamed",
+                                ["type"] = objectParams["type"]?.ToString() ?? "unknown",
+                                ["error"] = ex.Message
                             };
                             createdObjects.Add(errorResult);
-                            
-                            string objectName = objectParams["name"]?.ToString() ?? $"Error_{createdObjects.Count}";
-                            results[objectName] = errorResult;
                         }
                     }
 
@@ -105,12 +88,16 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     // End undo record
                     doc.EndUndoRecord(undoRecordSerialNumber);
 
+                    var successCount = createdObjects.Count(obj => obj["error"] == null);
+                    var errorCount = createdObjects.Count - successCount;
+
                     return new JObject
                     {
-                        ["status"] = "success",
-                        ["objects_created"] = createdObjects,
+                        ["status"] = hasErrors ? "partial_success" : "success",
                         ["count"] = createdObjects.Count,
-                        ["results"] = results
+                        ["created"] = successCount,
+                        ["errors"] = errorCount,
+                        ["objects"] = createdObjects
                     };
                 }
                 catch (Exception)
@@ -168,6 +155,9 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 case "polyline":
                     objectId = CreatePolyline(doc, geoParams);
                     break;
+                case "curve":
+                    objectId = CreateCurve(doc, geoParams);
+                    break;
                 case "circle":
                     objectId = CreateCircle(doc, geoParams);
                     break;
@@ -214,23 +204,19 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             ApplyVisualAttributes(doc, objectId, geoParams);
 
             // Apply metadata using the existing AddRhinoObjectsMetadata function
-            var metadataResult = ApplyMetadataUsingExistingFunction(objectId, geoParams);
-            
-            // Handle transformations
-            ApplyTransformations(doc, objectId, geoParams);
+            var metadataApplied = ApplyMetadataUsingExistingFunction(objectId, geoParams);
 
             return new JObject
             {
-                ["status"] = "success",
                 ["object_id"] = objectId.ToString(),
                 ["name"] = name,
+                ["type"] = geometryType.ToUpperInvariant(),
                 ["description"] = geoParams["description"]?.ToString(),
-                ["type"] = geometryType,
-                ["metadata"] = metadataResult
+                ["metadata_applied"] = metadataApplied
             };
         }
 
-        private JObject ApplyMetadataUsingExistingFunction(Guid objectId, JObject parameters)
+        private bool ApplyMetadataUsingExistingFunction(Guid objectId, JObject parameters)
         {
             try
             {
@@ -241,15 +227,13 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     ["description"] = parameters["description"]?.ToString()
                 };
 
-                return _metadataHandler.Execute(metadataParams);
+                var result = _metadataHandler.Execute(metadataParams);
+                return result["status"]?.ToString() == "success";
             }
             catch (Exception ex)
             {
-                return new JObject
-                {
-                    ["status"] = "error",
-                    ["error"] = $"Failed to apply metadata: {ex.Message}"
-                };
+                Logger.Error($"Failed to apply metadata: {ex.Message}");
+                return false;
             }
         }
 
@@ -292,51 +276,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             doc.Objects.ModifyAttributes(rhinoObject, attributes, true);
         }
 
-        private void ApplyTransformations(RhinoDoc doc, Guid objectId, JObject parameters)
-        {
-            var rhinoObject = doc.Objects.Find(objectId);
-            if (rhinoObject == null) return;
-
-            Transform transform = Transform.Identity;
-            bool needsTransform = false;
-
-            // Apply translation
-            var translation = ParameterUtils.GetTranslationTransform(parameters, "translate");
-            if (!translation.Equals(Transform.Identity))
-            {
-                transform = transform * translation;
-                needsTransform = true;
-            }
-
-            // Apply rotation
-            if (parameters["rotate"] is JObject rotateObj)
-            {
-                var axis = ParameterUtils.GetPoint3dFromArray(rotateObj["axis"] as JArray, new Point3d(0, 0, 1));
-                var angle = ParameterUtils.GetDoubleFromToken(rotateObj["angle"]);
-                var center = ParameterUtils.GetPoint3dFromArray(rotateObj["center"] as JArray, Point3d.Origin);
-                
-                var rotation = Transform.Rotation(angle, new Vector3d(axis), center);
-                transform = transform * rotation;
-                needsTransform = true;
-            }
-
-            // Apply scale
-            if (parameters["scale"] != null)
-            {
-                var center = ParameterUtils.GetPoint3dFromArray(parameters["scale_center"] as JArray, Point3d.Origin);
-                var scaling = ParameterUtils.GetScaleTransform(parameters, center, "scale");
-                if (!scaling.Equals(Transform.Identity))
-                {
-                    transform = transform * scaling;
-                    needsTransform = true;
-                }
-            }
-
-            if (needsTransform)
-            {
-                doc.Objects.Transform(rhinoObject, transform, true);
-            }
-        }
 
 
 
@@ -495,22 +434,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             var circle = new Circle(plane, radius);
             var cylinder = new Cylinder(circle, height);
             return doc.Objects.AddBrep(cylinder.ToBrep(cap, cap));
-        }
-
-        private Guid CreateSurface(RhinoDoc doc, JObject parameters)
-        {
-            var points = ParameterUtils.GetPoint3dList(parameters, "points");
-            var count = ParameterUtils.GetIntArray(parameters, "count", new int[] { 2, 2 });
-            var degree = ParameterUtils.GetIntArray(parameters, "degree", new int[] { 3, 3 });
-            var closed = ParameterUtils.GetBoolArray(parameters, "closed", new bool[] { false, false });
-            
-            var surface = NurbsSurface.CreateThroughPoints(
-                points, count[0], count[1], degree[0], degree[1], closed[0], closed[1]);
-            
-            if (surface == null)
-                throw new InvalidOperationException("Unable to create surface from given points");
-                
-            return doc.Objects.AddSurface(surface);
         }
     }
 }
