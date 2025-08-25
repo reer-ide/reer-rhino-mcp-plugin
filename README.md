@@ -161,7 +161,7 @@ Output files:
 - `bin/Debug/net48/ReerConnector.rhp` (Rhino 7/8 .NET Framework)
 - `bin/Debug/net7.0/ReerConnector.rhp` (Rhino 8 .NET Core)
 
-#### Mac - Rhino 8 autoinstallation script
+#### Mac - Rhino 8 autoinstallation script for Debug
 ```bash
 !/usr/bin/env bash
 set -euo pipefail
@@ -176,9 +176,6 @@ cd reer-rhino-mcp-plugin
 
 # Build for both target frameworks
 dotnet build
-
-# Build release version
-dotnet build --configuration Release
 
 if [[ ! -f "$PLUGIN_PATH" ]]; then
   echo "ERROR: Plugin file not found: $PLUGIN_PATH" >&2
