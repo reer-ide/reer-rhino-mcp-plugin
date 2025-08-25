@@ -150,8 +150,7 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                     ["unique_objects_count"] = selectedObjectsDict.Count, // Number of unique parent objects
                     ["selected_objects"] = selectedObjects,
                     ["include_lights"] = includeLights,
-                    ["include_grips"] = includeGrips,
-                    ["object_count_in_file"] = doc.Objects.Count,
+                    ["include_grips"] = includeGrips
                 };
             }
             catch (Exception ex)

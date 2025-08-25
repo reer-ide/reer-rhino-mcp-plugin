@@ -28,36 +28,40 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                 };
             }
 
-            var metaData = new JObject
-            {
-                ["name"] = doc.Name,
-                ["date_created"] = doc.DateCreated,
-                ["date_modified"] = doc.DateLastEdited,
-                ["tolerance"] = doc.ModelAbsoluteTolerance,
-                ["angle_tolerance"] = doc.ModelAngleToleranceDegrees,
-                ["path"] = doc.Path,
-                ["units"] = doc.ModelUnitSystem.ToString(),
-                ["total_objects"] = doc.Objects.Count,
-                ["total_layers"] = doc.Layers.Count
-            };
-
             var layersData = new JArray();
+            var objectsByLayer = new Dictionary<int, List<RhinoObject>>();
+            int totalObjectCount = 0;
 
-            // Group objects by layer
-            var objectsByLayer = doc.Objects
-                .Where(obj => obj != null && obj.IsValid)
-                .GroupBy(obj => obj.Attributes.LayerIndex)
-                .ToDictionary(g => g.Key, g => g.ToList());
+            // Single pass through objects - group by layer and count active objects
+            foreach (var obj in doc.Objects)
+            {
+                if (obj != null && obj.IsValid && !obj.IsDeleted)
+                {
+                    totalObjectCount++;
+                    var layerIndex = obj.Attributes.LayerIndex;
+                    
+                    if (!objectsByLayer.ContainsKey(layerIndex))
+                    {
+                        objectsByLayer[layerIndex] = new List<RhinoObject>();
+                    }
+                    objectsByLayer[layerIndex].Add(obj);
+                }
+            }
 
+            // Process layers - only non-deleted ones
+            int activeLayerCount = 0;
             foreach (var layer in doc.Layers)
             {
+                if (layer == null || layer.IsDeleted) continue;
+                
+                activeLayerCount++;
                 var layerObjects = objectsByLayer.ContainsKey(layer.Index) 
                     ? objectsByLayer[layer.Index] 
                     : new List<RhinoObject>();
 
                 var sampleObjects = new JArray();
                 
-                // Get sample objects with metadata
+                // Get sample objects - remove redundant layer info since it's already in layerData
                 foreach (var obj in layerObjects.Take(SAMPLE_OBJECTS_PER_LAYER))
                 {
                     try
@@ -66,11 +70,10 @@ namespace ReerRhinoMCPPlugin.Core.Functions
                         {
                             ["id"] = obj.Id.ToString(),
                             ["type"] = obj.Geometry?.GetType().Name ?? "Unknown",
-                            ["name"] = obj.Attributes.Name ?? "",
-                            ["layer"] = layer.FullPath
+                            ["name"] = obj.Attributes.Name ?? ""
                         };
 
-                        // Add metadata if available
+                        // Add metadata only if available
                         var userText = obj.Attributes.GetUserStrings();
                         if (userText != null && userText.Count > 0)
                         {
@@ -104,6 +107,18 @@ namespace ReerRhinoMCPPlugin.Core.Functions
 
                 layersData.Add(layerData);
             }
+
+            var metaData = new JObject
+            {
+                ["name"] = doc.Name,
+                ["date_created"] = doc.DateCreated,
+                ["date_modified"] = doc.DateLastEdited,
+                ["tolerance"] = doc.ModelAbsoluteTolerance,
+                ["angle_tolerance"] = doc.ModelAngleToleranceDegrees,
+                ["units"] = doc.ModelUnitSystem.ToString(),
+                ["total_objects"] = totalObjectCount,
+                ["total_layers"] = activeLayerCount
+            };
 
             var result = new JObject
             {
