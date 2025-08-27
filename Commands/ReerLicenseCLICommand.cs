@@ -98,7 +98,7 @@ namespace ReerRhinoMCPPlugin.Commands
                 RhinoApp.WriteLine("\n=== Registration Details ===");
                 RhinoApp.WriteLine($"License Key: {licenseKey.Substring(0, Math.Min(8, licenseKey.Length))}...");
                 RhinoApp.WriteLine($"User ID: {userId}");
-                var serverUrl = ConnectionSettings.GetServerUrl();
+                var serverUrl = ConnectionSettings.GetHttpServerUrl();
                 var mode = ReerRhinoMCPPlugin.Instance.MCPSettings.DevelopmentMode ? "development" : "production";
                 RhinoApp.WriteLine($"Server URL: {serverUrl} ({mode} server)");
                 
