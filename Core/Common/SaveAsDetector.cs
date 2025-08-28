@@ -30,6 +30,7 @@ namespace ReerRhinoMCPPlugin.Core.Common
         /// </summary>
         public class SaveAsDetectedEventArgs : EventArgs
         {
+            public bool IsAutoSave { get; set; } = false; //property to indicate if it's an autosave
             public string DocumentGuid { get; set; }
             public string OldFilePath { get; set; }
             public string NewFilePath { get; set; }
@@ -86,7 +87,14 @@ namespace ReerRhinoMCPPlugin.Core.Common
                 // Get the saved file path from the event
                 var savedFilePath = e.FileName;
 
-                Logger.Debug($"EndSave: Document saved to '{savedFilePath}'");
+                // Check if this is an autosave operation
+                bool isAutoSave = IsAutoSaveOperation(savedFilePath);
+
+                if (isAutoSave)
+                {
+                    Logger.Debug($"Autosave operation detected, ignoring: '{savedFilePath}'");
+                    return;
+                }
 
                 // Compare paths to detect SaveAs operation
                 if (!string.IsNullOrEmpty(savedFilePath) &&
@@ -100,6 +108,7 @@ namespace ReerRhinoMCPPlugin.Core.Common
                     Logger.Debug("Raising SaveAsDetected event...");
                     SaveAsDetected?.Invoke(this, new SaveAsDetectedEventArgs
                     {
+                        IsAutoSave = false,
                         DocumentGuid = documentInfoBeforeSave.DocumentGuid,
                         OldFilePath = documentInfoBeforeSave.FilePath,
                         NewFilePath = savedFilePath,
@@ -142,6 +151,47 @@ namespace ReerRhinoMCPPlugin.Core.Common
         }
 
         /// <summary>
+        /// Determines if the given file path is an autosave operation
+        /// </summary>
+        /// <param name="filePath">The file path to check</param>
+        /// <returns>True if this is an autosave operation, false otherwise</returns>
+        private bool IsAutoSaveOperation(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath))
+                return false;
+
+            try
+            {
+                // Get Rhino's autosave folder path
+                string autoSaveFolder = Rhino.ApplicationSettings.FileSettings.AutoSaveFile;
+                
+                if (string.IsNullOrEmpty(autoSaveFolder))
+                    return false;
+
+                // Get the directory of the autosave path (in case AutoSaveFile returns a file path)
+                string autoSaveDirectory = Path.GetDirectoryName(autoSaveFolder);
+                if (string.IsNullOrEmpty(autoSaveDirectory))
+                    autoSaveDirectory = autoSaveFolder;
+
+                // Normalize paths for comparison
+                string normalizedFilePath = Path.GetFullPath(filePath);
+                string normalizedAutoSaveDir = Path.GetFullPath(autoSaveDirectory);
+
+                // Check if the saved file is within the autosave directory
+                bool isInAutoSaveFolder = normalizedFilePath.StartsWith(normalizedAutoSaveDir, StringComparison.OrdinalIgnoreCase);
+                
+                Logger.Debug($"AutoSave check: File='{normalizedFilePath}', AutoSaveDir='{normalizedAutoSaveDir}', IsAutoSave={isInAutoSaveFolder}");
+                
+                return isInAutoSaveFolder;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Error checking if path is autosave: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Show user confirmation dialog for SaveAs operation using Rhino's command prompt
         /// </summary>
         public static Task<SaveAsUserChoice> ShowSaveAsConfirmationDialog(string oldPath, string newPath)
@@ -170,7 +220,7 @@ namespace ReerRhinoMCPPlugin.Core.Common
                     RhinoApp.WriteLine("Choose how to continue your MCP session:");
                     RhinoApp.WriteLine("  1. UseNewFile - Continue with the new saved file");
                     RhinoApp.WriteLine("  2. ReturnToOriginal - Open original file and continue");
-                    RhinoApp.WriteLine("  3. DoNothing - Keep current state");
+                    RhinoApp.WriteLine("  3. DoNothing - This will keep your MCP session unchanged, but you can switch files manually later");
                     RhinoApp.WriteLine("");
 
                     // Use Rhino's GetOption for user choice

@@ -358,6 +358,14 @@ namespace ReerRhinoMCPPlugin
                 Logger.Debug($"  Old Path: {e.OldFilePath}");
                 Logger.Debug($"  New Path: {e.NewFilePath}");
 
+                // check if this is an Autosave operation
+                if (e.IsAutoSave)
+                {
+                    Logger.Info("Detected Autosave operation, ignoring SaveAs handling.");
+                    return;
+                }
+
+
                 // Look up the linked file using the FileIntegrityManager
                 var linkedFile = fileIntegrityManager.GetLinkedFileByGUID(e.DocumentGuid);
                 
