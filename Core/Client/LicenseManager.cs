@@ -23,6 +23,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
         public LicenseManager()
         {
             httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(60); // lifespan 60s
         }
         
         /// <summary>
@@ -53,7 +54,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                 
                 // Send registration request to server
-                var response = await httpClient.PostAsync($"{ConnectionSettings.GetServerUrl()}/license/register", content);
+                var response = await httpClient.PostAsync($"{ConnectionSettings.GetHttpServerUrl()}/license/register", content);
                 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -153,7 +154,7 @@ namespace ReerRhinoMCPPlugin.Core.Client
                 var jsonContent = JsonConvert.SerializeObject(validationRequest);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
                 
-                var response = await httpClient.PostAsync($"{ConnectionSettings.GetServerUrl()}/license/validate", content);
+                var response = await httpClient.PostAsync($"{ConnectionSettings.GetHttpServerUrl()}/license/validate", content);
                 
                 if (!response.IsSuccessStatusCode)
                 {

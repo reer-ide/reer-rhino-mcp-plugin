@@ -101,6 +101,8 @@
     <!-- macOS native dependencies -->
     <Copy SourceFiles="$(OutDir)runtimes/osx/native/libSkiaSharp.dylib" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutDir)runtimes/osx/native/libSkiaSharp.dylib')" />
     <Copy SourceFiles="$(OutDir)runtimes/osx/native/libHarfBuzzSharp.dylib" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutDir)runtimes/osx/native/libHarfBuzzSharp.dylib')" />
+    <!-- Copy Avalonia native library for macOS -->
+    <Copy SourceFiles="$(OutDir)runtimes/osx/native/libAvaloniaNative.dylib" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutDir)runtimes/osx/native/libAvaloniaNative.dylib')" />
   </Target>
   
 </Project>
