@@ -27,14 +27,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             try
             {
                 var doc = RhinoDoc.ActiveDoc;
-                if (doc == null)
-                {
-                    return new JObject
-                    {
-                        ["error"] = "No active Rhino document"
-                    };
-                }
-
                 // Handle both single object and multiple objects input
                 JArray objectsToCreate = null;
                 

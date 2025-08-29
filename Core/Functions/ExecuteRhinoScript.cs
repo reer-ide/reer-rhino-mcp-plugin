@@ -19,13 +19,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
         public JObject Execute(JObject parameters)
         {
             var doc = RhinoDoc.ActiveDoc;
-            if (doc == null)
-            {
-                return new JObject
-                {
-                    ["error"] = "No active Rhino document"
-                };
-            }
 
             string code = parameters["code"]?.ToString();
             if (string.IsNullOrEmpty(code))

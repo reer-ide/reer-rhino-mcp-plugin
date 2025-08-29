@@ -17,13 +17,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             try
             {
                 var doc = RhinoDoc.ActiveDoc;
-                if (doc == null)
-                {
-                    return new JObject
-                    {
-                        ["error"] = "No active Rhino document"
-                    };
-                }
 
                 // Handle both single layer and multiple layers input
                 JArray layersToDelete = null;

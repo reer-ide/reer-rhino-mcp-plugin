@@ -19,13 +19,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             try
             {
                 var doc = RhinoDoc.ActiveDoc;
-                if (doc == null)
-                {
-                    return new JObject
-                    {
-                        ["error"] = "No active Rhino document"
-                    };
-                }
 
                 // Get parameters for lights and grips
                 bool includeLights = ParameterUtils.GetBoolValue(parameters, "include_lights", false);

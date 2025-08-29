@@ -17,14 +17,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             try
             {
                 var doc = RhinoDoc.ActiveDoc;
-                if (doc == null)
-                {
-                    return new JObject
-                    {
-                        ["error"] = "No active Rhino document"
-                    };
-                }
-
                 // Check for "all" flag to delete all objects
                 bool deleteAll = parameters["all"]?.Value<bool>() ?? false;
                 

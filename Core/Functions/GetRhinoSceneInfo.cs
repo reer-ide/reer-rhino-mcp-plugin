@@ -20,13 +20,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             Logger.Info("Getting scene info...");
 
             var doc = RhinoDoc.ActiveDoc;
-            if (doc == null)
-            {
-                return new JObject
-                {
-                    ["error"] = "No active Rhino document"
-                };
-            }
 
             var layersData = new JArray();
             var objectsByLayer = new Dictionary<int, List<RhinoObject>>();

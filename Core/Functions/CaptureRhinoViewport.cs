@@ -25,14 +25,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             try
             {
                 var doc = RhinoDoc.ActiveDoc;
-                if (doc == null)
-                {
-                    return new JObject
-                    {
-                        ["error"] = "No active Rhino document"
-                    };
-                }
-
                 var activeView = doc.Views.ActiveView;
                 if (activeView == null)
                 {

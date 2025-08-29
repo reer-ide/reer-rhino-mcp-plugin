@@ -18,13 +18,6 @@ namespace ReerRhinoMCPPlugin.Core.Functions
             try
             {
                 var doc = RhinoDoc.ActiveDoc;
-                if (doc == null)
-                {
-                    return new JObject
-                    {
-                        ["error"] = "No active Rhino document"
-                    };
-                }
 
                 var filters = parameters["filters"] as JObject ?? new JObject();
                 var filtersType = parameters["filters_type"]?.ToString() ?? "and";
